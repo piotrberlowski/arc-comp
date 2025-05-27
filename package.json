@@ -12,9 +12,11 @@
     "prismaLocal": "dotenv -e .env.local prisma migrate dev"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.9.1",
     "@prisma/client": "^6.8.2",
     "@prisma/extension-accelerate": "^2.0.0",
     "next": "15.3.2",
+    "next-auth": "^5.0.0-beta.28",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwindcss-bg-patterns": "^0.3.0"
@@ -25,7 +27,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "daisyui": "^5.0.37",
+    "daisyui": "^5.0.38",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
     "prisma": "^6.8.2",

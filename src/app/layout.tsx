@@ -1,7 +1,7 @@
 import { auth } from "@/app/auth";
 import type { Metadata } from "next";
 import { SessionProvider } from "next-auth/react";
-import Navigation from "../components/navbar";
+import Navigation from "../components/Navigation";
 import "./globals.css";
 
 
@@ -21,14 +21,12 @@ export default async function RootLayout({
     <html lang="en">
       <body className='h-dvh w-full flex flex-col px-2 relative'>
         <SessionProvider session={session}>
-          <div className='bg-inherit translate-y-0'>
             <div className='flex-0 flex'>
               <Navigation className="flex-1" />
             </div>
-            <main className="relative bg-inherit align-top items-center w-full">
+            <main className="relative bg-base-100 align-top items-center w-full h-full">
               {children}
             </main>
-          </div>
         </SessionProvider>
       </body>
     </html>

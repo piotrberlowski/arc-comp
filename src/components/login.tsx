@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export function ConditionalSignInOut() {
-    const {data: session, status} = useSession()
+    const {data: session} = useSession()
     const router = useRouter()
     
     if (!session?.externalAccount)

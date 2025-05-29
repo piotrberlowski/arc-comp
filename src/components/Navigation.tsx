@@ -11,7 +11,7 @@ export default async function Navigation({ className }: { className?: string}) {
     const authenticated = session?.externalAccount !== undefined
 
     return (
-        <div className={`navbar bg-base-300 ${className}`}>
+        <div className={`navbar bg-neutral ${className}`}>
             <div className="navbar-start">
                 <div className="dropdown">
                     <div tabIndex={0} role="button" className="btn btn-ghost lg:hidden">
@@ -19,7 +19,7 @@ export default async function Navigation({ className }: { className?: string}) {
                     </div>
                     {authenticated && ( 
                     <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
-                        <li><Link href="/">My Tournaments</Link></li>
+                        <li><Link href="/tournaments">My Tournaments</Link></li>
                     </ul>
                     )}
                 </div>
@@ -27,8 +27,8 @@ export default async function Navigation({ className }: { className?: string}) {
             </div>
             <div className="navbar-center hidden lg:flex">
                 {authenticated && ( 
-                <ul className="menu menu-horizontal px-1">
-                    <li><Link href="/">My Tournaments</Link></li>
+                <ul className="menu menu-horizontal px-1 bg-primary">
+                    <li><Link href="/tournaments">My Tournaments</Link></li>
                 </ul>
                 )}
             </div>

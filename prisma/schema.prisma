@@ -26,6 +26,9 @@ model User {
  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  organizerRoles Organizer[]
+  isAdmin Boolean @default(false)
 }
 
 model Account {
@@ -74,12 +77,30 @@ model Authenticator {
   @@id([userId, credentialID])
 }
 
-model Club {
-  id   String @id @default(cuid())
-  name String @unique
+
+model Organizer {
+  userId String
+  club String
+
+  user User @relation(fields:[userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, club])
 }
 
 model RoundFormat {
   id   String @id @default(cuid())
   name String @unique
+  tournaments Tournament[]
+  endCount Int @default(28)
+  groupSize Int @default(4)
 }
+
+model Tournament {
+  id String @id @default(cuid())
+  name String
+  date DateTime
+  formatId String
+  organizerClub String
+  format RoundFormat @relation(fields: [formatId], references: [id], onDelete: Restrict)  
+}
+

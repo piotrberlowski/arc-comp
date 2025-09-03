@@ -1,15 +1,21 @@
-import { RoundFormat, Tournament } from "@prisma/client"
+"use server"
 
-export async function listTournamentsForClubs(clubs: string[]) {
-     if (!prisma) {
-        console.log("Cannot remove organizer, DB not connected!")
-        throw "No DB connection"
-    }
-    return prisma.tournament.findMany({
+import { Participant, Prisma } from "@prisma/client"
+import { prismaOrThrow } from "../../../lib/prisma"
+
+export interface TournamentUpdate {
+    name?: string,
+    date?: Date,
+}
+
+export async function listTournamentsForClubs(clubs: string[], includeArchive: boolean) {
+    const isArchive: boolean | Prisma.BoolFilter<"Tournament"> | undefined = (includeArchive) ? undefined : false
+    return prismaOrThrow("list tournaments").tournament.findMany({
         where: {
             organizerClub: {
                 in: clubs
-            }
+            },
+            isArchive: isArchive
         },
         include: {
             format: true
@@ -21,19 +27,59 @@ export async function listTournamentsForClubs(clubs: string[]) {
 }
 
 export async function listRoundFormats() {
-     if (!prisma) {
-        console.log("Cannot remove organizer, DB not connected!")
-        throw "No DB connection"
-    }
-    return prisma.roundFormat.findMany().catch(e => {
-        console.log("Failed.to load Round Formats...", e)
+    return prismaOrThrow("list round formats").roundFormat.findMany().catch(e => {
+        console.log("Failed to load Round Formats...", e)
     })
 }
 
-export async function createTournament(tournament:Tournament) {
-         if (!prisma) {
-        console.log("Cannot remove organizer, DB not connected!")
-        throw "No DB connection"
-    }
+export async function createTournament(name: string, formatId: string, club: string, date: Date) {
+    return await prismaOrThrow("create tournament").tournament.create(
+        {
+            data: {
+                name: name,
+                organizerClub: club,
+                formatId: formatId,
+                date: date
+            }
+        }
+    ).then(
+        t => t.id    
+    )
 
 }
+
+export async function archiveTournament(id: string) {
+    return await prismaOrThrow("archive tournament").tournament.update(
+        {
+            where: {
+                id: id,
+            },
+            data: {
+                isArchive: true
+            },
+            include: {
+                format: true
+            }
+        }
+    )
+}
+
+export async function getTournamentById(id: string) {
+    return await prismaOrThrow("get tournament by id").tournament.findFirstOrThrow(
+        {
+            where: {
+                id: id,
+            }
+        }
+    )
+}
+
+export async function updateTournament(id: string, u: TournamentUpdate) {
+    return await prismaOrThrow("update tournament").tournament.update({
+        where: {
+            id: id,
+        },
+        data: u,
+    })
+}
+

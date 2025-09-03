@@ -1,0 +1,1 @@
+export const TOURNAMENT_DATE_FORMAT = "yyyy-MM-dd"

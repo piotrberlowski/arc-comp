@@ -8,7 +8,7 @@ export default function UnauthorizedOrganizer() {
                     <h1 className="text-3xl font-bold">Become an Organizer!</h1>
                     <p className="py-6 flex flex-col">
                         <span className="w-full my-2">
-                            You can't view this page, because you're not a Tournament Organizer.
+                            {`You can't view this page, because you're not a Tournament Organizer.`}
                         </span>
                         <span className="w-full my-2">
                             Please send me an e-mail using the link below with your club name and your username to receive access.

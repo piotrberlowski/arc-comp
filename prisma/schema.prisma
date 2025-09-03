@@ -87,6 +87,18 @@ model Organizer {
   @@id([userId, club])
 }
 
+model EquipmentCategory {
+  id String @id
+  name String @unique
+  participants Participant[]
+}
+
+model AgeGroup {
+  id String @id
+  name String @unique
+  participants Participant[]
+}
+
 model RoundFormat {
   id   String @id @default(cuid())
   name String @unique
@@ -101,6 +113,28 @@ model Tournament {
   date DateTime
   formatId String
   organizerClub String
-  format RoundFormat @relation(fields: [formatId], references: [id], onDelete: Restrict)  
+  format RoundFormat @relation(fields: [formatId], references: [id], onDelete: Restrict)
+  particpants Participant[]
+
+  isArchive Boolean @default(false)
 }
 
+enum GenderGroup {
+  M
+  F
+}
+
+model Participant {
+  id String @id @default(cuid())
+  name String
+  membershipNo String
+  ageGroupId String
+  categoryId String
+  tournamentId String
+  club String?
+  genderGroup GenderGroup
+  ageGroup AgeGroup @relation(fields: [ageGroupId], references: [id], onDelete: Restrict)
+  category EquipmentCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Restrict)
+  @@unique([tournamentId, membershipNo])
+}

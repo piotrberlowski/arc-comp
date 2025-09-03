@@ -23,8 +23,12 @@
     "next": "15.3.2",
     "next-auth": "^5.0.0-beta.28",
     "react": "^19.0.0",
+    "react-day-picker": "^9.7.0",
     "react-dom": "^19.0.0",
-    "tailwindcss-bg-patterns": "^0.3.0"
+    "swr": "^2.3.3",
+    "tailwindcss-bg-patterns": "^0.3.0",
+    "zod": "^3.25.56",
+    "zod_utilz": "^0.8.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

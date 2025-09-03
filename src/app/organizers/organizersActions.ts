@@ -38,7 +38,9 @@ export async function createOrganizer(formData: FormData) {
     }).then(
         () => {
             const revalidate = formData.get("revalidate")?.toString()
-            revalidate && revalidatePath(revalidate)
+            if (revalidate) {
+                revalidatePath(revalidate)
+            }
             return undefined
         }
     ).catch(

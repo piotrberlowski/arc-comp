@@ -1,5 +1,6 @@
 "use client"
 
+import useErrorContext from "@/components/errors/ErrorContext";
 import { XCircleIcon } from "@heroicons/react/24/outline";
 import { Participant } from "@prisma/client";
 import { useState, useTransition } from "react";
@@ -10,6 +11,7 @@ export default function ParticipantsList({ participants }: { participants: Parti
     const [displayP, setDisplayP] = useState(participants)
     const [isPending, startTransition] = useTransition()
     const tEdit = useTournamentContext()
+    const setError = useErrorContext()
 
     return (
         <div className="overflow-x-auto rounded-box border border-base-content/5 bg-base-100 w-4/5 mx-auto">
@@ -46,7 +48,7 @@ export default function ParticipantsList({ participants }: { participants: Parti
                                                 e => {
                                                     tEdit && listParticipants(tEdit.getTournament().id).then(tP => setDisplayP(tP))
                                                     console.log(e)
-
+                                                    setError(e)
                                                 }
                                             )
                                     )}><XCircleIcon width={24} />Remove</button>

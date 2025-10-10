@@ -2,10 +2,10 @@
 import AgeDivisionSelect from "./components/AgeDivisionSelect"
 import EquipmentCategorySelect from "./components/EquipmentCategorySelect"
 
+import ErrorAlert from "@/components/errors/ErrorAlert"
 import { PlusCircleIcon } from "@heroicons/react/24/outline"
 import Form from "next/form"
-import React, { useActionState } from "react"
-import ErrorAlert from "@/components/ErrorAlert"
+import { useActionState } from "react"
 import GenderSelect from "./components/GenderSelect"
 import { addParticipant, AddParticipantState } from "./participantActions"
 

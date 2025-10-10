@@ -1,3 +1,4 @@
+import { ErrorContextProvider } from "@/components/errors/ErrorContext"
 import { getTournamentById } from "../tournamentActions"
 import AddParticipantForm from "./AddParticipantForm"
 import ParticipantsList from "./ParticipantsList"
@@ -23,9 +24,11 @@ export default async function TournamentDetailsPage({ params }: { params: Promis
     return (
         <div className="w-full min-h-max">
             <TournamentEditContextProvider tournament={tournament}>
-                <TournamentEditForm />
-                <AddParticipantForm tId={tournament.id} />
-                <ParticipantsList participants={participants} />
+                <ErrorContextProvider>
+                    <TournamentEditForm />
+                    <AddParticipantForm tId={tournament.id} />
+                    <ParticipantsList participants={participants} />
+                </ErrorContextProvider>
             </TournamentEditContextProvider>
         </div>
     )

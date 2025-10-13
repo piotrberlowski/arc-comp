@@ -1,10 +1,9 @@
 'use client'
+import { CheckCircleIcon, ExclamationCircleIcon, PencilSquareIcon, XCircleIcon } from "@heroicons/react/24/outline"
 import { notFound } from "next/navigation"
-import useTournamentContext, { TournamentEditContextProvider, TournamentEditController } from "./TournamentContext"
-import { useActionState, useState } from "react"
-import { CheckCircleIcon, CheckIcon, ExclamationCircleIcon, PencilSquareIcon, XCircleIcon, XMarkIcon } from "@heroicons/react/24/outline"
-import { Tournament } from "@prisma/client"
+import { useState } from "react"
 import TournamentDayPicker from "../TournamentDayPicker"
+import useTournamentContext, { TournamentEditController } from "./TournamentContext"
 
 function TournamentDetailsDisplay({ onEdit }: { onEdit: () => void }) {
     const ctrl = useTournamentContext()

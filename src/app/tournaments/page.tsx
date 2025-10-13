@@ -1,8 +1,5 @@
 import UnauthorizedOrganizer from "@/components/Unauthorized"
 import { auth } from "../auth"
-import { listTournamentsForClubs } from "./tournamentActions"
-import TournamentCard from "./TournamentCard"
-import TournamentHeader from "./TournamentHeader"
 import TournamentsList from "./TournamentsList"
 
 export default async function TournamentsPage({includeArchive}:{includeArchive: boolean}) {

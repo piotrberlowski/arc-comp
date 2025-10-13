@@ -1,6 +1,6 @@
 "use server"
 
-import { Participant, Prisma } from "@prisma/client"
+import { Prisma } from "@prisma/client"
 import { prismaOrThrow } from "../../../lib/prisma"
 
 export interface TournamentUpdate {

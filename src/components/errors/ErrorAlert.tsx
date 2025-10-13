@@ -13,7 +13,7 @@ export default function ErrorAlert({ error, resetAction }: { error?: string, res
             <ExclamationTriangleIcon width={24} />
             <div className="flex-1">{message}</div>
             <div>
-                <button className="btn btn-sm btn-outline" onClick={(e) => resetAction()}>X</button>
+                <button className="btn btn-sm btn-outline" onClick={() => resetAction()}>X</button>
             </div>
         </div>
     )

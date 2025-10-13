@@ -29,7 +29,7 @@ export interface AddParticipantState {
         categoryId?: string
         club?: string
     }
-    errors: any
+    errors: string|z.ZodError|undefined
 
 }
 

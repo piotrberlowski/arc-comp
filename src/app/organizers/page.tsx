@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth } from "../auth";
-import OrganizerCard from "./OrganizerCard";
 import CreateOrganizerForm from "./CreateOrganizerForm";
+import OrganizerCard from "./OrganizerCard";
+import { listOrganizers } from "./organizersActions";
 
 
 export default async function OrganizersPage() {
@@ -9,21 +10,7 @@ export default async function OrganizersPage() {
     if (!session?.externalAccount || !session?.isAdmin) {
         return redirect("/")
     }
-    const res = await prisma?.user.findMany({
-        where: {
-            organizerRoles: {
-                some: {}
-            },
-        },
-        include: {
-            organizerRoles: true,
-        },
-    }).then(
-        organizers => { return { organizers: organizers, error: null } }
-    ).catch(
-        e => { return { organizers: [], error: e } }
-    )
-
+    const res = await listOrganizers()
     if (res?.error) {
         return (
             <div role="alert" className="alert alert-error">

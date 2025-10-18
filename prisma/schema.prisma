@@ -26,6 +26,9 @@ model User {
  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  organizerRoles Organizer[]
+  isAdmin Boolean @default(false)
 }
 
 model Account {
@@ -74,12 +77,89 @@ model Authenticator {
   @@id([userId, credentialID])
 }
 
-model Club {
-  id   String @id @default(cuid())
+
+model Organizer {
+  userId String
+  club String
+
+  user User @relation(fields:[userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, club])
+}
+
+model EquipmentCategory {
+  id String @id
   name String @unique
+  participants Participant[]
+}
+
+model AgeGroup {
+  id String @id
+  name String @unique
+  participants Participant[]
 }
 
 model RoundFormat {
   id   String @id @default(cuid())
   name String @unique
+  tournaments Tournament[]
+  endCount Int @default(28)
+  groupSize Int @default(4)
+}
+
+model Tournament {
+  id String @id @default(cuid())
+  name String
+  date DateTime
+  formatId String
+  organizerClub String
+  format RoundFormat @relation(fields: [formatId], references: [id], onDelete: Restrict)
+  participants Participant[]
+  groupAssignments GroupAssignment[]
+  participantScores ParticipantScore[] @relation("ParticipantScore")
+
+  isArchive Boolean @default(false)
+}
+
+enum GenderGroup {
+  M
+  F
+}
+
+model Participant {
+  id String @id @default(cuid())
+  name String
+  membershipNo String
+  ageGroupId String
+  categoryId String
+  tournamentId String
+  club String?
+  genderGroup GenderGroup
+  ageGroup AgeGroup @relation(fields: [ageGroupId], references: [id], onDelete: Restrict)
+  category EquipmentCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Restrict)
+  groupAssignment GroupAssignment?
+  participantScore ParticipantScore? @relation("ParticipantScore")
+  @@unique([tournamentId, membershipNo])
+}
+
+model GroupAssignment {
+  id String @id @default(cuid())
+  participantId String @unique
+  tournamentId String
+  groupNumber Int
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  @@unique([participantId, tournamentId])
+}
+
+model ParticipantScore {
+  id String @id @default(cuid())
+  participantId String @unique
+  tournamentId String
+  score Int?
+  isComplete Boolean @default(false)
+  participant Participant @relation("ParticipantScore", fields: [participantId], references: [id], onDelete: Cascade)
+  tournament Tournament @relation("ParticipantScore", fields: [tournamentId], references: [id], onDelete: Cascade)
+  @@unique([participantId, tournamentId])
 }

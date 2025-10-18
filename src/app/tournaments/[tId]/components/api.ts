@@ -1,0 +1,1 @@
+export interface SelectElementParams {name:string, className?:string, defaultValue?: string, value?:string}

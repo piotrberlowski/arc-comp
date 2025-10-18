@@ -2,13 +2,10 @@
 
 import { Organizer } from "@prisma/client"
 import { revalidatePath } from "next/cache"
+import { prismaOrThrow } from "../../../lib/prisma"
 
 export async function removeOrganizer(role: Organizer, revalidate?: string) {
-    if (!prisma) {
-        console.log("Cannot remove organizer, DB not connected!")
-        throw "No DB connection"
-    }
-    return await prisma.organizer.delete(
+    return await prismaOrThrow("remove organizer").organizer.delete(
         {
             where: {
                 userId_club: role,
@@ -20,17 +17,13 @@ export async function removeOrganizer(role: Organizer, revalidate?: string) {
 }
 
 export async function createOrganizer(formData: FormData) {
-    if (!prisma) {
-        console.log("Cannot remove organizer, DB not connected!")
-        throw "No DB connection"
-    }
     const userId = formData.get("userId")?.toString()
     const club = formData.get("club")?.toString()
     if (!userId || !club) {
         return "Please specify both userId and club!"
     }
 
-    return await prisma.organizer.create({
+    return await prismaOrThrow("create organizer").organizer.create({
         data: {
             userId: userId,
             club: club,
@@ -49,11 +42,7 @@ export async function createOrganizer(formData: FormData) {
 }
 
 export async function listUsers() {
-    if (!prisma) {
-        console.log("Cannot remove organizer, DB not connected!")
-        throw "No DB connection"
-    }
-    return await prisma.user.findMany({
+    return await prismaOrThrow("list users").user.findMany({
         select: {
             id: true,
             name: true,
@@ -63,5 +52,5 @@ export async function listUsers() {
                 not: null
             }
         }
-    })   
+    })
 }

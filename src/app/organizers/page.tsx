@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "../auth";
-import OrganizerCard from "./OrganizerCard";
 import CreateOrganizerForm from "./CreateOrganizerForm";
+import OrganizerCard from "./OrganizerCard";
 
 
 export default async function OrganizersPage() {
@@ -9,7 +9,7 @@ export default async function OrganizersPage() {
     if (!session?.externalAccount || !session?.isAdmin) {
         return redirect("/")
     }
-    const res = await prisma?.user.findMany({
+    const res = await globalForPrisma?.user.findMany({
         where: {
             organizerRoles: {
                 some: {}

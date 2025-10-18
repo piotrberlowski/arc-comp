@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import GroupCard from "../components/GroupCard"
-import UnassignedParticipants from "../components/UnassignedParticipants"
 import { TournamentGroupsData } from "../groupActions"
 import { useGroupAssignment } from "../TournamentContext"
+import GroupCard from "./GroupCard"
+import UnassignedParticipants from "./UnassignedParticipants"
 
 interface GroupAssignmentViewProps {
     groupsData: TournamentGroupsData

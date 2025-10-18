@@ -54,3 +54,20 @@ export async function listUsers() {
         }
     })
 }
+
+export async function listOrganizers() {
+    return prismaOrThrow("list organizers").user.findMany({
+        where: {
+            organizerRoles: {
+                some: {}
+            },
+        },
+        include: {
+            organizerRoles: true,
+        },
+    }).then(
+        organizers => { return { organizers: organizers, error: null } }
+    ).catch(
+        e => { return { organizers: [], error: e } }
+    )
+}

@@ -36,7 +36,7 @@ export default function GroupCard({
             onDrop={onDrop}
         >
             <div className={`flex items-center justify-between mb-3 p-3 rounded-lg ${headerBgClass} ${headerTextClass}`}>
-                <h3 className="font-semibold text-lg">Group {group.groupNumber}</h3>
+                <h3 className="font-semibold text-lg">Target {group.groupNumber}</h3>
                 <span className={`badge badge-sm ${isOddGroup ? 'badge-primary-content' : 'badge-neutral-content'}`}>
                     {group.participants.length} participants
                 </span>

@@ -25,8 +25,8 @@ export default function AddParticipantForm({ tId }: { tId: string }) {
                 <input type="hidden" name="tId" value={tId} />
                 <input type="text" name="name" className={`input ${addParticipantState.errors?.name ? 'input-error' : 'input-secondary'}`} placeholder="Archer's Name" defaultValue={addParticipantState.data?.name} />
                 <input type="text" name="membershipNo" className={`input ${addParticipantState.errors?.membershipNo ? 'input-error' : 'input-secondary'}`} placeholder="Membership No." defaultValue={addParticipantState.data?.membershipNo} />
-                <GenderSelect name="genderGroup" className="flex-0 w-fit select select-secondary" defaultValue={addParticipantState.data?.genderGroup} />
                 <AgeDivisionSelect name="ageGroupId" className="flex-0 w-fit select select-secondary" defaultValue={addParticipantState.data?.ageGroupId} />
+                <GenderSelect name="genderGroup" className="flex-0 w-fit select select-secondary" defaultValue={addParticipantState.data?.genderGroup} />
                 <EquipmentCategorySelect name="categoryId" className="flex-0 w-fit select select-secondary" defaultValue={addParticipantState.data?.categoryId} />
                 <input type="text" name="club" className="input input-secondary" placeholder="Archer's Club" defaultValue={addParticipantState.data?.club} />
                 <button type="submit" className="btn btn-secondary" disabled={isPending}><PlusCircleIcon width={20} />Add</button>

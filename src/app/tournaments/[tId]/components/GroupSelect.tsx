@@ -53,7 +53,7 @@ export default function GroupSelect({
                     <option value="" disabled>Choose a group...</option>
                     {nonFullGroups.map((group) => (
                         <option key={group.groupNumber} value={group.groupNumber}>
-                            Group {group.groupNumber} ({group.participants.length}/{groupSize})
+                            Target {group.groupNumber} ({group.participants.length}/{groupSize})
                         </option>
                     ))}
                 </select>

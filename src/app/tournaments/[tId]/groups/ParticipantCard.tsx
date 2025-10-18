@@ -4,7 +4,7 @@ import { UserPlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { GroupAssignment, Participant } from "@prisma/client"
 import { useState } from "react"
 import { useGroupAssignment } from "../TournamentContext"
-import GroupSelect from "./GroupSelect"
+import GroupSelect from "../components/GroupSelect"
 
 interface ParticipantCardProps {
     participant: Participant & { groupAssignment: GroupAssignment | null }

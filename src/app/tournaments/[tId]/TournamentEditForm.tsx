@@ -1,10 +1,9 @@
 'use client'
+import { CheckCircleIcon, ExclamationCircleIcon, PencilSquareIcon, XCircleIcon } from "@heroicons/react/24/outline"
 import { notFound } from "next/navigation"
-import useTournamentContext, { TournamentEditContextProvider, TournamentEditController } from "./TournamentContext"
-import { useActionState, useState } from "react"
-import { CheckCircleIcon, CheckIcon, ExclamationCircleIcon, PencilSquareIcon, XCircleIcon, XMarkIcon } from "@heroicons/react/24/outline"
-import { Tournament } from "@prisma/client"
+import { useState } from "react"
 import TournamentDayPicker from "../TournamentDayPicker"
+import useTournamentContext, { TournamentEditController } from "./TournamentContext"
 
 function TournamentDetailsDisplay({ onEdit }: { onEdit: () => void }) {
     const ctrl = useTournamentContext()
@@ -98,7 +97,7 @@ export default function TournamentEditForm() {
     const tEdit = useTournamentContext()
     return (
 
-        <div>
+        <div className="mb-1">
             <div className="flex w-full">
                 <h1 className="flex-1 mx-auto text-3xl bg-primary text-primary-content text-center p-4 mt-2 rounded-t-md justify-between flex">
                     <span className="flex-grow hidden md:flex max-w-fit text-xl">
@@ -106,9 +105,6 @@ export default function TournamentEditForm() {
                     </span>
                     <TournamentDetailsHeader onError={setError} />
                 </h1>
-            </div>
-            <div className="border border-primary border-solid w-full min-h-max">
-
             </div>
             <div role="alert" className={`alert alert-error ${!error && 'hidden'}`}>
                 <ExclamationCircleIcon width={20} className="w-fit" />

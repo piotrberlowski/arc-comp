@@ -5,7 +5,7 @@ import ErrorAlert from "./ErrorAlert";
 
 type setErrorF = (e?: string) => void
 
-const ErrorContext = createContext<setErrorF>((e?: string) => { })
+const ErrorContext = createContext<setErrorF>(() => { })
 
 export function ErrorContextProvider({ children }: { children: React.ReactNode }) {
     const [error, setError] = useState<string | undefined>(undefined)

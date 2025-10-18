@@ -4,6 +4,7 @@ import AddParticipantForm from "./AddParticipantForm"
 import ParticipantsList from "./ParticipantsList"
 import { TournamentEditContextProvider } from "./TournamentContext"
 import TournamentEditForm from "./TournamentEditForm"
+import TournamentNavigation from "./TournamentNavigation"
 import { listParticipants } from "./participantActions"
 
 export default async function TournamentDetailsPage({ params }: { params: Promise<{ tId: string }> }) {
@@ -26,8 +27,11 @@ export default async function TournamentDetailsPage({ params }: { params: Promis
             <TournamentEditContextProvider tournament={tournament}>
                 <ErrorContextProvider>
                     <TournamentEditForm />
-                    <AddParticipantForm tId={tournament.id} />
-                    <ParticipantsList participants={participants} />
+                    <TournamentNavigation tournamentId={tournament.id} />
+                    <div className="border border-secondary border-solid w-full min-h-max">
+                        <AddParticipantForm tId={tournament.id} />
+                        <ParticipantsList participants={participants} />
+                    </div>
                 </ErrorContextProvider>
             </TournamentEditContextProvider>
         </div>

@@ -29,7 +29,7 @@ export interface AddParticipantState {
         categoryId?: string
         club?: string
     }
-    errors: any
+    errors: Record<string, string>
 
 }
 
@@ -50,7 +50,7 @@ export async function addParticipant(initialState: AddParticipantState, fd: Form
     if (!participant.success || participant.successType !== "full") {
         return {
             data: participant.validData,
-            errors: participant.error?.flatten().fieldErrors
+            errors: participant.error?.flatten().fieldErrors || {}
         }
     }
 
@@ -86,7 +86,7 @@ export async function removeParticipant(initialState: string) {
         where: {
             id: initialState
         }
-    }).then((p)=>{
+    }).then((p) => {
         revalidatePath(`tournaments/${p.tournamentId}`)
     })
 }

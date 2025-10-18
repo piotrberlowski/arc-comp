@@ -1,13 +1,13 @@
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import NextAuth, { NextAuthConfig } from "next-auth"
 // eslint-disable-next-line
+import { Organizer } from "@prisma/client"
 import { JWT } from "next-auth/jwt"
+import { Provider } from "next-auth/providers"
 import Auth0 from "next-auth/providers/auth0"
 import Discord from "next-auth/providers/discord"
 import Google from "next-auth/providers/google"
 import prisma from "../../lib/prisma"
-import { Provider } from "next-auth/providers"
-import { Organizer } from "@prisma/client"
 // eslint-disable-next-line
 import { AdapterUser } from "next-auth/adapters"
 
@@ -41,7 +41,7 @@ const handler = NextAuth({
     },
     providers: providers,
     callbacks: {
-        async jwt(params) {
+        async jwt(params): Promise<JWT> {
             const { token, user, trigger, account, session, profile } = params
             if (trigger === "update") token.name = session.user.name
             if (profile?.sub) {
@@ -52,7 +52,7 @@ const handler = NextAuth({
             }
             if (user) {
                 token.isAdmin = user.isAdmin
-                const userWithRoles = await prisma.user.findUnique({where: {id:user.id}, include:{organizerRoles:true}}).catch(e => console.log(e))
+                const userWithRoles = await prisma.user.findUnique({ where: { id: user.id }, include: { organizerRoles: true } }).catch(e => console.log(e))
                 token.organizerRoles = userWithRoles?.organizerRoles || []
             }
             return token
@@ -63,9 +63,9 @@ const handler = NextAuth({
                 session.sub = token.sub
             }
             if (token) {
-                session.externalAccount = token.externalAccount
-                session.isAdmin = token.isAdmin
-                session.organizerRoles = token.organizerRoles
+                session.externalAccount = token.externalAccount as string | undefined
+                session.isAdmin = token.isAdmin as boolean
+                session.organizerRoles = token.organizerRoles as Organizer[]
             }
             return session
         },

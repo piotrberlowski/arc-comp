@@ -114,7 +114,9 @@ model Tournament {
   formatId String
   organizerClub String
   format RoundFormat @relation(fields: [formatId], references: [id], onDelete: Restrict)
-  particpants Participant[]
+  participants Participant[]
+  groupAssignments GroupAssignment[]
+  participantScores ParticipantScore[] @relation("ParticipantScore")
 
   isArchive Boolean @default(false)
 }
@@ -136,5 +138,28 @@ model Participant {
   ageGroup AgeGroup @relation(fields: [ageGroupId], references: [id], onDelete: Restrict)
   category EquipmentCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Restrict)
+  groupAssignment GroupAssignment?
+  participantScore ParticipantScore? @relation("ParticipantScore")
   @@unique([tournamentId, membershipNo])
+}
+
+model GroupAssignment {
+  id String @id @default(cuid())
+  participantId String @unique
+  tournamentId String
+  groupNumber Int
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  @@unique([participantId, tournamentId])
+}
+
+model ParticipantScore {
+  id String @id @default(cuid())
+  participantId String @unique
+  tournamentId String
+  score Int?
+  isComplete Boolean @default(false)
+  participant Participant @relation("ParticipantScore", fields: [participantId], references: [id], onDelete: Cascade)
+  tournament Tournament @relation("ParticipantScore", fields: [tournamentId], references: [id], onDelete: Cascade)
+  @@unique([participantId, tournamentId])
 }

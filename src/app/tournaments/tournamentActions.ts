@@ -1,6 +1,6 @@
 "use server"
 
-import { Participant, Prisma } from "@prisma/client"
+import { Prisma } from "@prisma/client"
 import { prismaOrThrow } from "../../../lib/prisma"
 
 export interface TournamentUpdate {
@@ -23,7 +23,7 @@ export async function listTournamentsForClubs(clubs: string[], includeArchive: b
         orderBy: {
             date: "desc"
         }
-    })   
+    })
 }
 
 export async function listRoundFormats() {
@@ -43,7 +43,7 @@ export async function createTournament(name: string, formatId: string, club: str
             }
         }
     ).then(
-        t => t.id    
+        t => t.id
     )
 
 }

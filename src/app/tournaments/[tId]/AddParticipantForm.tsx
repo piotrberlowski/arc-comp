@@ -11,7 +11,7 @@ import { addParticipant, AddParticipantState } from "./participantActions"
 
 const initialState: AddParticipantState = {
     data: {},
-    errors: ""
+    errors: {}
 }
 
 export default function AddParticipantForm({ tId }: { tId: string }) {
@@ -33,7 +33,7 @@ export default function AddParticipantForm({ tId }: { tId: string }) {
                 <input type="hidden" name="target" value={`/tournaments/[tId]/`} />
                 <div className="flex-1" />
             </Form>
-            <ErrorAlert error={addParticipantState.errors} resetAction={() => { addParticipantState.errors = null }} />
+            <ErrorAlert error={Object.keys(addParticipantState.errors).length > 0 ? Object.values(addParticipantState.errors).join(', ') : undefined} resetAction={() => { addParticipantState.errors = {} }} />
         </div>
     )
 }

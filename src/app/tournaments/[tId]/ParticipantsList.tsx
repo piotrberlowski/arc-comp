@@ -46,8 +46,9 @@ export default function ParticipantsList({ participants }: { participants: Parti
                                             )
                                             .catch(
                                                 e => {
-                                                    tEdit && listParticipants(tEdit.getTournament().id).then(tP => setDisplayP(tP))
-                                                    console.log(e)
+                                                    if (tEdit) {
+                                                        listParticipants(tEdit.getTournament().id).then(tP => setDisplayP(tP))
+                                                    }
                                                     setError(e)
                                                 }
                                             )

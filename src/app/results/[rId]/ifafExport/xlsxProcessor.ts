@@ -122,7 +122,7 @@ export class IFAFXLSXProcessor {
                         },
                         participants: sortedParticipants.map((participant, index) => ({
                             name: participant.participant.name,
-                            membershipNumber: undefined,
+                            membershipNumber: participant.participant.membershipNo,
                             club: participant.participant.club || 'Independent',
                             score: participant.score || 0,
                             place: index + 1

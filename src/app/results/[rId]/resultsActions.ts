@@ -30,6 +30,7 @@ export interface ParticipantResultData {
     participant: {
         id: string
         name: string
+        membershipNo: string
         ageGroupId: string
         categoryId: string
         club: string | null
@@ -89,6 +90,7 @@ function transformTournamentResults(tournament: {
     participants: Array<{
         id: string
         name: string
+        membershipNo: string
         ageGroupId: string
         categoryId: string
         club: string | null
@@ -120,6 +122,7 @@ function transformTournamentResults(tournament: {
         participant: {
             id: p.id,
             name: p.name,
+            membershipNo: p.membershipNo,
             ageGroupId: p.ageGroupId,
             categoryId: p.categoryId,
             club: p.club,

@@ -2,7 +2,7 @@
 
 import useErrorContext from "@/components/errors/ErrorContext"
 import { useState } from "react"
-import { TournamentScoresData, updateScore } from "../scoreActions"
+import { publishResults, TournamentScoresData, updateScore } from "../scoreActions"
 import CategoryScoreView from "./CategoryScoreView"
 import GroupScoreView from "./GroupScoreView"
 
@@ -14,6 +14,7 @@ type ViewMode = 'group' | 'category'
 
 export default function ScoreEntryView({ scoresData }: ScoreEntryViewProps) {
     const [viewMode, setViewMode] = useState<ViewMode>('group')
+    const [isPublishing, setIsPublishing] = useState(false)
     const setError = useErrorContext()
 
     const handleScoreChange = async (participantId: string, score: number | null, isComplete: boolean) => {
@@ -23,6 +24,22 @@ export default function ScoreEntryView({ scoresData }: ScoreEntryViewProps) {
             setError(error instanceof Error ? error.message : 'An error occurred')
         }
     }
+
+    const handlePublishResults = async () => {
+        setIsPublishing(true)
+        try {
+            await publishResults(scoresData.tournament.id)
+            setError("Results published successfully!")
+        } catch (error) {
+            setError(error instanceof Error ? error.message : 'Failed to publish results')
+        } finally {
+            setIsPublishing(false)
+        }
+    }
+
+    // Check if all participants have completed scores
+    const allScoresComplete = scoresData.participants.every(p => p.isComplete)
+    const isPublished = scoresData.tournament.isPublished
 
 
     return (
@@ -34,6 +51,9 @@ export default function ScoreEntryView({ scoresData }: ScoreEntryViewProps) {
                     <p className="text-base-content/70">
                         Enter scores for {scoresData.participants.length} participants
                     </p>
+                    {isPublished && (
+                        <div className="badge badge-success mt-1">Results Published</div>
+                    )}
                 </div>
 
                 <div className="flex gap-2">
@@ -49,6 +69,15 @@ export default function ScoreEntryView({ scoresData }: ScoreEntryViewProps) {
                     >
                         By Category
                     </button>
+                    {!isPublished && (
+                        <button
+                            className={`btn ${allScoresComplete ? 'btn-success' : 'btn-disabled'}`}
+                            onClick={handlePublishResults}
+                            disabled={!allScoresComplete || isPublishing}
+                        >
+                            {isPublishing ? 'Publishing...' : 'Publish Results'}
+                        </button>
+                    )}
                 </div>
             </div>
 

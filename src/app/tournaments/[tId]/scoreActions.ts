@@ -31,6 +31,7 @@ export interface TournamentScoresData {
         formatId: string
         organizerClub: string
         isArchive: boolean
+        isPublished: boolean
         format: {
             name: string
             endCount: number
@@ -85,6 +86,7 @@ export async function getTournamentScores(tournamentId: string): Promise<Tournam
             formatId: tournament.formatId,
             organizerClub: tournament.organizerClub,
             isArchive: tournament.isArchive,
+            isPublished: tournament.isPublished,
             format: {
                 name: tournament.format.name,
                 endCount: tournament.format.endCount,
@@ -137,4 +139,40 @@ export async function blankScore(
     })
 
     revalidatePath(`/tournaments/${tournamentId}/scores`)
+}
+
+export async function publishResults(tournamentId: string) {
+    // Check if all participants have completed scores
+    const tournament = await prismaOrThrow("get tournament for publish").tournament.findUnique({
+        where: { id: tournamentId },
+        include: {
+            participants: {
+                include: {
+                    participantScore: true
+                }
+            }
+        }
+    })
+
+    if (!tournament) {
+        throw new Error("Tournament not found")
+    }
+
+    // Check if all participants have completed scores
+    const incompleteParticipants = tournament.participants.filter(p =>
+        !p.participantScore || !p.participantScore.isComplete
+    )
+
+    if (incompleteParticipants.length > 0) {
+        throw new Error(`Cannot publish results: ${incompleteParticipants.length} participants have incomplete scores`)
+    }
+
+    // Update tournament to mark as published
+    await prismaOrThrow("publish results").tournament.update({
+        where: { id: tournamentId },
+        data: { isPublished: true }
+    })
+
+    revalidatePath(`/tournaments/${tournamentId}/scores`)
+    revalidatePath(`/results`)
 }

@@ -20,6 +20,7 @@
     "@prisma/client": "^6.8.2",
     "@prisma/extension-accelerate": "^2.0.0",
     "date-fns": "^4.1.0",
+    "exceljs": "^4.4.0",
     "next": "15.3.2",
     "next-auth": "^5.0.0-beta.28",
     "react": "^19.0.0",
@@ -27,6 +28,7 @@
     "react-dom": "^19.0.0",
     "swr": "^2.3.3",
     "tailwindcss-bg-patterns": "^0.3.0",
+    "xlsx": "^0.18.5",
     "zod": "^3.25.56",
     "zod_utilz": "^0.8.4"
   },

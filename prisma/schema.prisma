@@ -91,12 +91,14 @@ model EquipmentCategory {
   id String @id
   name String @unique
   participants Participant[]
+  ifafBowStyleMapping IFAFBowStyleMapping?
 }
 
 model AgeGroup {
   id String @id
   name String @unique
   participants Participant[]
+  ifafAgeGenderMappings IFAFAgeGenderMapping[]
 }
 
 model RoundFormat {
@@ -119,6 +121,7 @@ model Tournament {
   participantScores ParticipantScore[] @relation("ParticipantScore")
 
   isArchive Boolean @default(false)
+  isPublished Boolean @default(false)
 }
 
 enum GenderGroup {
@@ -162,4 +165,24 @@ model ParticipantScore {
   participant Participant @relation("ParticipantScore", fields: [participantId], references: [id], onDelete: Cascade)
   tournament Tournament @relation("ParticipantScore", fields: [tournamentId], references: [id], onDelete: Cascade)
   @@unique([participantId, tournamentId])
+}
+
+model IFAFBowStyleMapping {
+  id String @id @default(cuid())
+  equipmentCategoryId String
+  ifafBowStyleCode String // e.g., "BB-C", "BB-R", "BH-C"
+  ifafBowStyleName String // e.g., "Barebow Compound (BB-C)"
+  ifafBowStyleNumber String // e.g., "01", "02", "03"
+  equipmentCategory EquipmentCategory @relation(fields: [equipmentCategoryId], references: [id], onDelete: Cascade)
+  @@unique([equipmentCategoryId])
+}
+
+model IFAFAgeGenderMapping {
+  id String @id @default(cuid())
+  ageGroupId String
+  genderGroup String // "M" or "F"
+  ifafCategoryCode String // e.g., "0", "1", "2", "3"
+  ifafCategoryName String // e.g., "Senior Male", "Senior Female"
+  ageGroup AgeGroup @relation(fields: [ageGroupId], references: [id], onDelete: Cascade)
+  @@unique([ageGroupId, genderGroup])
 }

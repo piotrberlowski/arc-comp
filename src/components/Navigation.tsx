@@ -1,14 +1,14 @@
 import { auth } from "@/app/auth";
+import { publicRuntimeConfig } from "@/lib/config";
 import { Bars3CenterLeftIcon } from "@heroicons/react/24/outline";
-import getConfig from 'next/config';
 import Link from "next/link";
 import Account from "./Account";
-const { publicRuntimeConfig } = getConfig();
 
 export default async function Navigation({ className }: { className?: string }) {
     const session = await auth()
 
     const authenticated = session?.externalAccount !== undefined
+    console.log(session)
 
     return (
         <div className={`navbar bg-neutral ${className}`}>
@@ -24,7 +24,7 @@ export default async function Navigation({ className }: { className?: string }) 
                         )}
                     </ul>
                 </div>
-                <Link className="btn btn-ghost text-sm" href="/">Arc-Comp<span className="p-0 m-0 hidden lg:inline">: Tournament Admin ({publicRuntimeConfig?.version})</span></Link>
+                <Link className="btn btn-ghost text-sm" href="/">Arc-Comp<span className="p-0 m-0 hidden lg:inline">: Tournament Admin ({publicRuntimeConfig.version})</span></Link>
             </div>
             <div className="navbar-center hidden lg:flex">
                 <ul className="menu menu-horizontal px-1 bg-primary rounded-box">
@@ -35,7 +35,12 @@ export default async function Navigation({ className }: { className?: string }) 
                 </ul>
             </div>
             <div className="navbar-end">
-                {authenticated && (<Account />)}
+                {
+                    if (authenticated) {
+                     return (<Account />)
+                } else {
+                }
+                }
             </div>
         </div>
     )

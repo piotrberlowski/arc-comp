@@ -21,12 +21,12 @@ export default async function RootLayout({
     <html lang="en">
       <body className='h-dvh w-full flex flex-col px-2 relative'>
         <SessionProvider session={session}>
-            <div className='flex-0 flex'>
-              <Navigation className="flex-1" />
-            </div>
-            <main className="relative bg-base-100 align-top items-center w-full h-full lg:w-5/6 xl:w-3/4 mx-auto">
-              {children}
-            </main>
+          <div className='flex-0 flex'>
+            <Navigation className="flex-1" />
+          </div>
+          <main className="relative bg-base-100 align-top items-center w-full h-full lg:w-5/6 xl:w-3/4 mx-auto">
+            {children}
+          </main>
         </SessionProvider>
       </body>
     </html>

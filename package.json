@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "jest",
     "test:watch": "jest --watch",
     "postinstall": "prisma generate",
@@ -23,26 +23,25 @@
     "@prisma/extension-accelerate": "^2.0.0",
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
-    "next": "15.3.2",
+    "next": "16.0.1",
     "next-auth": "^5.0.0-beta.28",
-    "react": "^19.0.0",
+    "react": "19.2.0",
     "react-day-picker": "^9.7.0",
-    "react-dom": "^19.0.0",
+    "react-dom": "19.2.0",
     "swr": "^2.3.3",
     "tailwindcss-bg-patterns": "^0.3.0",
     "zod": "^3.25.56",
     "zod_utilz": "^0.8.4"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4.1.7",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.17.51",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
     "daisyui": "^5.0.38",
     "eslint": "^9",
-    "eslint-config-next": "15.3.2",
+    "eslint-config-next": "16.0.1",
     "jest": "^29.7.0",
     "jest-environment-node": "^29.7.0",
     "prisma": "^6.8.2",
@@ -53,6 +52,8 @@
     "typescript": "^5.8.3"
   },
   "overrides": {
-    "@auth/core": "0.41.1"
+    "@auth/core": "0.41.1",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2"
   }
 }

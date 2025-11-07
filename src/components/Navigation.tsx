@@ -7,7 +7,7 @@ import Account from "./Account";
 export default async function Navigation({ className }: { className?: string }) {
     const session = await auth()
 
-    const authenticated = session?.externalAccount !== undefined
+    const authenticated = !!session?.user?.name
     console.log(session)
 
     return (
@@ -36,10 +36,7 @@ export default async function Navigation({ className }: { className?: string }) 
             </div>
             <div className="navbar-end">
                 {
-                    if (authenticated) {
-                     return (<Account />)
-                } else {
-                }
+                    authenticated && (<Account />)
                 }
             </div>
         </div>

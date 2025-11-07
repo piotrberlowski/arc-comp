@@ -4,6 +4,8 @@ import Auth0 from "next-auth/providers/auth0"
 import Discord from "next-auth/providers/discord"
 import Google from "next-auth/providers/google"
 
+export const LOGIN_PATH = "/login"
+
 const providers: Provider[] =
     [
         Auth0({

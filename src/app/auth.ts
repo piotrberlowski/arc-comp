@@ -3,33 +3,14 @@ import NextAuth, { NextAuthConfig } from "next-auth"
 // eslint-disable-next-line
 import { Organizer } from "@prisma/client"
 import { JWT } from "next-auth/jwt"
-import { Provider } from "next-auth/providers"
-import Auth0 from "next-auth/providers/auth0"
-import Discord from "next-auth/providers/discord"
-import Google from "next-auth/providers/google"
 import prisma from "../../lib/prisma"
 // eslint-disable-next-line
 import { AdapterUser } from "next-auth/adapters"
+import authConfig from "./auth.config"
 
 
 const LOGIN_PATH = "/login"
 const adapter = prisma ? PrismaAdapter(prisma) : undefined
-
-const providers: Provider[] =
-    [
-        Auth0({
-            clientId: process.env.AUTH_AUTH0_ID,
-            clientSecret: process.env.AUTH_AUTH0_SECRET,
-            issuer: process.env.AUTH_AUTH0_ISSUER,
-            redirectProxyUrl: process.env.AUTH_AUTH0_BASE_URL,
-        }),
-        Google({
-            allowDangerousEmailAccountLinking: true,
-            clientId: process.env.AUTH_GOOGLE_ID,
-            clientSecret: process.env.AUTH_GOOGLE_SECRET
-        }),
-        Discord,
-    ]
 
 const handler = NextAuth({
     adapter: adapter,
@@ -39,7 +20,6 @@ const handler = NextAuth({
     pages: {
         signIn: LOGIN_PATH
     },
-    providers: providers,
     callbacks: {
         async jwt(params): Promise<JWT> {
             const { token, user, trigger, account, session, profile } = params
@@ -82,7 +62,8 @@ const handler = NextAuth({
         enableWebAuthn: true,
     },
     debug: process.env.NODE_ENV !== "production" ? true : false,
-} satisfies NextAuthConfig,
+    ...authConfig,
+} satisfies NextAuthConfig
 )
 
 declare module "next-auth" {
@@ -114,16 +95,5 @@ declare module "next-auth/jwt" {
         organizerRoles: Organizer[]
     }
 }
-
-export const providerMap = providers
-    .map((provider) => {
-        if (typeof provider === "function") {
-            const providerData = provider()
-            return { id: providerData.id, name: providerData.name }
-        } else {
-            return { id: provider.id, name: provider.name }
-        }
-    })
-    .filter((provider) => provider.id !== "credentials")
 
 export const { handlers, signIn, signOut, auth } = handler

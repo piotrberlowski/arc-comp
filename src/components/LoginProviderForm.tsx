@@ -1,9 +1,9 @@
 'use client'
 
-import { providerMap } from "@/app/auth"
-import { useSearchParams } from "next/navigation"
-import Image from 'next/image'
 import { providerLogIn } from "@/app/api/auth/actions"
+import { providerMap } from "@/app/auth.config"
+import Image from 'next/image'
+import { useSearchParams } from "next/navigation"
 
 const SIGNIN_ERROR_URL = "/api/auth/error"
 const PROVIDER_IMG_PATH = "https://authjs.dev/img/providers";

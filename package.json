@@ -30,7 +30,6 @@
     "react-dom": "^19.0.0",
     "swr": "^2.3.3",
     "tailwindcss-bg-patterns": "^0.3.0",
-    "xlsx": "^0.18.5",
     "zod": "^3.25.56",
     "zod_utilz": "^0.8.4"
   },
@@ -52,5 +51,8 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "@auth/core": "0.41.1"
   }
 }

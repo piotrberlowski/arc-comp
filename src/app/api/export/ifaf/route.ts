@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
         const tournamentData = await getTournamentResults(tournamentId)
         const buffer = await exportToIFAFXLSX(tournamentData)
 
-        return new NextResponse(buffer, {
+        return new NextResponse(new Uint8Array(buffer), {
             headers: {
                 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 'Content-Disposition': `attachment; filename="${tournamentData.tournament.name}-IFAF-Results.xlsx"`

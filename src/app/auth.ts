@@ -13,7 +13,7 @@ import { AdapterUser } from "next-auth/adapters"
 
 
 const LOGIN_PATH = "/login"
-const adapter = (prisma) ? PrismaAdapter(prisma) : undefined
+const adapter = prisma ? PrismaAdapter(prisma) : undefined
 
 const providers: Provider[] =
     [

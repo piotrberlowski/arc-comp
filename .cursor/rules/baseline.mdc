@@ -1,0 +1,12 @@
+---
+description: Base Project constraints
+alwaysApply: true
+---
+
+- database environment variables for local development are present in .env.local and can be used with `dotenv -e` to execute migrations etc.
+- it's not OK to fail to run something and ignore it or tell the user they must do it manually
+- changes must always compile and lint
+- never patch type incompatibilites with use of `any`
+- never ignore unit test failures "because they're not important"
+- Cyclomatic complexity must be < 6
+- Always clean up after yourself

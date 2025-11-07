@@ -7,7 +7,7 @@ import { listOrganizers } from "./organizersActions";
 
 export default async function OrganizersPage() {
     const session = await auth()
-    if (!session?.externalAccount || !session?.isAdmin) {
+    if (!session?.user || !session?.isAdmin) {
         return redirect("/")
     }
     const res = await listOrganizers()

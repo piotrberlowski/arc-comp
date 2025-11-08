@@ -144,8 +144,8 @@ export default function CategoryScoreView({ participants, onScoreChange }: Categ
                         <tr>
                             <th className="w-1/12">Place</th>
                             <th className="w-2/5">Name</th>
-                            <th className="w-1/5">Club</th>
-                            <th className="w-1/12">Score</th>
+                            <th className="w-1/5 hidden md:table-cell">Club</th>
+                            <th className="w-1/12 hidden md:table-cell">Score</th>
                             <th className="w-2/5">Actions</th>
                         </tr>
                     </thead>
@@ -186,10 +186,10 @@ export default function CategoryScoreView({ participants, onScoreChange }: Categ
                                             </p>
                                         </div>
                                     </td>
-                                    <td>
+                                    <td className="hidden md:table-cell">
                                         <span className="text-sm">{participant.participant.club || 'Independent'}</span>
                                     </td>
-                                    <td>
+                                    <td className="hidden md:table-cell">
                                         <span className="font-mono text-sm">
                                             {participant.score !== null ? participant.score : '-'}
                                         </span>

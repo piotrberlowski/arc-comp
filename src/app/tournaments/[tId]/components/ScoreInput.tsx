@@ -1,5 +1,6 @@
 "use client"
 
+import { XMarkIcon } from "@heroicons/react/24/outline"
 import { useState } from "react"
 
 interface ScoreInputProps {
@@ -76,7 +77,8 @@ export default function ScoreInput({
                     onClick={handleClear}
                     disabled={isPending}
                 >
-                    Clear
+                    <XMarkIcon className="w-4 h-4 md:hidden" />
+                    <span className="hidden md:block">Clear</span>
                 </button>
             </div>
         </div>

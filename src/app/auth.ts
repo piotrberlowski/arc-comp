@@ -24,11 +24,9 @@ const handler = NextAuth({
             const { session, user } = params
             if (user) {
                 const userWithRoles = await prismaOrThrow("authenticate user").user.findUnique({ where: { id: user.id }, include: { organizerRoles: true } }).catch(e => console.log(e))
-                console.log(`"userWithRoles: ${JSON.stringify(userWithRoles)}"`)
                 session.isAdmin = userWithRoles?.isAdmin as boolean | false
                 session.organizerRoles = userWithRoles?.organizerRoles as Organizer[] | []
             }
-            console.log(`"session: ${JSON.stringify(session)}"`)
             return session
         },
         async authorized({ request, auth }: { request: NextRequest, auth: Session | null }) {

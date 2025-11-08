@@ -21,6 +21,9 @@ export async function getTournamentGroups(tournamentId: string): Promise<Tournam
         include: {
             format: true,
             participants: {
+                where: {
+                    checkedIn: true
+                },
                 include: {
                     groupAssignment: true
                 }
@@ -85,6 +88,19 @@ export async function assignParticipantToGroup(
 
     if (!tournament) {
         throw new Error("Tournament not found")
+    }
+
+    // Check if participant is checked in
+    const participant = await prismaOrThrow("get participant for validation").participant.findUnique({
+        where: { id: participantId }
+    })
+
+    if (!participant) {
+        throw new Error("Participant not found")
+    }
+
+    if (!participant.checkedIn) {
+        throw new Error("Only checked-in participants can be assigned to target groups")
     }
 
     // Check current group size

@@ -10,3 +10,6 @@ alwaysApply: true
 - never ignore unit test failures "because they're not important"
 - Cyclomatic complexity must be < 6
 - Always clean up after yourself
+- Use the init tool to set up Next.js DevTools context
+- Prefer to extract components
+- Prefer to use contexts instead of passing data multiple levels

@@ -45,9 +45,9 @@ export default function ScoreEntryView({ scoresData }: ScoreEntryViewProps) {
     return (
         <div className="w-full p-4 space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between md:flex-row flex-col">
                 <div>
-                    <h1 className="text-2xl font-bold">Score Entry</h1>
+                    <h1 className="text-2xl font-bold hidden md:block">Score Entry</h1>
                     <p className="text-base-content/70">
                         Enter scores for {scoresData.participants.length} participants
                     </p>
@@ -71,7 +71,7 @@ export default function ScoreEntryView({ scoresData }: ScoreEntryViewProps) {
                     </button>
                     {!isPublished && (
                         <button
-                            className={`btn ${allScoresComplete ? 'btn-success' : 'btn-disabled'}`}
+                            className={`hidden md:block btn ${allScoresComplete ? 'btn-success' : 'btn-disabled'}`}
                             onClick={handlePublishResults}
                             disabled={!allScoresComplete || isPublishing}
                         >

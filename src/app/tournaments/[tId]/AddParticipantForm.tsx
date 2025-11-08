@@ -23,12 +23,12 @@ export default function AddParticipantForm({ tId }: { tId: string }) {
             <Form action={addParticipantAction} className="flex mx-auto gap-1 items-center items-stretch" >
                 <input type="hidden" name="tId" value={tId} />
                 <div className="flex-1 flex gap-1 flex-wrap items-stretch">
-                    <input type="text" name="name" className={`flex-grow input input-xs md:input-sm ${addParticipantState.errors?.name ? 'input-error' : 'input-secondary'}`} placeholder="Archer's Name" defaultValue={addParticipantState.data?.name} />
-                    <input type="text" name="membershipNo" className={`w-1/6 md:w-fit input input-xs md:input-sm ${addParticipantState.errors?.membershipNo ? 'input-error' : 'input-secondary'}`} placeholder="Membership No." defaultValue={addParticipantState.data?.membershipNo} />
-                    <input type="text" name="club" className="w-4/6 md:w-fit input input-xs md:input-sm input-secondary flex-grow" placeholder="Archer's Club" defaultValue={addParticipantState.data?.club} />
-                    <AgeDivisionSelect name="ageGroupId" className="min-w-fit select select-xs md:select-sm select-secondary w-2/5 flex-1" defaultValue={addParticipantState.data?.ageGroupId} />
-                    <GenderSelect name="genderGroup" className="min-w-fit select select-xs md:select-sm select-secondary w-2/5 flex-1" defaultValue={addParticipantState.data?.genderGroup} />
-                    <EquipmentCategorySelect name="categoryId" className="min-w-fit select select-xs md:select-sm select-secondary flex-1" defaultValue={addParticipantState.data?.categoryId} />
+                    <input type="text" name="name" className={`sm:w-2/5 input input-xs md:input-sm flex-grow ${addParticipantState.errors?.name ? 'input-error' : 'input-secondary'}`} placeholder="Archer's Name" defaultValue={addParticipantState.data?.name} />
+                    <input type="text" name="membershipNo" className={`w-fit input input-xs md:input-sm flex-grow ${addParticipantState.errors?.membershipNo ? 'input-error' : 'input-secondary'}`} placeholder="Membership No." defaultValue={addParticipantState.data?.membershipNo} />
+                    <input type="text" name="club" className="sm:w-2/5 input input-xs md:input-sm input-secondary flex-grow" placeholder="Archer's Club" defaultValue={addParticipantState.data?.club} />
+                    <AgeDivisionSelect name="ageGroupId" className="min-w-fit select select-xs md:select-sm select-secondary w-2/5 md:w-1/3 flex-1" defaultValue={addParticipantState.data?.ageGroupId} />
+                    <GenderSelect name="genderGroup" className="min-w-fit select select-xs md:select-sm select-secondary w-2/5 md:w-1/3 flex-1" defaultValue={addParticipantState.data?.genderGroup} />
+                    <EquipmentCategorySelect name="categoryId" className="min-w-fit select select-xs md:select-sm select-secondary md:w-1/3 flex-1 " defaultValue={addParticipantState.data?.categoryId} />
                 </div>
                 <div className="flex-0 flex flex-col gap-1">
                     <button type="submit" name="checkedIn" value="false" className="flex-1 min-w-fit btn btn-xs md:btn-sm btn-secondary" disabled={isPending}><PlusCircleIcon className="w-4 h-4" /><span className="hidden md:block">Preregister</span></button>

@@ -24,12 +24,12 @@ model User {
   sessions      Session[]
   // Optional for WebAuthn support
   Authenticator Authenticator[]
- 
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   organizerRoles Organizer[]
-  isAdmin Boolean @default(false)
+  isAdmin        Boolean     @default(false)
 }
 
 model Account {
@@ -44,12 +44,12 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
- 
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
- 
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
+
   @@id([provider, providerAccountId])
   @@unique([provider, providerAccountId])
 }
@@ -63,15 +63,15 @@ model Session {
 
   @@index([sessionToken])
 }
- 
+
 model VerificationToken {
   identifier String
   token      String
   expires    DateTime
- 
+
   @@id([identifier, token])
 }
- 
+
 // Optional for WebAuthn support
 model Authenticator {
   credentialID         String  @unique
@@ -82,56 +82,55 @@ model Authenticator {
   credentialDeviceType String
   credentialBackedUp   Boolean
   transports           String?
- 
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
+
   @@id([userId, credentialID])
 }
 
-
 model Organizer {
   userId String
-  club String
+  club   String
 
-  user User @relation(fields:[userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, club])
 }
 
 model EquipmentCategory {
-  id String @id
-  name String @unique
-  participants Participant[]
+  id                  String               @id
+  name                String               @unique
+  participants        Participant[]
   ifafBowStyleMapping IFAFBowStyleMapping?
 }
 
 model AgeGroup {
-  id String @id
-  name String @unique
-  participants Participant[]
+  id                    String                 @id
+  name                  String                 @unique
+  participants          Participant[]
   ifafAgeGenderMappings IFAFAgeGenderMapping[]
 }
 
 model RoundFormat {
-  id   String @id @default(cuid())
-  name String @unique
+  id          String       @id @default(cuid())
+  name        String       @unique
   tournaments Tournament[]
-  endCount Int @default(28)
-  groupSize Int @default(4)
+  endCount    Int          @default(28)
+  groupSize   Int          @default(4)
 }
 
 model Tournament {
-  id String @id @default(cuid())
-  name String
-  date DateTime
-  formatId String
-  organizerClub String
-  format RoundFormat @relation(fields: [formatId], references: [id], onDelete: Restrict)
-  participants Participant[]
-  groupAssignments GroupAssignment[]
+  id                String             @id @default(cuid())
+  name              String
+  date              DateTime
+  formatId          String
+  organizerClub     String
+  format            RoundFormat        @relation(fields: [formatId], references: [id], onDelete: Restrict)
+  participants      Participant[]
+  groupAssignments  GroupAssignment[]
   participantScores ParticipantScore[] @relation("ParticipantScore")
 
-  isArchive Boolean @default(false)
+  isArchive   Boolean @default(false)
   isPublished Boolean @default(false)
 }
 
@@ -141,59 +140,65 @@ enum GenderGroup {
 }
 
 model Participant {
-  id String @id @default(cuid())
-  name String
-  membershipNo String
-  ageGroupId String
-  categoryId String
-  tournamentId String
-  club String?
-  genderGroup GenderGroup
-  ageGroup AgeGroup @relation(fields: [ageGroupId], references: [id], onDelete: Restrict)
-  category EquipmentCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Restrict)
-  groupAssignment GroupAssignment?
+  id               String            @id @default(cuid())
+  name             String
+  membershipNo     String
+  ageGroupId       String
+  categoryId       String
+  tournamentId     String
+  club             String?
+  genderGroup      GenderGroup
+  checkedIn        Boolean           @default(false)
+  ageGroup         AgeGroup          @relation(fields: [ageGroupId], references: [id], onDelete: Restrict)
+  category         EquipmentCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  tournament       Tournament        @relation(fields: [tournamentId], references: [id], onDelete: Restrict)
+  groupAssignment  GroupAssignment?
   participantScore ParticipantScore? @relation("ParticipantScore")
+
   @@unique([tournamentId, membershipNo])
 }
 
 model GroupAssignment {
-  id String @id @default(cuid())
-  participantId String @unique
-  tournamentId String
-  groupNumber Int
-  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
-  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  participantId String      @unique
+  tournamentId  String
+  groupNumber   Int
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  tournament    Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
   @@unique([participantId, tournamentId])
 }
 
 model ParticipantScore {
-  id String @id @default(cuid())
-  participantId String @unique
-  tournamentId String
-  score Int?
-  isComplete Boolean @default(false)
-  participant Participant @relation("ParticipantScore", fields: [participantId], references: [id], onDelete: Cascade)
-  tournament Tournament @relation("ParticipantScore", fields: [tournamentId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  participantId String      @unique
+  tournamentId  String
+  score         Int?
+  isComplete    Boolean     @default(false)
+  participant   Participant @relation("ParticipantScore", fields: [participantId], references: [id], onDelete: Cascade)
+  tournament    Tournament  @relation("ParticipantScore", fields: [tournamentId], references: [id], onDelete: Cascade)
+
   @@unique([participantId, tournamentId])
 }
 
 model IFAFBowStyleMapping {
-  id String @id @default(cuid())
+  id                  String            @id @default(cuid())
   equipmentCategoryId String
-  ifafBowStyleCode String // e.g., "BB-C", "BB-R", "BH-C"
-  ifafBowStyleName String // e.g., "Barebow Compound (BB-C)"
-  ifafBowStyleNumber String // e.g., "01", "02", "03"
-  equipmentCategory EquipmentCategory @relation(fields: [equipmentCategoryId], references: [id], onDelete: Cascade)
+  ifafBowStyleCode    String // e.g., "BB-C", "BB-R", "BH-C"
+  ifafBowStyleName    String // e.g., "Barebow Compound (BB-C)"
+  ifafBowStyleNumber  String // e.g., "01", "02", "03"
+  equipmentCategory   EquipmentCategory @relation(fields: [equipmentCategoryId], references: [id], onDelete: Cascade)
+
   @@unique([equipmentCategoryId])
 }
 
 model IFAFAgeGenderMapping {
-  id String @id @default(cuid())
-  ageGroupId String
-  genderGroup String // "M" or "F"
+  id               String   @id @default(cuid())
+  ageGroupId       String
+  genderGroup      String // "M" or "F"
   ifafCategoryCode String // e.g., "0", "1", "2", "3"
   ifafCategoryName String // e.g., "Senior Male", "Senior Female"
-  ageGroup AgeGroup @relation(fields: [ageGroupId], references: [id], onDelete: Cascade)
+  ageGroup         AgeGroup @relation(fields: [ageGroupId], references: [id], onDelete: Cascade)
+
   @@unique([ageGroupId, genderGroup])
 }

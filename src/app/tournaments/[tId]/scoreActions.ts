@@ -47,6 +47,9 @@ export async function getTournamentScores(tournamentId: string): Promise<Tournam
         include: {
             format: true,
             participants: {
+                where: {
+                    checkedIn: true
+                },
                 include: {
                     groupAssignment: true,
                     participantScore: true

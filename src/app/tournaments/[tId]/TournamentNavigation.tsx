@@ -47,7 +47,7 @@ export default function TournamentNavigation({ tournamentId }: TournamentNavigat
                             }`}
                     >
                         <Icon className="w-4 h-4 flex-shrink-0" />
-                        <span className="whitespace-nowrap">{item.label}</span>
+                        <span className="hidden md:block whitespace-nowrap">{item.label}</span>
                     </Link>
                 )
             })}

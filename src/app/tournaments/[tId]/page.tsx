@@ -1,7 +1,6 @@
 import { ErrorContextProvider } from "@/components/errors/ErrorContext"
 import { getTournamentById } from "../tournamentActions"
-import AddParticipantForm from "./AddParticipantForm"
-import ParticipantsList from "./ParticipantsList"
+import ParticipantsSection from "./ParticipantsSection"
 import { TournamentEditContextProvider } from "./TournamentContext"
 import TournamentEditForm from "./TournamentEditForm"
 import TournamentNavigation from "./TournamentNavigation"
@@ -29,8 +28,7 @@ export default async function TournamentDetailsPage({ params }: { params: Promis
                     <TournamentEditForm />
                     <TournamentNavigation tournamentId={tournament.id} />
                     <div className="border border-secondary border-solid w-full min-h-max">
-                        <AddParticipantForm tId={tournament.id} />
-                        <ParticipantsList participants={participants} />
+                        <ParticipantsSection tId={tournament.id} participants={participants} />
                     </div>
                 </ErrorContextProvider>
             </TournamentEditContextProvider>

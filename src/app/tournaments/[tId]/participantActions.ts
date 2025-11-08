@@ -36,6 +36,8 @@ export interface AddParticipantState {
 }
 
 export async function addParticipant(initialState: AddParticipantState, fd: FormData): Promise<AddParticipantState> {
+    const participantId = fd.get('participantId')
+    const hasParticipantId = participantId && typeof participantId === 'string' && participantId !== ''
 
     const checkedInValue = fd.get('checkedIn')
     const checkedIn = checkedInValue === 'true'
@@ -61,21 +63,39 @@ export async function addParticipant(initialState: AddParticipantState, fd: Form
     }
 
     const fullParse = participantSubmitSchema.parse(fdConstructed)
-    console.log(JSON.stringify(fullParse))
-    return prismaOrThrow("add participant")
-        .participant
-        .create({
-            data: fullParse
-        })
-        .then((p) => {
-            revalidatePath(`/tournaments/[tId]`, 'page')
-            redirect(`/tournaments/${p.tournamentId}`, RedirectType.replace)
-        }, e => {
-            return {
-                data: fullParse,
-                errors: e
-            }
-        })
+
+    if (hasParticipantId) {
+        return prismaOrThrow("update participant")
+            .participant
+            .update({
+                where: { id: participantId as string },
+                data: fullParse
+            })
+            .then((p) => {
+                revalidatePath(`/tournaments/[tId]`, 'page')
+                redirect(`/tournaments/${p.tournamentId}`, RedirectType.replace)
+            }, e => {
+                return {
+                    data: fullParse,
+                    errors: e
+                }
+            })
+    } else {
+        return prismaOrThrow("add participant")
+            .participant
+            .create({
+                data: fullParse
+            })
+            .then((p) => {
+                revalidatePath(`/tournaments/[tId]`, 'page')
+                redirect(`/tournaments/${p.tournamentId}`, RedirectType.replace)
+            }, e => {
+                return {
+                    data: fullParse,
+                    errors: e
+                }
+            })
+    }
 }
 
 export async function listParticipants(tId: string) {

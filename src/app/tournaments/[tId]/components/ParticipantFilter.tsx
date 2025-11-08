@@ -73,7 +73,7 @@ export default function ParticipantFilter({
     return (
         <div className="flex items-center gap-4">
             <select
-                className="select select-bordered select-sm"
+                className="select select-bordered select-sm flex-grow"
                 value={filter}
                 onChange={(e) => handleFilterChange(e.target.value as FilterType)}
             >

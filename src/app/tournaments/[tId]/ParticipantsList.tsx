@@ -1,7 +1,7 @@
 "use client"
 
 import useErrorContext from "@/components/errors/ErrorContext";
-import { XCircleIcon } from "@heroicons/react/24/outline";
+import { PencilIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import { Participant } from "@prisma/client";
 import { useCallback, useState, useTransition } from "react";
 import CheckInButton from "./components/CheckInButton";
@@ -10,7 +10,13 @@ import ParticipantFilter from "./components/ParticipantFilter";
 import { listParticipants, removeParticipant } from "./participantActions";
 import useTournamentContext from "./TournamentContext";
 
-export default function ParticipantsList({ participants }: { participants: Participant[] }) {
+interface ParticipantsListProps {
+    participants: Participant[]
+    onEditParticipant?: (participant: Participant | null) => void
+    editingParticipantId?: string | null
+}
+
+export default function ParticipantsList({ participants, onEditParticipant, editingParticipantId }: ParticipantsListProps) {
     const [displayP, setDisplayP] = useState(participants)
     const [filteredParticipants, setFilteredParticipants] = useState(participants)
     const [isPending, startTransition] = useTransition()
@@ -37,7 +43,7 @@ export default function ParticipantsList({ participants }: { participants: Parti
     }
 
     return (
-        <div className="w-4/5 mx-auto space-y-6">
+        <div className="md:w-4/5 mx-auto space-y-6">
 
             <div className="w-full flex" >
                 <div className="flex-grow">
@@ -92,6 +98,16 @@ export default function ParticipantsList({ participants }: { participants: Parti
                                             }}
                                             disabled={isPending}
                                         />
+                                        {onEditParticipant && (
+                                            <button
+                                                className="btn btn-info btn-sm"
+                                                disabled={isPending || editingParticipantId === p.id}
+                                                onClick={() => onEditParticipant(p)}
+                                            >
+                                                <PencilIcon className="w-4 h-4" />
+                                                <span className="hidden md:block">Edit</span>
+                                            </button>
+                                        )}
                                         <button className="btn btn-error btn-sm" disabled={isPending} onClick={() => startTransition(
                                             () => removeParticipant(p.id)
                                                 .then(

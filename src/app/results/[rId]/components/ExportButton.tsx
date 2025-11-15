@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { TournamentResultsData } from '../resultsActions'
+import { TournamentResultsData } from '../../resultsActions'
 
 interface ExportButtonProps {
     tournamentData: TournamentResultsData

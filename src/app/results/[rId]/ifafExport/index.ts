@@ -1,10 +1,10 @@
 import { join } from 'path'
 import { prismaOrThrow } from '../../../../../lib/prisma'
-import { TournamentResultsData } from '../resultsActions'
+import { TournamentResultsData } from '../../resultsActions'
 import { IFAFExcellExporter } from './ifafExcellExporter'
 
 export async function exportToIFAFXLSX(tournamentData: TournamentResultsData): Promise<Buffer> {
-    const templatePath = join(process.cwd(), 'resources', 'templatev2.xlsx')
+    const templatePath = join(process.cwd(), 'resources', 'templatev3.xlsx')
 
     // Fetch the required mappings from the database
     const [iFAFBowStyleMappings, iFAFAgeGenderMappings] = await Promise.all([

@@ -1,10 +1,11 @@
 import { IFAFAgeGenderMapping, IFAFBowStyleMapping } from '@prisma/client'
 import * as ExcelJS from 'exceljs'
-import { ParticipantResultData, TournamentResultsData } from '../resultsActions'
+import { ParticipantResultData, TournamentResultsData } from '../../resultsActions'
 
 export class IFAFExcellExporter {
     private templatePath: string
     private bowStyleMap: Map<string, IFAFBowStyleMapping & { equipmentCategory: { id: string; name: string } }>
+    private bowStyleNumberToCodeMap: Map<string, string>
     private ageGenderMap: Map<string, IFAFAgeGenderMapping & { ageGroup: { id: string; name: string } }>
     private allBowStyleMappings: (IFAFBowStyleMapping & { equipmentCategory: { id: string; name: string } })[]
 
@@ -17,8 +18,10 @@ export class IFAFExcellExporter {
 
         // Create lookup maps for O(1) access
         this.bowStyleMap = new Map()
+        this.bowStyleNumberToCodeMap = new Map()
         for (const mapping of iFAFBowStyleMappings) {
             this.bowStyleMap.set(mapping.ifafBowStyleCode, mapping)
+            this.bowStyleNumberToCodeMap.set(mapping.ifafBowStyleNumber, mapping.ifafBowStyleCode)
         }
 
         this.ageGenderMap = new Map()
@@ -34,6 +37,8 @@ export class IFAFExcellExporter {
     }
 
     async processTournamentResults(tournamentData: TournamentResultsData): Promise<Buffer> {
+        console.log(`IFAF Export: Processing tournament results for ${tournamentData.tournament.name}`)
+        console.log(`IFAF Export: Tournament data: ${JSON.stringify(tournamentData)}`)
         // 1. Load template
         const template = await this.loadTemplate()
 
@@ -72,12 +77,16 @@ export class IFAFExcellExporter {
         let processedBowStyles = 0
         const totalBowStyles = this.allBowStyleMappings.length
 
+        console.log(`IFAF Export: Total bowstyles: ${totalBowStyles}`)
+        console.log(`IFAF Export: All bowstyle mappings: ${JSON.stringify(this.allBowStyleMappings)}`)
+        console.log(`Worksheet row count: ${worksheet.rowCount}`)
         // Iterate row-by-row through the template
         while (currentRow <= worksheet.rowCount && processedBowStyles < totalBowStyles) {
             const row = worksheet.getRow(currentRow)
 
             // Check if this row contains a bowstyle heading
             const bowStyleCode = this.extractBowStyleFromRow(row)
+            console.log(`IFAF Export: Extracted bowstyle code: ${bowStyleCode}`)
             if (bowStyleCode) {
                 console.log(`IFAF Export: Found bowstyle heading at row ${currentRow}: ${bowStyleCode}`)
                 processedBowStyles++
@@ -86,11 +95,11 @@ export class IFAFExcellExporter {
                 const bowStyleMapping = this.bowStyleMap.get(bowStyleCode)
                 if (bowStyleMapping) {
                     // Get participants for this bow style
-                    const participants = this.getParticipantsForBowStyle(tournamentData, bowStyleCode)
+                    const participants = this.getParticipantsForBowStyle(tournamentData, bowStyleMapping)
 
                     if (participants.length > 0) {
                         // Process participants for this bowstyle
-                        await this.processBowStyleParticipants(worksheet, bowStyleMapping, participants, currentRow)
+                        await this.processBowStyleParticipants(worksheet, participants, currentRow)
                     } else {
                         console.log(`IFAF Export: No participants for bow style ${bowStyleCode} - skipping data insertion`)
                     }
@@ -119,29 +128,24 @@ export class IFAFExcellExporter {
         const match = cellValue.match(/^(\d{2})\.\s+(.+)\s*\(.*\)?$/)
         if (match) {
             const bowStyleNumber = match[1]
-            // Find the mapping by bow style number
-            for (const [code, mapping] of this.bowStyleMap) {
-                if (mapping.ifafBowStyleNumber === bowStyleNumber) {
-                    return code
-                }
-            }
+            // Use reverse lookup map for O(1) access
+            return this.bowStyleNumberToCodeMap.get(bowStyleNumber) || null
         }
 
         return null
     }
 
-    private getParticipantsForBowStyle(tournamentData: TournamentResultsData, bowStyleCode: string): ParticipantResultData[] {
-        const bowStyleMapping = this.bowStyleMap.get(bowStyleCode)
-        if (!bowStyleMapping) return []
-
+    private getParticipantsForBowStyle(
+        tournamentData: TournamentResultsData,
+        bowStyleMapping: IFAFBowStyleMapping & { equipmentCategory: { id: string; name: string } }
+    ): ParticipantResultData[] {
         return tournamentData.participants.filter(participant =>
-            participant.participant.equipmentCategory.id === bowStyleMapping.equipmentCategoryId
+            participant.category.id === bowStyleMapping.equipmentCategoryId
         )
     }
 
     private async processBowStyleParticipants(
         worksheet: ExcelJS.Worksheet,
-        bowStyleMapping: IFAFBowStyleMapping & { equipmentCategory: { id: string; name: string } },
         participants: ParticipantResultData[],
         headingRow: number
     ): Promise<void> {
@@ -171,7 +175,7 @@ export class IFAFExcellExporter {
     private groupParticipantsByAgeGender(participants: ParticipantResultData[]): Map<string, ParticipantResultData[]> {
         const participantsByAgeGender = new Map<string, ParticipantResultData[]>()
         for (const participant of participants) {
-            const key = `${participant.participant.ageGroupId}-${participant.participant.genderGroup}`
+            const key = `${participant.ageGroupId}-${participant.genderGroup}`
             if (!participantsByAgeGender.has(key)) {
                 participantsByAgeGender.set(key, [])
             }
@@ -182,10 +186,10 @@ export class IFAFExcellExporter {
 
     private sortParticipants(participants: ParticipantResultData[]): ParticipantResultData[] {
         return participants.sort((a, b) => {
-            if (a.score !== b.score) {
-                return (b.score || 0) - (a.score || 0)
+            if (a.participantScore.score !== b.participantScore.score) {
+                return b.participantScore.score - a.participantScore.score
             }
-            return a.participant.name.localeCompare(b.participant.name)
+            return a.name.localeCompare(b.name)
         })
     }
 
@@ -198,10 +202,10 @@ export class IFAFExcellExporter {
         for (const participant of participants) {
             const rowValues = [
                 `${ageGenderMapping.ifafCategoryCode}. ${ageGenderMapping.ifafCategoryName}`,
-                participant.participant.name,
-                participant.participant.membershipNo || '',
-                participant.participant.club || 'Independent',
-                participant.score || 0
+                participant.name,
+                participant.membershipNo || '',
+                participant.club || 'Independent',
+                participant.participantScore.score
             ]
             worksheet.insertRow(currentRow, rowValues, 'i+')
             currentRow++

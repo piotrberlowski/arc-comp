@@ -36,7 +36,7 @@ export default async function Navigation({ className }: { className?: string }) 
             </div>
             <div className="navbar-end">
                 {
-                    authenticated && (<Account />)
+                    authenticated && (<Account />) || (<Link className="btn btn-ghost btn-sm" href={"/login"}>Sign In</Link>)
                 }
             </div>
         </div>

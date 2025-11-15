@@ -1,5 +1,5 @@
+import { getTournamentResults } from "../resultsActions"
 import TournamentResultsView from "./TournamentResultsView"
-import { getTournamentResults } from "./resultsActions"
 
 interface ResultsPageProps {
     params: Promise<{

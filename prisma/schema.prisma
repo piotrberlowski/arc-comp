@@ -132,6 +132,7 @@ model Tournament {
 
   isArchive   Boolean @default(false)
   isPublished Boolean @default(false)
+  isShared    Boolean @default(false)
 }
 
 enum GenderGroup {
@@ -165,6 +166,7 @@ model GroupAssignment {
   groupNumber   Int
   participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
   tournament    Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  isCaptain     Boolean     @default(false)
 
   @@unique([participantId, tournamentId])
 }
@@ -173,8 +175,7 @@ model ParticipantScore {
   id            String      @id @default(cuid())
   participantId String      @unique
   tournamentId  String
-  score         Int?
-  isComplete    Boolean     @default(false)
+  score         Int
   participant   Participant @relation("ParticipantScore", fields: [participantId], references: [id], onDelete: Cascade)
   tournament    Tournament  @relation("ParticipantScore", fields: [tournamentId], references: [id], onDelete: Cascade)
 

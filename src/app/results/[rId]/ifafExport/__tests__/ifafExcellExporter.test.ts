@@ -2,7 +2,7 @@ import { IFAFAgeGenderMapping, IFAFBowStyleMapping } from '@prisma/client'
 import * as ExcelJS from 'exceljs'
 import { existsSync, unlinkSync } from 'fs'
 import { join } from 'path'
-import { TournamentResultsData } from '../../resultsActions'
+import { TournamentResultsData } from '../../../resultsActions'
 import { IFAFExcellExporter } from '../ifafExcellExporter'
 
 // Mock data based on seed.ts - all 12 bowstyles from the template
@@ -157,7 +157,9 @@ const mockTournamentData: TournamentResultsData = {
         organizerClub: 'Test Archery Club',
         isArchive: false,
         isPublished: true,
+        isShared: false,
         format: {
+            id: 'format-1',
             name: '3D-Standard Round',
             endCount: 28,
             groupSize: 4
@@ -165,99 +167,99 @@ const mockTournamentData: TournamentResultsData = {
     },
     participants: [
         {
-            id: 'score-1',
-            participantId: 'participant-1',
+            id: 'participant-1',
+            name: 'John Smith',
+            membershipNo: 'MEM001',
+            ageGroupId: 'S',
+            categoryId: 'BBC',
             tournamentId: 'test-tournament-1',
-            score: 280,
-            isComplete: true,
-            participant: {
-                id: 'participant-1',
-                name: 'John Smith',
-                membershipNo: 'MEM001',
-                ageGroupId: 'S',
-                categoryId: 'BBC',
-                club: 'Test Archery Club',
-                groupAssignment: { groupNumber: 1 },
-                ageGroup: { id: 'S', name: 'Senior' },
-                genderGroup: 'M',
-                equipmentCategory: { id: 'BBC', name: 'Barebow Compound' }
-            }
+            club: 'Test Archery Club',
+            genderGroup: 'M',
+            checkedIn: true,
+            participantScore: {
+                id: 'score-1',
+                participantId: 'participant-1',
+                tournamentId: 'test-tournament-1',
+                score: 280
+            },
+            ageGroup: { id: 'S', name: 'Senior' },
+            category: { id: 'BBC', name: 'Barebow Compound' }
         },
         {
-            id: 'score-2',
-            participantId: 'participant-2',
+            id: 'participant-2',
+            name: 'Jane Doe',
+            membershipNo: 'MEM002',
+            ageGroupId: 'S',
+            categoryId: 'BBC',
             tournamentId: 'test-tournament-1',
-            score: 275,
-            isComplete: true,
-            participant: {
-                id: 'participant-2',
-                name: 'Jane Doe',
-                membershipNo: 'MEM002',
-                ageGroupId: 'S',
-                categoryId: 'BBC',
-                club: 'Test Archery Club',
-                groupAssignment: { groupNumber: 1 },
-                ageGroup: { id: 'S', name: 'Senior' },
-                genderGroup: 'F',
-                equipmentCategory: { id: 'BBC', name: 'Barebow Compound' }
-            }
+            club: 'Test Archery Club',
+            genderGroup: 'F',
+            checkedIn: true,
+            participantScore: {
+                id: 'score-2',
+                participantId: 'participant-2',
+                tournamentId: 'test-tournament-1',
+                score: 275
+            },
+            ageGroup: { id: 'S', name: 'Senior' },
+            category: { id: 'BBC', name: 'Barebow Compound' }
         },
         {
-            id: 'score-3',
-            participantId: 'participant-3',
+            id: 'participant-3',
+            name: 'Bob Johnson',
+            membershipNo: 'MEM003',
+            ageGroupId: 'A',
+            categoryId: 'BBR',
             tournamentId: 'test-tournament-1',
-            score: 290,
-            isComplete: true,
-            participant: {
-                id: 'participant-3',
-                name: 'Bob Johnson',
-                membershipNo: 'MEM003',
-                ageGroupId: 'A',
-                categoryId: 'BBR',
-                club: 'Independent',
-                groupAssignment: { groupNumber: 2 },
-                ageGroup: { id: 'A', name: 'Adult' },
-                genderGroup: 'M',
-                equipmentCategory: { id: 'BBR', name: 'Barebow Recurve' }
-            }
+            club: 'Independent',
+            genderGroup: 'M',
+            checkedIn: true,
+            participantScore: {
+                id: 'score-3',
+                participantId: 'participant-3',
+                tournamentId: 'test-tournament-1',
+                score: 290
+            },
+            ageGroup: { id: 'A', name: 'Adult' },
+            category: { id: 'BBR', name: 'Barebow Recurve' }
         },
         {
-            id: 'score-4',
-            participantId: 'participant-4',
+            id: 'participant-4',
+            name: 'Alice Wilson',
+            membershipNo: 'MEM004',
+            ageGroupId: 'A',
+            categoryId: 'BBR',
             tournamentId: 'test-tournament-1',
-            score: 285,
-            isComplete: true,
-            participant: {
-                id: 'participant-4',
-                name: 'Alice Wilson',
-                membershipNo: 'MEM004',
-                ageGroupId: 'A',
-                categoryId: 'BBR',
-                club: 'Test Archery Club',
-                groupAssignment: { groupNumber: 2 },
-                ageGroup: { id: 'A', name: 'Adult' },
-                genderGroup: 'F',
-                equipmentCategory: { id: 'BBR', name: 'Barebow Recurve' }
-            }
+            club: 'Test Archery Club',
+            genderGroup: 'F',
+            checkedIn: true,
+            participantScore: {
+                id: 'score-4',
+                participantId: 'participant-4',
+                tournamentId: 'test-tournament-1',
+                score: 285
+            },
+            ageGroup: { id: 'A', name: 'Adult' },
+            category: { id: 'BBR', name: 'Barebow Recurve' }
         },
         {
-            id: 'score-5',
-            participantId: 'participant-5',
+            id: 'participant-5',
+            name: 'Mike Young',
+            membershipNo: 'MEM005',
+            ageGroupId: 'J',
+            categoryId: 'BHC',
             tournamentId: 'test-tournament-1',
-            score: 270,
-            isComplete: true,
-            participant: {
-                id: 'participant-5',
-                name: 'Mike Young',
-                membershipNo: 'MEM005',
-                ageGroupId: 'J',
-                categoryId: 'BHC',
-                club: 'Youth Archery Club',
-                groupAssignment: { groupNumber: 3 },
-                ageGroup: { id: 'J', name: 'Junior' },
-                genderGroup: 'M',
-                equipmentCategory: { id: 'BHC', name: 'Bowhunter Compound' }
-            }
+            club: 'Youth Archery Club',
+            genderGroup: 'M',
+            checkedIn: true,
+            participantScore: {
+                id: 'score-5',
+                participantId: 'participant-5',
+                tournamentId: 'test-tournament-1',
+                score: 270
+            },
+            ageGroup: { id: 'J', name: 'Junior' },
+            category: { id: 'BHC', name: 'Bowhunter Compound' }
         }
     ]
 }

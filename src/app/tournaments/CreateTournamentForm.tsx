@@ -1,13 +1,13 @@
 'use client'
-import ErrorAlert from "@/components/errors/ErrorAlert"
 import RoundFormatSelect from "@/components/RoundFormatSelect"
+import ErrorAlert from "@/components/errors/ErrorAlert"
 import { PencilSquareIcon } from "@heroicons/react/24/solid"
 import Form from "next/form"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useFormStatus } from "react-dom"
-import { createTournament } from "./tournamentActions"
 import TournamentDayPicker from "./TournamentDayPicker"
+import { createTournament } from "./tournamentActions"
 
 export default function CreateTournamentForm({ clubs }: { clubs: string[] }) {
     const status = useFormStatus()
@@ -31,7 +31,6 @@ export default function CreateTournamentForm({ clubs }: { clubs: string[] }) {
         }
         if (errors.length > 0) {
             const err = errors.join("; ")
-            console.log(err)
             setError(err)
             return false
         }
@@ -59,7 +58,10 @@ export default function CreateTournamentForm({ clubs }: { clubs: string[] }) {
                         createTournament(name, formatId, club, date).then(
                             tgt => router.push(`/tournaments/${tgt}`)
                         ).catch(
-                            e => setError(e)
+                            e => {
+                                console.error("Failed to create tournament:", e)
+                                setError(e)
+                            }
                         )
                     }
                 }}>

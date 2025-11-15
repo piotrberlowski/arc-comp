@@ -9,7 +9,6 @@ export default function RoundFormatSelect({ formatId, className, onChange }: { f
     useEffect(
         () => {
             listRoundFormats().then(f => {
-                console.log(`${JSON.stringify(f)}`)
                 if (!!f) {
                     setFormats(f)
                 }

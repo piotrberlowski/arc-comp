@@ -11,5 +11,8 @@ alwaysApply: true
 - Cyclomatic complexity must be < 6
 - Always clean up after yourself
 - Use the init tool to set up Next.js DevTools context
-- Prefer to extract components
+- Search for functions with same functionality and try to reuse them before creating new function
+- Extract components where possible
+- Always extract components inside closures if it's more than 2 nested elements
+- If a component is used within just one page, place it alongside that page in the tree; when it's used across multiple pages move it to components directory
 - Prefer to use contexts instead of passing data multiple levels

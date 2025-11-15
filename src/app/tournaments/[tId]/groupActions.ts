@@ -133,6 +133,7 @@ export async function assignParticipantToGroup(
     })
 
     revalidatePath(`/tournaments/${tournamentId}/groups`)
+    revalidatePath(`/tournaments/${tournamentId}/scores`, "page")
 }
 
 export async function unassignParticipantFromGroup(
@@ -149,6 +150,7 @@ export async function unassignParticipantFromGroup(
     })
 
     revalidatePath(`/tournaments/${tournamentId}/groups`)
+    revalidatePath(`/tournaments/${tournamentId}/scores`, "page")
 }
 
 export async function moveParticipantBetweenGroups(

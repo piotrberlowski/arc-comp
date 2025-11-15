@@ -37,7 +37,10 @@ export async function createOrganizer(formData: FormData) {
             return undefined
         }
     ).catch(
-        e => e
+        e => {
+            console.error("Failed to create organizer:", e)
+            return e
+        }
     )
 }
 
@@ -68,6 +71,9 @@ export async function listOrganizers() {
     }).then(
         organizers => { return { organizers: organizers, error: null } }
     ).catch(
-        e => { return { organizers: [], error: e } }
+        e => {
+            console.error("Failed to list organizers:", e)
+            return { organizers: [], error: e }
+        }
     )
 }

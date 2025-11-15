@@ -1,36 +1,36 @@
 "use client"
 
-import ScoreInput from "../components/ScoreInput"
-import { ParticipantScoreData } from "../scoreActions"
+import { ParticipantWithScore } from "../scoreActions"
+import GroupScoreCard from "./GroupScoreCard"
 
 interface GroupScoreViewProps {
-    participants: ParticipantScoreData[]
-    onScoreChange: (participantId: string, score: number | null, isComplete: boolean) => void
+    participants: ParticipantWithScore[]
+    onScoreChange: (participantId: string, score: number | null) => void
 }
 
 interface GroupData {
     groupNumber: number
-    participants: ParticipantScoreData[]
+    participants: ParticipantWithScore[]
     isComplete: boolean
 }
 
 export default function GroupScoreView({ participants, onScoreChange }: GroupScoreViewProps) {
     // Group participants by group assignment
     const groups = participants.reduce((acc, participant) => {
-        const groupNumber = participant.participant.groupAssignment?.groupNumber || 0
+        const groupNumber = participant.groupAssignment?.groupNumber || 0
         if (!acc[groupNumber]) {
             acc[groupNumber] = []
         }
         acc[groupNumber].push(participant)
         return acc
-    }, {} as Record<number, ParticipantScoreData[]>)
+    }, {} as Record<number, ParticipantWithScore[]>)
 
     // Convert to array and sort by group number
     const sortedGroups = Object.entries(groups)
         .map(([groupNumber, participants]) => ({
             groupNumber: parseInt(groupNumber),
             participants,
-            isComplete: participants.every(p => p.isComplete)
+            isComplete: participants.every(p => !!p.participantScore)
         }))
         .sort((a, b) => a.groupNumber - b.groupNumber)
 
@@ -47,44 +47,13 @@ export default function GroupScoreView({ participants, onScoreChange }: GroupSco
             <h3 className="text-lg font-semibold mb-4">{title}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {groups.map((group) => (
-                    <div key={group.groupNumber} className="bg-base-100 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-semibold">Group {group.groupNumber}</h4>
-                            <span className={`badge ${group.isComplete ? 'badge-success' : 'badge-warning'}`}>
-                                {group.isComplete ? 'Complete' : 'Outstanding'}
-                            </span>
-                        </div>
-
-                        <div className="space-y-2">
-                            {group.participants.map((participant) => (
-                                <div key={participant.participantId} className="flex items-center justify-between p-2 bg-base-200 rounded">
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm truncate">
-                                            {participant.participant.name}
-                                        </p>
-                                        <p className="text-xs text-base-content/70">
-                                            {participant.participant.ageGroupId}{participant.participant.genderGroup} • {participant.participant.categoryId}
-                                        </p>
-                                        {participant.participant.club && (
-                                            <p className="text-xs text-base-content/60">
-                                                {participant.participant.club}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    <div className="ml-2">
-                                        <ScoreInput
-                                            currentScore={participant.score}
-                                            isComplete={participant.isComplete}
-                                            onScoreChange={(score, isComplete) =>
-                                                onScoreChange(participant.participantId, score, isComplete)
-                                            }
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <GroupScoreCard
+                        key={group.groupNumber}
+                        groupNumber={group.groupNumber}
+                        participants={group.participants}
+                        isComplete={group.isComplete}
+                        onScoreChange={onScoreChange}
+                    />
                 ))}
             </div>
         </div>

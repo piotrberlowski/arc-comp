@@ -16,6 +16,7 @@ export async function providerLogIn(
         if (error instanceof AuthError) {
             return redirect(`${errorUrl}?error=${error.type}`)
         }
+        console.error("Authentication error (non-AuthError):", error)
         throw error
     }
 }

@@ -1,10 +1,36 @@
 "use client"
 
+import MedalIcon from "../components/MedalIcon"
 import ScoreInput from "../components/ScoreInput"
-import { ParticipantScoreData } from "../scoreActions"
+import { ParticipantWithScore } from "../scoreActions"
+
+/**
+ * Comparator function for sorting participants by completion status, score, and name.
+ * Sorts incomplete participants first, then by score descending, then by name ascending.
+ */
+export function compareParticipants(a: ParticipantWithScore, b: ParticipantWithScore): number {
+    const aHasScore = !!a.participantScore
+    const bHasScore = !!b.participantScore
+
+    // First sort by completion status (incomplete first, then complete)
+    if (aHasScore !== bHasScore) {
+        return aHasScore ? 1 : -1
+    }
+
+    // Then sort by score descending
+    const aScore = a.participantScore?.score || 0
+    const bScore = b.participantScore?.score || 0
+    if (aScore !== bScore) {
+        return bScore - aScore
+    }
+
+    // Finally sort by name ascending
+    return a.name.localeCompare(b.name)
+}
+
 
 // Extended interfaces for participants with place information
-interface ParticipantWithPlace extends ParticipantScoreData {
+interface ParticipantWithPlace extends ParticipantWithScore {
     place: number
     isCategoryHeader: false
     category: string
@@ -23,57 +49,34 @@ interface CategoryHeaderRow {
         club: string | null
     }
     score: null
-    isComplete: false
     categoryComplete: boolean
     place: null
 }
 
 type TableRow = ParticipantWithPlace | CategoryHeaderRow
 
-// Medal icon component
-const MedalIcon = ({ place }: { place: number }) => {
-    if (place === 1) {
-        return <span className="text-yellow-500 text-lg">🥇</span>
-    } else if (place === 2) {
-        return <span className="text-gray-400 text-lg">🥈</span>
-    } else if (place === 3) {
-        return <span className="text-amber-600 text-lg">🥉</span>
-    }
-    return null
-}
-
 interface CategoryScoreViewProps {
-    participants: ParticipantScoreData[]
-    onScoreChange: (participantId: string, score: number | null, isComplete: boolean) => void
+    participants: ParticipantWithScore[]
+    onScoreChange: (participantId: string, score: number | null) => void
 }
 
 export default function CategoryScoreView({ participants, onScoreChange }: CategoryScoreViewProps) {
     // Group participants by category
     const categories = participants.reduce((acc, participant) => {
-        const category = `${participant.participant.ageGroupId}${participant.participant.genderGroup}${participant.participant.categoryId}`
+        const category = `${participant.ageGroupId}${participant.genderGroup}${participant.categoryId}`
         if (!acc[category]) {
             acc[category] = []
         }
         acc[category].push(participant)
         return acc
-    }, {} as Record<string, ParticipantScoreData[]>)
+    }, {} as Record<string, ParticipantWithScore[]>)
 
     // Convert to array and sort by category
     const sortedCategories = Object.entries(categories)
         .map(([category, participants]) => ({
             category,
-            participants: participants.sort((a, b) => {
-                // First sort by completion status (incomplete first, then complete)
-                if (a.isComplete !== b.isComplete) {
-                    return a.isComplete ? 1 : -1
-                }
-                // Then sort by score descending, then by name ascending
-                if (a.score !== b.score) {
-                    return (b.score || 0) - (a.score || 0)
-                }
-                return a.participant.name.localeCompare(b.participant.name)
-            }),
-            isComplete: participants.every(p => p.isComplete)
+            participants: participants.sort(compareParticipants),
+            isComplete: participants.every(p => !!p.participantScore)
         }))
         .sort((a, b) => a.category.localeCompare(b.category))
 
@@ -88,7 +91,6 @@ export default function CategoryScoreView({ participants, onScoreChange }: Categ
                 participantId: `header-${categoryData.category}`,
                 participant: { name: categoryData.category, ageGroupId: '', genderGroup: '', categoryId: '', club: null },
                 score: null,
-                isComplete: false,
                 categoryComplete: false,
                 place: null
             } as CategoryHeaderRow,
@@ -122,7 +124,6 @@ export default function CategoryScoreView({ participants, onScoreChange }: Categ
                     participantId: `header-${categoryData.category}`,
                     participant: { name: categoryData.category, ageGroupId: '', genderGroup: '', categoryId: '', club: null },
                     score: null,
-                    isComplete: false,
                     categoryComplete: true,
                     place: null
                 } as CategoryHeaderRow,
@@ -165,7 +166,7 @@ export default function CategoryScoreView({ participants, onScoreChange }: Categ
                             }
 
                             return (
-                                <tr key={participant.participantId}>
+                                <tr key={participant.id}>
                                     <td>
                                         <div className="flex items-center gap-1">
                                             {!participant.isCategoryHeader && (
@@ -180,26 +181,25 @@ export default function CategoryScoreView({ participants, onScoreChange }: Categ
                                     </td>
                                     <td>
                                         <div>
-                                            <p className="font-medium text-sm">{participant.participant.name}</p>
+                                            <p className="font-medium text-sm">{participant.name}</p>
                                             <p className="text-xs text-base-content/70">
-                                                {participant.participant.ageGroupId}{participant.participant.genderGroup}
+                                                {participant.ageGroupId}{participant.genderGroup}
                                             </p>
                                         </div>
                                     </td>
                                     <td className="hidden md:table-cell">
-                                        <span className="text-sm">{participant.participant.club || 'Independent'}</span>
+                                        <span className="text-sm">{participant.club || 'Independent'}</span>
                                     </td>
                                     <td className="hidden md:table-cell">
                                         <span className="font-mono text-sm">
-                                            {participant.score !== null ? participant.score : '-'}
+                                            {participant.participantScore?.score ?? '-'}
                                         </span>
                                     </td>
                                     <td>
                                         <ScoreInput
-                                            currentScore={participant.score}
-                                            isComplete={participant.isComplete}
-                                            onScoreChange={(score, isComplete) =>
-                                                onScoreChange(participant.participantId, score, isComplete)
+                                            currentScore={participant.participantScore?.score ?? null}
+                                            onScoreChange={(score) =>
+                                                onScoreChange(participant.id, score)
                                             }
                                         />
                                     </td>

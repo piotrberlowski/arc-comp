@@ -20,7 +20,6 @@ export default prisma;
 
 export function prismaOrThrow(operation: string): PrismaClient {
   if (!prisma) {
-    console.log(`DB not connected, ${operation} failed`)
     throw "No DB connection"
   }
   return prisma

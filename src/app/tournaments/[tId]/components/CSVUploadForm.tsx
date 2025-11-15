@@ -27,6 +27,7 @@ export default function CSVUploadForm({
             const text = await file.text()
             onCsvTextChange(text)
         } catch (error) {
+            console.error("Failed to read CSV file:", error)
             onError(error instanceof Error ? error.message : "Unknown error")
         }
     }

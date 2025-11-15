@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { exportToIFAFXLSX } from '../../../results/[rId]/ifafExport'
-import { getTournamentResults } from '../../../results/[rId]/resultsActions'
+import { getTournamentResults } from '../../../results/resultsActions'
 
 export async function POST(request: NextRequest) {
     try {

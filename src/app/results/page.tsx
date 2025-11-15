@@ -1,18 +1,8 @@
 import Link from "next/link"
-import { prismaOrThrow } from "../../../lib/prisma"
+import { listPublishedTournaments } from "./resultsActions"
 
 export default async function ResultsPage() {
-    const publishedTournaments = await prismaOrThrow("get published tournaments").tournament.findMany({
-        where: {
-            isPublished: true
-        },
-        include: {
-            format: true
-        },
-        orderBy: {
-            date: 'desc'
-        }
-    })
+    const publishedTournaments = await listPublishedTournaments()
 
     return (
         <div className="w-full p-6">

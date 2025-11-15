@@ -8,7 +8,6 @@ export default async function Navigation({ className }: { className?: string }) 
     const session = await auth()
 
     const authenticated = !!session?.user?.name
-    console.log(session)
 
     return (
         <div className={`navbar bg-neutral ${className}`}>

@@ -6,14 +6,11 @@ import CreateTournamentForm from "./CreateTournamentForm"
 
 export default function TournamentHeader({ clubs }: { clubs: string[] }) {
     const dialogRef = useRef<HTMLDialogElement>(null)
-    console.log(dialogRef?.current)
     return (
         <div className="w-full flex mt-5 bg-primary p-5 rounded-sm">
             <div className="w-40">{/** spacer */}</div>
             <h1 className="text-3xl flex flex-1 justify-center"><span>Managed Tournaments</span></h1>
             <button className="btn btn-success w-40 text-lg" onClick={() => {
-                console.log("Creating new tournament")
-                console.log(dialogRef?.current)
                 try {
                     dialogRef?.current?.showModal()
                 } catch (error) {

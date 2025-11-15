@@ -37,8 +37,6 @@ export class IFAFExcellExporter {
     }
 
     async processTournamentResults(tournamentData: TournamentResultsData): Promise<Buffer> {
-        console.log(`IFAF Export: Processing tournament results for ${tournamentData.tournament.name}`)
-        console.log(`IFAF Export: Tournament data: ${JSON.stringify(tournamentData)}`)
         // 1. Load template
         const template = await this.loadTemplate()
 
@@ -77,18 +75,13 @@ export class IFAFExcellExporter {
         let processedBowStyles = 0
         const totalBowStyles = this.allBowStyleMappings.length
 
-        console.log(`IFAF Export: Total bowstyles: ${totalBowStyles}`)
-        console.log(`IFAF Export: All bowstyle mappings: ${JSON.stringify(this.allBowStyleMappings)}`)
-        console.log(`Worksheet row count: ${worksheet.rowCount}`)
         // Iterate row-by-row through the template
         while (currentRow <= worksheet.rowCount && processedBowStyles < totalBowStyles) {
             const row = worksheet.getRow(currentRow)
 
             // Check if this row contains a bowstyle heading
             const bowStyleCode = this.extractBowStyleFromRow(row)
-            console.log(`IFAF Export: Extracted bowstyle code: ${bowStyleCode}`)
             if (bowStyleCode) {
-                console.log(`IFAF Export: Found bowstyle heading at row ${currentRow}: ${bowStyleCode}`)
                 processedBowStyles++
 
                 // Get the bowstyle mapping for this code
@@ -101,7 +94,7 @@ export class IFAFExcellExporter {
                         // Process participants for this bowstyle
                         await this.processBowStyleParticipants(worksheet, participants, currentRow)
                     } else {
-                        console.log(`IFAF Export: No participants for bow style ${bowStyleCode} - skipping data insertion`)
+                        console.info(`IFAF Export: No participants for bow style ${bowStyleCode} - skipping data insertion`)
                     }
                 }
 
@@ -113,7 +106,6 @@ export class IFAFExcellExporter {
             }
         }
 
-        console.log(`IFAF Export: Finished processing at row ${currentRow}, processed ${processedBowStyles} bowstyles`)
         return workbook
     }
 

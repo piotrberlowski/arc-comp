@@ -28,7 +28,8 @@ export async function listTournamentsForClubs(clubs: string[], includeArchive: b
 
 export async function listRoundFormats() {
     return prismaOrThrow("list round formats").roundFormat.findMany().catch(e => {
-        console.log("Failed to load Round Formats...", e)
+        console.error("Failed to load Round Formats:", e)
+        return null
     })
 }
 

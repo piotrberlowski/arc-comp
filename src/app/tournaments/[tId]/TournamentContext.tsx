@@ -35,7 +35,10 @@ export class TournamentEditController {
                     done()
                 }
             )
-            .catch(e => done(e))
+            .catch(e => {
+                console.error("Failed to update tournament:", e)
+                done(e)
+            })
     }
 
     // Group assignment methods

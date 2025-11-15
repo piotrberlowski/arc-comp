@@ -108,6 +108,7 @@ export default function SharingDrawer({ isOpen, onClose, allScoresComplete, tour
                 })
             }
         } catch (error) {
+            console.error("Failed to update sharing settings:", error)
             setError(error instanceof Error ? error.message : 'Failed to update sharing settings')
         } finally {
             setIsUpdating(false)
@@ -121,6 +122,7 @@ export default function SharingDrawer({ isOpen, onClose, allScoresComplete, tour
             setCopied(true)
             setTimeout(() => setCopied(false), 2000)
         } catch (error) {
+            console.error("Failed to copy link to clipboard:", error)
             setError("Failed to copy link to clipboard")
         }
     }

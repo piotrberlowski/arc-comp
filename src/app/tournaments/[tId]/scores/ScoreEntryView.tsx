@@ -31,6 +31,7 @@ export default function ScoreEntryView({ scores }: { scores: Promise<TournamentS
         try {
             await updateScore(participantId, t.id, score)
         } catch (error) {
+            console.error("Failed to update score:", error)
             setError(error instanceof Error ? error.message : 'An error occurred')
         }
     }

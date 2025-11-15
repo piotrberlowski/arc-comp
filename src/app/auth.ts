@@ -23,7 +23,10 @@ const handler = NextAuth({
         async session(params) {
             const { session, user } = params
             if (user) {
-                const userWithRoles = await prismaOrThrow("authenticate user").user.findUnique({ where: { id: user.id }, include: { organizerRoles: true } }).catch(e => console.log(e))
+                const userWithRoles = await prismaOrThrow("authenticate user").user.findUnique({ where: { id: user.id }, include: { organizerRoles: true } }).catch(e => {
+                    console.error("Failed to fetch user roles:", e)
+                    return null
+                })
                 session.isAdmin = userWithRoles?.isAdmin as boolean | false
                 session.organizerRoles = userWithRoles?.organizerRoles as Organizer[] | []
             }

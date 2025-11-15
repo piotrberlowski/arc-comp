@@ -4,11 +4,11 @@ import useErrorContext from "@/components/errors/ErrorContext";
 import { PencilIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import { Participant } from "@prisma/client";
 import { useCallback, useState, useTransition } from "react";
-import CheckInButton from "./components/CheckInButton";
+import useTournamentContext from "./TournamentContext";
 import CSVImport from "./components/CSVImport";
+import CheckInButton from "./components/CheckInButton";
 import ParticipantFilter from "./components/ParticipantFilter";
 import { listParticipants, removeParticipant } from "./participantActions";
-import useTournamentContext from "./TournamentContext";
 
 interface ParticipantsListProps {
     participants: Participant[]
@@ -37,6 +37,7 @@ export default function ParticipantsList({ participants, onEditParticipant, edit
                 const updatedParticipants = await listParticipants(tEdit.getTournament().id)
                 setDisplayP(updatedParticipants)
             } catch (error) {
+                console.error("Failed to refresh participants:", error)
                 setError(error instanceof Error ? error.message : 'Failed to refresh participants')
             }
         }
@@ -92,6 +93,7 @@ export default function ParticipantsList({ participants, onEditParticipant, edit
                                                         const updatedParticipants = await listParticipants(tEdit.getTournament().id)
                                                         setDisplayP(updatedParticipants)
                                                     } catch (e) {
+                                                        console.error("Failed to refresh participants:", e)
                                                         setError(e instanceof Error ? e.message : 'Failed to refresh participants')
                                                     }
                                                 }
@@ -115,6 +117,7 @@ export default function ParticipantsList({ participants, onEditParticipant, edit
                                                 )
                                                 .catch(
                                                     e => {
+                                                        console.error("Failed to remove participant:", e)
                                                         if (tEdit) {
                                                             listParticipants(tEdit.getTournament().id).then(tP => setDisplayP(tP))
                                                         }

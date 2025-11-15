@@ -360,6 +360,7 @@ export async function importParticipantsCSV(
         }
 
     } catch (error) {
+        console.error("Failed to import participants CSV:", error)
         return {
             success: false,
             message: `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`,

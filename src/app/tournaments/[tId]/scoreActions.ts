@@ -118,20 +118,6 @@ async function validateCheckedInParticipantsHaveScores(
     }
 }
 
-export async function publishResults(tournamentId: string) {
-    await validateCheckedInParticipantsHaveScores(tournamentId, "Cannot publish results")
-
-    // Update tournament to mark as published
-    await prismaOrThrow("publish results").tournament.update({
-        where: { id: tournamentId },
-        data: { isPublished: true }
-    })
-
-    revalidatePath(`/tournaments/${tournamentId}/scores`)
-    revalidatePath(`/tournaments`)
-    revalidatePath(`/results`)
-}
-
 export async function updateSharingSettings(
     tournamentId: string,
     isPublished: boolean,

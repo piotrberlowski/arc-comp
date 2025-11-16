@@ -10,7 +10,8 @@ export type TournamentScores = (ParticipantWithScore)[]
 export async function getTournamentScores(tournamentId: string): Promise<TournamentScores> {
     return prismaOrThrow("get tournament scores").participant.findMany({
         where: {
-            tournamentId: tournamentId
+            tournamentId: tournamentId,
+            checkedIn: true,
         },
         include: {
             participantScore: true,
@@ -24,6 +25,9 @@ export async function getTournamentWithScoresStatus(tournamentId: string): Promi
         where: { id: tournamentId },
         include: {
             participants: {
+                where: {
+                    checkedIn: true,
+                },
                 include: {
                     participantScore: true
                 }

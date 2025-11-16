@@ -272,7 +272,7 @@ describe('IFAFExcellExporter', () => {
     let outputPath: string
 
     beforeEach(() => {
-        templatePath = join(process.cwd(), 'resources', 'templatev2.xlsx')
+        templatePath = join(process.cwd(), 'resources', 'templatev3.xlsx')
         outputPath = join(process.cwd(), 'test-output-ifaf-excell.xlsx')
         processor = new IFAFExcellExporter(templatePath, mockIFAFBowStyleMappings, mockIFAFAgeGenderMappings)
     })

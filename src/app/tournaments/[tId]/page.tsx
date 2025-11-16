@@ -9,6 +9,7 @@ import { listParticipants } from "./participantActions"
 export default async function TournamentDetailsPage({ params }: { params: Promise<{ tId: string }> }) {
     const tournament = await params.then(p => getTournamentById(p.tId)).catch(
         e => {
+            console.error("Failed to load tournament:", e)
             return `${e}`
         }
     )

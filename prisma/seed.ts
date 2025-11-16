@@ -15,6 +15,7 @@ async function main() {
                     { name: "Marked Animal Round" },
                     { name: "Flint", endCount: 14, groupSize: 2 },
                     { name: "Indoor", endCount: 12 },
+                    { name: "Custom" },
                 ],
                 skipDuplicates: true,
             }),
@@ -99,7 +100,6 @@ async function main() {
             })
         ],
     )
-    console.log({ response })
 }
 
 main()

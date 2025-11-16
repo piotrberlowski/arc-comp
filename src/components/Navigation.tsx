@@ -8,7 +8,6 @@ export default async function Navigation({ className }: { className?: string }) 
     const session = await auth()
 
     const authenticated = !!session?.user?.name
-    console.log(session)
 
     return (
         <div className={`navbar bg-neutral ${className}`}>
@@ -36,7 +35,7 @@ export default async function Navigation({ className }: { className?: string }) 
             </div>
             <div className="navbar-end">
                 {
-                    authenticated && (<Account />)
+                    authenticated && (<Account />) || (<Link className="btn btn-ghost btn-sm" href={"/login"}>Sign In</Link>)
                 }
             </div>
         </div>

@@ -1,45 +1,44 @@
 "use client"
 
 import useErrorContext from "@/components/errors/ErrorContext"
-import { useState } from "react"
-import { publishResults, TournamentScoresData, updateScore } from "../scoreActions"
+import { use, useState } from "react"
+import useTournamentContext from "../TournamentContext"
+import { TournamentScores, updateScore } from "../scoreActions"
 import CategoryScoreView from "./CategoryScoreView"
 import GroupScoreView from "./GroupScoreView"
-
-interface ScoreEntryViewProps {
-    scoresData: TournamentScoresData
-}
+import SharingDrawer from "./SharingDrawer"
 
 type ViewMode = 'group' | 'category'
 
-export default function ScoreEntryView({ scoresData }: ScoreEntryViewProps) {
+export default function ScoreEntryView({ scores }: { scores: Promise<TournamentScores> }) {
     const [viewMode, setViewMode] = useState<ViewMode>('group')
-    const [isPublishing, setIsPublishing] = useState(false)
+    const [isSharingDrawerOpen, setIsSharingDrawerOpen] = useState(false)
+    const tCtx = useTournamentContext()
+    const scoresData = use(scores)
     const setError = useErrorContext()
 
-    const handleScoreChange = async (participantId: string, score: number | null, isComplete: boolean) => {
+    const t = tCtx?.getTournament()
+
+    if (!t?.id) {
+        return (
+            <div className="w-full p-4 space-y-6">
+                No tournament open.
+            </div>
+        )
+    }
+
+    const handleScoreChange = async (participantId: string, score: number | null) => {
         try {
-            await updateScore(participantId, scoresData.tournament.id, score, isComplete)
+            await updateScore(participantId, t.id, score)
         } catch (error) {
+            console.error("Failed to update score:", error)
             setError(error instanceof Error ? error.message : 'An error occurred')
         }
     }
 
-    const handlePublishResults = async () => {
-        setIsPublishing(true)
-        try {
-            await publishResults(scoresData.tournament.id)
-            setError("Results published successfully!")
-        } catch (error) {
-            setError(error instanceof Error ? error.message : 'Failed to publish results')
-        } finally {
-            setIsPublishing(false)
-        }
-    }
-
     // Check if all participants have completed scores
-    const allScoresComplete = scoresData.participants.every(p => p.isComplete)
-    const isPublished = scoresData.tournament.isPublished
+    const allScoresComplete = scoresData.every(p => !!p.participantScore)
+    const isPublished = t.isPublished
 
 
     return (
@@ -49,7 +48,7 @@ export default function ScoreEntryView({ scoresData }: ScoreEntryViewProps) {
                 <div>
                     <h1 className="text-2xl font-bold hidden md:block">Score Entry</h1>
                     <p className="text-base-content/70">
-                        Enter scores for {scoresData.participants.length} participants
+                        Enter scores for {scoresData.length} participants
                     </p>
                     {isPublished && (
                         <div className="badge badge-success mt-1">Results Published</div>
@@ -69,13 +68,12 @@ export default function ScoreEntryView({ scoresData }: ScoreEntryViewProps) {
                     >
                         By Category
                     </button>
-                    {!isPublished && (
+                    {allScoresComplete && (
                         <button
-                            className={`hidden md:block btn ${allScoresComplete ? 'btn-success' : 'btn-disabled'}`}
-                            onClick={handlePublishResults}
-                            disabled={!allScoresComplete || isPublishing}
+                            className="hidden sm:block btn btn-primary"
+                            onClick={() => setIsSharingDrawerOpen(true)}
                         >
-                            {isPublishing ? 'Publishing...' : 'Publish Results'}
+                            Sharing
                         </button>
                     )}
                 </div>
@@ -84,15 +82,22 @@ export default function ScoreEntryView({ scoresData }: ScoreEntryViewProps) {
             {/* Score Views */}
             {viewMode === 'group' ? (
                 <GroupScoreView
-                    participants={scoresData.participants}
+                    participants={scoresData}
                     onScoreChange={handleScoreChange}
                 />
             ) : (
                 <CategoryScoreView
-                    participants={scoresData.participants}
+                    participants={scoresData}
                     onScoreChange={handleScoreChange}
                 />
             )}
+
+            {/* Sharing Drawer */}
+            <SharingDrawer
+                isOpen={isSharingDrawerOpen}
+                onClose={() => setIsSharingDrawerOpen(false)}
+                allScoresComplete={allScoresComplete}
+            />
         </div>
     )
 }

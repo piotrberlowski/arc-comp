@@ -5,13 +5,11 @@ import { useState } from "react"
 
 interface ScoreInputProps {
     currentScore: number | null
-    isComplete: boolean
-    onScoreChange: (score: number | null, isComplete: boolean) => void
+    onScoreChange: (score: number | null) => void
 }
 
 export default function ScoreInput({
     currentScore,
-    isComplete,
     onScoreChange
 }: ScoreInputProps) {
     const [score, setScore] = useState(currentScore?.toString() || '')
@@ -22,13 +20,12 @@ export default function ScoreInput({
         if (isPending) return
 
         const scoreValue = score === '' ? null : parseInt(score)
-        const shouldBeComplete = scoreValue !== null && scoreValue > 0
 
         // Only save if the value has actually changed
-        if (scoreValue !== currentScore || shouldBeComplete !== isComplete) {
+        if (scoreValue !== currentScore) {
             setIsPending(true)
             try {
-                await onScoreChange(scoreValue, shouldBeComplete)
+                await onScoreChange(scoreValue)
             } finally {
                 setIsPending(false)
             }
@@ -47,7 +44,7 @@ export default function ScoreInput({
         setIsPending(true)
         try {
             setScore('')
-            await onScoreChange(null, false)
+            await onScoreChange(null)
         } finally {
             setIsPending(false)
         }

@@ -83,9 +83,11 @@ export async function updateScore(
     revalidatePath(`/tournaments/${tournamentId}/scores`)
 }
 
-export async function publishResults(tournamentId: string) {
-    // Check if all checked-in participants have completed scores
-    const tournament = await prismaOrThrow("get tournament for publish").tournament.findUnique({
+async function validateCheckedInParticipantsHaveScores(
+    tournamentId: string,
+    errorMessagePrefix: string
+): Promise<void> {
+    const tournament = await prismaOrThrow("validate checked-in participants have scores").tournament.findUnique({
         where: { id: tournamentId },
         include: {
             participants: {
@@ -103,14 +105,17 @@ export async function publishResults(tournamentId: string) {
         throw new Error("Tournament not found")
     }
 
-    // Check if all checked-in participants have completed scores
     const incompleteParticipants = tournament.participants.filter(p =>
         !p.participantScore
     )
 
     if (incompleteParticipants.length > 0) {
-        throw new Error(`Cannot publish results: ${incompleteParticipants.length} participants have incomplete scores`)
+        throw new Error(`${errorMessagePrefix}: ${incompleteParticipants.length} participants have incomplete scores`)
     }
+}
+
+export async function publishResults(tournamentId: string) {
+    await validateCheckedInParticipantsHaveScores(tournamentId, "Cannot publish results")
 
     // Update tournament to mark as published
     await prismaOrThrow("publish results").tournament.update({
@@ -130,32 +135,7 @@ export async function updateSharingSettings(
 ): Promise<void> {
     // Check if all checked-in participants have completed scores when making public
     if (isPublished) {
-        const tournament = await prismaOrThrow("get tournament for sharing").tournament.findUnique({
-            where: { id: tournamentId },
-            include: {
-                participants: {
-                    where: {
-                        checkedIn: true
-                    },
-                    include: {
-                        participantScore: true
-                    }
-                }
-            }
-        })
-
-        if (!tournament) {
-            throw new Error("Tournament not found")
-        }
-
-        // Check if all checked-in participants have completed scores
-        const incompleteParticipants = tournament.participants.filter(p =>
-            !p.participantScore
-        )
-
-        if (incompleteParticipants.length > 0) {
-            throw new Error(`Cannot make results public: ${incompleteParticipants.length} participants have incomplete scores`)
-        }
+        await validateCheckedInParticipantsHaveScores(tournamentId, "Cannot make results public")
     }
 
     // Update tournament sharing settings

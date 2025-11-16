@@ -1,8 +1,6 @@
 "use client"
 
 import { DocumentArrowUpIcon } from "@heroicons/react/24/outline"
-import { useActionState, useEffect, useState } from "react"
-import { CSVImportState, importParticipantsCSV } from "../participantActions"
 import useTournamentContext from "../TournamentContext"
 import CSVUploadForm from "./CSVUploadForm"
 
@@ -10,46 +8,8 @@ interface CSVImportProps {
     onImportComplete: (result: { success: boolean; message: string; importedCount: number; errors: string[] }) => void
 }
 
-const initialState: CSVImportState = {
-    success: false,
-    message: "",
-    importedCount: 0,
-    errors: []
-}
-
 export default function CSVImport({ onImportComplete }: CSVImportProps) {
-    const [csvText, setCsvText] = useState("")
     const tournament = useTournamentContext()
-
-    const [importState, importAction, isPending] = useActionState(
-        importParticipantsCSV,
-        initialState,
-        `/tournaments/${tournament?.getTournamentId()}`
-    )
-
-    const handleCsvTextChange = (text: string) => {
-        setCsvText(text)
-    }
-
-    const handleSubmit = (formData: FormData) => {
-        importAction(formData)
-    }
-
-    const handleError = (error: string) => {
-        onImportComplete({
-            success: false,
-            message: "Failed to read CSV file",
-            importedCount: 0,
-            errors: [error]
-        })
-    }
-
-    // Handle import state changes with useEffect to avoid render-time state updates
-    useEffect(() => {
-        if (importState.success || importState.errors.length > 0) {
-            onImportComplete(importState)
-        }
-    }, [importState, onImportComplete])
 
     return (
         <div className="drawer drawer-end">
@@ -73,11 +33,7 @@ export default function CSVImport({ onImportComplete }: CSVImportProps) {
                     {tournament && (
                         <CSVUploadForm
                             tournamentId={tournament.getTournamentId()}
-                            csvText={csvText}
-                            onCsvTextChange={handleCsvTextChange}
-                            onSubmit={handleSubmit}
-                            isPending={isPending}
-                            onError={handleError}
+                            onImportComplete={onImportComplete}
                         />
                     )}
                 </div>

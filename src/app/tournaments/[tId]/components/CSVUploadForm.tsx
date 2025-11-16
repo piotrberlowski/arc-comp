@@ -1,34 +1,82 @@
 "use client"
 
 import { DocumentArrowUpIcon } from "@heroicons/react/24/outline"
-import { useState } from "react"
+import { useActionState, useEffect, useRef, useState } from "react"
+import { CSVImportState, importParticipantsCSV } from "../csvImportActions"
 
 interface CSVUploadFormProps {
     tournamentId: string
-    csvText: string
-    onCsvTextChange: (text: string) => void
-    onSubmit: (formData: FormData) => void
-    isPending: boolean
-    onError: (error: string) => void
+    onImportComplete?: (result: { success: boolean; message: string; importedCount: number; errors: string[] }) => void
+}
+
+const initialState: CSVImportState = {
+    success: false,
+    message: "",
+    importedCount: 0,
+    errors: []
 }
 
 export default function CSVUploadForm({
     tournamentId,
-    csvText,
-    onCsvTextChange,
-    onSubmit,
-    isPending,
-    onError
+    onImportComplete
 }: CSVUploadFormProps) {
+    const [csvText, setCsvText] = useState("")
     const [dragOver, setDragOver] = useState(false)
+    const [fileUploadError, setFileUploadError] = useState<string | null>(null)
+    const lastProcessedStateRef = useRef<CSVImportState | null>(null)
+
+    const [importState, importAction, isPending] = useActionState(
+        importParticipantsCSV,
+        initialState,
+        `/tournaments/${tournamentId}`
+    )
+
+    const formatImportError = (): string | null => {
+        if (importState.errors.length === 0) {
+            return null
+        }
+        if (importState.errors.length === 1) {
+            return importState.errors[0]
+        }
+        return `${importState.message}\n\n${importState.errors.map((e, i) => `${i + 1}. ${e}`).join('\n')}`
+    }
+
+    const formatSuccessMessage = (): string | null => {
+        if (importState.success && importState.message) {
+            return importState.message
+        }
+        return null
+    }
+
+    const error = formatImportError() || fileUploadError
+    const successMessage = formatSuccessMessage()
+
+    // Handle import state changes with useEffect to avoid render-time state updates
+    // Use ref to prevent calling onImportComplete multiple times for the same state
+    useEffect(() => {
+        if (!onImportComplete) {
+            return
+        }
+
+        const hasChanged =
+            lastProcessedStateRef.current?.success !== importState.success ||
+            lastProcessedStateRef.current?.importedCount !== importState.importedCount ||
+            lastProcessedStateRef.current?.errors.length !== importState.errors.length
+
+        if (hasChanged && (importState.success || importState.errors.length > 0)) {
+            lastProcessedStateRef.current = importState
+            onImportComplete(importState)
+        }
+    }, [importState, onImportComplete])
 
     const handleFileUpload = async (file: File) => {
         try {
             const text = await file.text()
-            onCsvTextChange(text)
+            setFileUploadError(null) // Clear any previous errors
+            setCsvText(text)
         } catch (error) {
             console.error("Failed to read CSV file:", error)
-            onError(error instanceof Error ? error.message : "Unknown error")
+            setFileUploadError(error instanceof Error ? error.message : "Unknown error")
         }
     }
 
@@ -62,7 +110,8 @@ export default function CSVUploadForm({
     const handleSubmit = (formData: FormData) => {
         if (csvText) {
             formData.set('csvText', csvText)
-            onSubmit(formData)
+            lastProcessedStateRef.current = null // Reset ref when starting new import
+            importAction(formData)
         }
     }
 
@@ -118,6 +167,16 @@ export default function CSVUploadForm({
                     <p>Required columns:</p>
                     <p>1. Full Name, 2. Membership Number, 3. Gender (F/M), 4. Age Group ID, 5. Equipment Category ID, 6. Club Name</p>
                 </div>
+                {successMessage && (
+                    <div className="alert alert-success mt-3">
+                        {successMessage}
+                    </div>
+                )}
+                {!!error && (
+                    <div className="alert alert-error mt-3">
+                        <div className="whitespace-pre-line">{error}</div>
+                    </div>
+                )}
             </div>
         </form>
     )

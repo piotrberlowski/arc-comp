@@ -28,7 +28,7 @@ export default function ParticipantsList({ participants, onEditParticipant, edit
         setFilteredParticipants(filtered)
     }, [])
 
-    const handleImportComplete = async (result: { success: boolean; message: string; importedCount: number; errors: string[] }) => {
+    const handleImportComplete = useCallback(async (result: { success: boolean; message: string; importedCount: number; errors: string[] }) => {
         setImportResult(result)
 
         if (result.success && tEdit) {
@@ -41,7 +41,7 @@ export default function ParticipantsList({ participants, onEditParticipant, edit
                 setError(error instanceof Error ? error.message : 'Failed to refresh participants')
             }
         }
-    }
+    }, [tEdit, setError])
 
     return (
         <div className="md:w-4/5 mx-auto space-y-6">

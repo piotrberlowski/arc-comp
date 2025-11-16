@@ -84,11 +84,14 @@ export async function updateScore(
 }
 
 export async function publishResults(tournamentId: string) {
-    // Check if all participants have completed scores
+    // Check if all checked-in participants have completed scores
     const tournament = await prismaOrThrow("get tournament for publish").tournament.findUnique({
         where: { id: tournamentId },
         include: {
             participants: {
+                where: {
+                    checkedIn: true
+                },
                 include: {
                     participantScore: true
                 }
@@ -100,7 +103,7 @@ export async function publishResults(tournamentId: string) {
         throw new Error("Tournament not found")
     }
 
-    // Check if all participants have completed scores
+    // Check if all checked-in participants have completed scores
     const incompleteParticipants = tournament.participants.filter(p =>
         !p.participantScore
     )
@@ -125,12 +128,15 @@ export async function updateSharingSettings(
     isPublished: boolean,
     isShared: boolean
 ): Promise<void> {
-    // Check if all participants have completed scores when making public
+    // Check if all checked-in participants have completed scores when making public
     if (isPublished) {
         const tournament = await prismaOrThrow("get tournament for sharing").tournament.findUnique({
             where: { id: tournamentId },
             include: {
                 participants: {
+                    where: {
+                        checkedIn: true
+                    },
                     include: {
                         participantScore: true
                     }
@@ -142,7 +148,7 @@ export async function updateSharingSettings(
             throw new Error("Tournament not found")
         }
 
-        // Check if all participants have completed scores
+        // Check if all checked-in participants have completed scores
         const incompleteParticipants = tournament.participants.filter(p =>
             !p.participantScore
         )

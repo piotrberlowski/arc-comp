@@ -1,17 +1,17 @@
 "use client"
 
-import { useState } from "react"
-import { TournamentGroupsData } from "../groupActions"
+import { useState, useTransition } from "react"
+import { TournamentGroupsData, cleanupGroups } from "../groupActions"
 import { useGroupAssignment } from "../TournamentContext"
 import GroupCard from "./GroupCard"
 import UnassignedParticipants from "./UnassignedParticipants"
+import GroupWarningHeader from "./GroupWarningHeader"
 
-interface GroupAssignmentViewProps {
+export default function GroupAssignmentView({ groupsData }: {
     groupsData: TournamentGroupsData
-}
-
-export default function GroupAssignmentView({ groupsData }: GroupAssignmentViewProps) {
+}) {
     const [draggedParticipant, setDraggedParticipant] = useState<string | null>(null)
+    const [isCleanupPending, startCleanupTransition] = useTransition()
     const { handleMoveParticipant } = useGroupAssignment()
 
     const handleDragStart = (participantId: string) => {
@@ -35,6 +35,24 @@ export default function GroupAssignmentView({ groupsData }: GroupAssignmentViewP
         setDraggedParticipant(null)
     }
 
+    // Calculate warning header data
+    const allAssignedParticipants = groupsData.groups.flatMap(g => g.participants)
+    const notCheckedInCount = allAssignedParticipants.filter(p => !p.checkedIn).length
+    const totalAssigned = allAssignedParticipants.length
+
+    const handleCleanup = () => {
+        const confirmed = confirm(`Remove ${notCheckedInCount} non-checked-in participants from groups?`)
+        if (confirmed) {
+            startCleanupTransition(async () => {
+                try {
+                    await cleanupGroups(groupsData.tournament.id)
+                } catch (error) {
+                    console.error('Failed to cleanup groups:', error)
+                }
+            })
+        }
+    }
+
     const getGridCols = () => {
         const numGroups = groupsData.groups.length
         if (numGroups <= 4) return "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
@@ -45,6 +63,14 @@ export default function GroupAssignmentView({ groupsData }: GroupAssignmentViewP
 
     return (
         <div className="w-full p-4 space-y-6">
+            {/* Warning Header */}
+            <GroupWarningHeader
+                totalAssigned={totalAssigned}
+                notCheckedInCount={notCheckedInCount}
+                onCleanup={handleCleanup}
+                isCleanupPending={isCleanupPending}
+            />
+
             {/* Unassigned Participants */}
             <UnassignedParticipants
                 participants={groupsData.unassignedParticipants}

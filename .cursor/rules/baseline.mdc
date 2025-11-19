@@ -16,3 +16,4 @@ alwaysApply: true
 - Always extract components inside closures if it's more than 2 nested elements
 - If a component is used within just one page, place it alongside that page in the tree; when it's used across multiple pages move it to components directory
 - Prefer to use contexts instead of passing data multiple levels
+- on components use ({field}:{field:Type}) sytax rather than extract props interface

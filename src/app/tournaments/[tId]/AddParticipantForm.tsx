@@ -3,12 +3,12 @@ import AgeDivisionSelect from "./components/AgeDivisionSelect"
 import EquipmentCategorySelect from "./components/EquipmentCategorySelect"
 
 import ErrorAlert from "@/components/errors/ErrorAlert"
+import { Participant } from "@/generated/prisma/browser"
 import { CheckCircleIcon, PencilIcon, PlusCircleIcon, XMarkIcon } from "@heroicons/react/24/outline"
-import { Participant } from "@prisma/client"
 import Form from "next/form"
 import { useActionState } from "react"
 import GenderSelect from "./components/GenderSelect"
-import { addParticipant, AddParticipantState } from "./participantActions"
+import { AddParticipantState, addParticipant } from "./participantActions"
 
 const initialState: AddParticipantState = {
     data: {},

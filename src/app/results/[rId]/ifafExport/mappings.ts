@@ -1,4 +1,4 @@
-import { prismaOrThrow } from "../../../../../lib/prisma"
+import { prismaOrThrow } from "@/lib/prisma"
 
 export async function getIFAFBowStyleMapping(equipmentCategoryId: string) {
     return await prismaOrThrow("get IFAF bow style mapping").iFAFBowStyleMapping.findUnique({

@@ -1,15 +1,15 @@
-import { PrismaAdapter } from "@auth/prisma-adapter"
 import NextAuth, { NextAuthConfig, Session } from "next-auth"
 // eslint-disable-next-line
-import { Organizer } from "@prisma/client"
+import { Organizer } from "@/generated/prisma/client"
+import prisma, { prismaOrThrow } from "@/lib/prisma"
+import { PrismaAdapter } from "@auth/prisma-adapter"
 import { JWT } from "next-auth/jwt"
-import prisma, { prismaOrThrow } from "../../lib/prisma"
 // eslint-disable-next-line
 import { AdapterUser } from "next-auth/adapters"
 import { NextRequest } from "next/server"
 import authConfig, { LOGIN_PATH } from "./auth.config"
 
-const adapter = prisma ? PrismaAdapter(prisma) : undefined
+const adapter = PrismaAdapter(prisma)
 
 const handler = NextAuth({
     adapter: adapter,

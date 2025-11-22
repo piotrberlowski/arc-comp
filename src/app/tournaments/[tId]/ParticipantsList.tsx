@@ -1,8 +1,8 @@
 "use client"
 
 import useErrorContext from "@/components/errors/ErrorContext";
+import { Participant } from "@/generated/prisma/browser";
 import { PencilIcon, XCircleIcon } from "@heroicons/react/24/outline";
-import { Participant } from "@prisma/client";
 import { useCallback, useState, useTransition } from "react";
 import useTournamentContext from "./TournamentContext";
 import CSVImport from "./components/CSVImport";

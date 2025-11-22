@@ -1,15 +1,15 @@
 "use client"
 
+import { Participant } from "@/generated/prisma/browser"
 import { CheckCircleIcon, MinusCircleIcon } from "@heroicons/react/24/outline"
-import { Participant } from "@prisma/client"
 import { useTransition } from "react"
 import { checkInParticipant, uncheckParticipant } from "../participantActions"
 
-export default function CheckInButton({ 
-    participant, 
-    onUpdate, 
-    disabled = false, 
-    compact = false 
+export default function CheckInButton({
+    participant,
+    onUpdate,
+    disabled = false,
+    compact = false
 }: {
     participant: Participant
     onUpdate?: () => void

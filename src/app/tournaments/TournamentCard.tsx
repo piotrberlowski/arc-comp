@@ -1,6 +1,6 @@
 import ConfirmingButton from "@/components/ConfirmingButton";
+import { RoundFormat, Tournament } from "@/generated/prisma/browser";
 import { ArchiveBoxArrowDownIcon, HandThumbUpIcon, PencilSquareIcon, ShareIcon } from "@heroicons/react/24/outline";
-import { RoundFormat, Tournament } from "@prisma/client";
 import { format } from 'date-fns';
 import Form from "next/form";
 import { useState } from "react";

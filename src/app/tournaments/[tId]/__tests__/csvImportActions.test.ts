@@ -1,4 +1,4 @@
-import { GenderGroup } from '@prisma/client'
+import { GenderGroup } from "@/generated/prisma/enums"
 import { parseCSV } from '../csvImportActions'
 
 describe('CSV Import Parsing', () => {

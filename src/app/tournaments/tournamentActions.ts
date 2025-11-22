@@ -1,7 +1,7 @@
 "use server"
 
-import { Prisma } from "@prisma/client"
-import { prismaOrThrow } from "../../../lib/prisma"
+import { Prisma } from "@/generated/prisma/client"
+import { prismaOrThrow } from "@/lib/prisma"
 
 export interface TournamentUpdate {
     name?: string,

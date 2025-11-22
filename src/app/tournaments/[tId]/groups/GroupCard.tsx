@@ -1,6 +1,6 @@
 "use client"
 
-import { GroupAssignment, Participant } from "@prisma/client";
+import { GroupAssignment, Participant } from "@/generated/prisma/browser";
 import ParticipantCard from "./ParticipantCard";
 
 interface GroupCardProps {

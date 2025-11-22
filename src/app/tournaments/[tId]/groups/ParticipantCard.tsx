@@ -1,11 +1,11 @@
 "use client"
 
+import { GroupAssignment, Participant } from "@/generated/prisma/browser"
 import { UserPlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
-import { GroupAssignment, Participant } from "@prisma/client"
 import { useState } from "react"
 import { useGroupAssignment } from "../TournamentContext"
-import GroupSelect from "../components/GroupSelect"
 import CheckInButton from "../components/CheckInButton"
+import GroupSelect from "../components/GroupSelect"
 
 export default function ParticipantCard({
     participant,
@@ -25,10 +25,6 @@ export default function ParticipantCard({
     const [showGroupSelect, setShowGroupSelect] = useState(false)
     const { handleUnassignParticipant, isPending } = useGroupAssignment()
 
-    const handleCardClick = () => {
-        setShowGroupSelect(!showGroupSelect)
-    }
-
     return (
         <div
             className={`bg-secondary border border-secondary rounded-lg p-3 cursor-pointer hover:shadow-md transition-shadow ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''
@@ -36,7 +32,6 @@ export default function ParticipantCard({
             draggable={isDraggable}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            onClick={handleCardClick}
         >
             <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0 text-secondary-content">
@@ -64,13 +59,13 @@ export default function ParticipantCard({
                     >
                         <UserPlusIcon className="w-3 h-3" />
                     </button>
-                    
-                    <CheckInButton 
+
+                    <CheckInButton
                         participant={participant}
                         compact={true}
                         disabled={isPending}
                     />
-                    
+
                     {participant.groupAssignment && (
                         <button
                             className="btn btn-error btn-xs"

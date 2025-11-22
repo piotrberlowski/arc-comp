@@ -1,8 +1,8 @@
 "use server"
 
-import { GroupAssignment, Participant, RoundFormat, Tournament } from "@prisma/client"
+import { GroupAssignment, Participant, RoundFormat, Tournament } from "@/generated/prisma/client"
+import { prismaOrThrow } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { prismaOrThrow } from "../../../../lib/prisma"
 
 export interface GroupData {
     groupNumber: number
@@ -177,6 +177,6 @@ export async function cleanupGroups(tournamentId: string): Promise<number> {
 
     revalidatePath(`/tournaments/${tournamentId}/groups`)
     revalidatePath(`/tournaments/${tournamentId}/scores`, "page")
-    
+
     return assignmentsToRemove.length
 }

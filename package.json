@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "test": "jest",
     "test:watch": "jest --watch",
-    "postinstall": "dotenv -e .env.local prisma generate",
+    "postinstall": "prisma generate",
     "prismaVer": "dotenv -e .env.development.local prisma migrate dev",
     "prismaLocal": "dotenv -e .env.local prisma migrate dev"
   },

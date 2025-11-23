@@ -1,6 +1,6 @@
 'use client'
 
-import { Tournament } from "@prisma/client";
+import { Tournament } from "@/generated/prisma/browser";
 import { format } from "date-fns/format";
 import React, { createContext, useContext, useTransition } from "react";
 import { TournamentUpdate, updateTournament } from "../tournamentActions";

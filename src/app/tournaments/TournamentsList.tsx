@@ -1,10 +1,10 @@
 "use client"
 
-import { RoundFormat, Tournament } from "@prisma/client"
+import { RoundFormat, Tournament } from "@/generated/prisma/browser"
 import { useEffect, useState } from "react"
-import { listTournamentsForClubs } from "./tournamentActions"
 import TournamentCard from "./TournamentCard"
 import TournamentHeader from "./TournamentHeader"
+import { listTournamentsForClubs } from "./tournamentActions"
 
 interface tf extends Tournament {
     format: RoundFormat

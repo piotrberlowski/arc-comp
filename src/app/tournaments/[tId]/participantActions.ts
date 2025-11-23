@@ -1,10 +1,10 @@
 "use server"
 
+import { prismaOrThrow } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { redirect, RedirectType } from "next/navigation"
 import { z } from "zod"
 import { zu } from 'zod_utilz'
-import { prismaOrThrow } from "../../../../lib/prisma"
 
 const participantSubmitSchema = z.object({
     tournamentId: z.string().nonempty(),

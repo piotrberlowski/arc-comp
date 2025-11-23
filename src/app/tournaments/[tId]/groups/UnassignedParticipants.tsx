@@ -1,7 +1,7 @@
 "use client"
 
+import { GroupAssignment, Participant } from "@/generated/prisma/browser"
 import { UserPlusIcon } from "@heroicons/react/24/outline"
-import { GroupAssignment, Participant } from "@prisma/client"
 import ParticipantCard from "./ParticipantCard"
 
 interface UnassignedParticipantsProps {

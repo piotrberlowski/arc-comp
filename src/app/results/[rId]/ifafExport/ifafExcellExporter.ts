@@ -1,4 +1,4 @@
-import { IFAFAgeGenderMapping, IFAFBowStyleMapping } from '@prisma/client'
+import { IFAFAgeGenderMapping, IFAFBowStyleMapping } from "@/generated/prisma/client"
 import * as ExcelJS from 'exceljs'
 import { ParticipantResultData, TournamentResultsData } from '../../resultsActions'
 

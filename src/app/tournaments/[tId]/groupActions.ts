@@ -1,8 +1,8 @@
 "use server"
 
-import { GroupAssignment, Participant, RoundFormat, Tournament } from "@prisma/client"
+import { GroupAssignment, Participant, RoundFormat, Tournament } from "@/generated/prisma/client"
+import { prismaOrThrow } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { prismaOrThrow } from "../../../../lib/prisma"
 
 export interface GroupData {
     groupNumber: number
@@ -21,9 +21,6 @@ export async function getTournamentGroups(tournamentId: string): Promise<Tournam
         include: {
             format: true,
             participants: {
-                where: {
-                    checkedIn: true
-                },
                 include: {
                     groupAssignment: true
                 }
@@ -90,17 +87,13 @@ export async function assignParticipantToGroup(
         throw new Error("Tournament not found")
     }
 
-    // Check if participant is checked in
+    // Check if participant exists
     const participant = await prismaOrThrow("get participant for validation").participant.findUnique({
         where: { id: participantId }
     })
 
     if (!participant) {
         throw new Error("Participant not found")
-    }
-
-    if (!participant.checkedIn) {
-        throw new Error("Only checked-in participants can be assigned to target groups")
     }
 
     // Check current group size
@@ -159,4 +152,31 @@ export async function moveParticipantBetweenGroups(
     newGroupNumber: number
 ): Promise<void> {
     await assignParticipantToGroup(participantId, tournamentId, newGroupNumber)
+}
+
+export async function cleanupGroups(tournamentId: string): Promise<number> {
+    // Get all group assignments for non-checked-in participants
+    const assignmentsToRemove = await prismaOrThrow("get non-checked-in assignments").groupAssignment.findMany({
+        where: {
+            tournamentId,
+            participant: {
+                checkedIn: false
+            }
+        }
+    })
+
+    // Remove the assignments
+    await prismaOrThrow("cleanup groups").groupAssignment.deleteMany({
+        where: {
+            tournamentId,
+            participant: {
+                checkedIn: false
+            }
+        }
+    })
+
+    revalidatePath(`/tournaments/${tournamentId}/groups`)
+    revalidatePath(`/tournaments/${tournamentId}/scores`, "page")
+
+    return assignmentsToRemove.length
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { Participant } from "@prisma/client"
+import { Participant } from "@/generated/prisma/browser"
 import { useEffect, useMemo, useState } from "react"
 
 export type FilterType = 'all' | 'checked-in' | 'non-checked-in'

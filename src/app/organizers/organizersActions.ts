@@ -1,8 +1,8 @@
 "use server"
 
-import { Organizer } from "@prisma/client"
+import { Organizer } from "@/generated/prisma/client"
+import { prismaOrThrow } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { prismaOrThrow } from "../../../lib/prisma"
 
 export async function removeOrganizer(role: Organizer, revalidate?: string) {
     return await prismaOrThrow("remove organizer").organizer.delete(

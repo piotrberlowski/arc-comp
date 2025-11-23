@@ -1,19 +1,11 @@
 "use client"
 
+import { GroupAssignment, Participant } from "@/generated/prisma/browser"
 import { UserPlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
-import { GroupAssignment, Participant } from "@prisma/client"
 import { useState } from "react"
 import { useGroupAssignment } from "../TournamentContext"
+import CheckInButton from "../components/CheckInButton"
 import GroupSelect from "../components/GroupSelect"
-
-interface ParticipantCardProps {
-    participant: Participant & { groupAssignment: GroupAssignment | null }
-    isDraggable?: boolean
-    onDragStart?: () => void
-    onDragEnd?: () => void
-    availableGroups: { groupNumber: number; participants: Participant[] }[]
-    groupSize: number
-}
 
 export default function ParticipantCard({
     participant,
@@ -22,26 +14,33 @@ export default function ParticipantCard({
     onDragEnd,
     availableGroups,
     groupSize
-}: ParticipantCardProps) {
+}: {
+    participant: Participant & { groupAssignment: GroupAssignment | null }
+    isDraggable?: boolean
+    onDragStart?: () => void
+    onDragEnd?: () => void
+    availableGroups: { groupNumber: number; participants: Participant[] }[]
+    groupSize: number
+}) {
     const [showGroupSelect, setShowGroupSelect] = useState(false)
     const { handleUnassignParticipant, isPending } = useGroupAssignment()
-
-    const handleCardClick = () => {
-        setShowGroupSelect(!showGroupSelect)
-    }
 
     return (
         <div
             className={`bg-secondary border border-secondary rounded-lg p-3 cursor-pointer hover:shadow-md transition-shadow ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''
-                } ${isPending ? 'opacity-50' : ''}`}
+                } ${isPending ? 'opacity-50' : ''} ${!participant.checkedIn ? 'opacity-60 border-dashed bg-secondary/50' : ''}`}
             draggable={isDraggable}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            onClick={handleCardClick}
         >
             <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0 text-secondary-content">
-                    <p className="font-medium text-sm truncate">{participant.name}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm truncate">{participant.name}</p>
+                        {!participant.checkedIn && (
+                            <span className="badge badge-warning badge-xs">Not Checked In</span>
+                        )}
+                    </div>
                     <p className="text-xs text-secondary-content/70">
                         {participant.ageGroupId}{participant.genderGroup} • {participant.categoryId}
                     </p>
@@ -60,6 +59,13 @@ export default function ParticipantCard({
                     >
                         <UserPlusIcon className="w-3 h-3" />
                     </button>
+
+                    <CheckInButton
+                        participant={participant}
+                        compact={true}
+                        disabled={isPending}
+                    />
+
                     {participant.groupAssignment && (
                         <button
                             className="btn btn-error btn-xs"

@@ -1,5 +1,5 @@
 import { listRoundFormats } from "@/app/tournaments/tournamentActions"
-import { RoundFormat } from "@prisma/client"
+import { RoundFormat } from "@/generated/prisma/browser"
 import { useEffect, useState } from "react"
 
 

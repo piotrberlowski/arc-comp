@@ -1,9 +1,10 @@
 "use server"
 
-import { GenderGroup, Participant } from "@prisma/client"
+import { Participant } from "@/generated/prisma/client"
+import { GenderGroup } from "@/generated/prisma/enums"
+import { prismaOrThrow } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import Papa from "papaparse"
-import { prismaOrThrow } from "../../../../lib/prisma"
 
 export interface CSVImportState {
     success: boolean

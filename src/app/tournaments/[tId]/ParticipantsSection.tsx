@@ -1,7 +1,7 @@
 "use client"
 
+import { type ParticipantModel as Participant } from "@/generated/prisma/models/Participant"
 import { useState } from "react"
-import { Participant } from "@prisma/client"
 import AddParticipantForm from "./AddParticipantForm"
 import ParticipantsList from "./ParticipantsList"
 

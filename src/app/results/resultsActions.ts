@@ -1,8 +1,8 @@
 "use server"
 
-import { AgeGroup, EquipmentCategory, Participant, ParticipantScore, RoundFormat, Tournament } from "@prisma/client"
+import { AgeGroup, EquipmentCategory, Participant, ParticipantScore, RoundFormat, Tournament } from "@/generated/prisma/client"
+import { prismaOrThrow } from "@/lib/prisma"
 import { notFound } from "next/navigation"
-import { prismaOrThrow } from "../../../lib/prisma"
 
 export type ParticipantResultsData = Participant & { participantScore: ParticipantScore, ageGroup: AgeGroup, category: EquipmentCategory }
 // Alias for backward compatibility

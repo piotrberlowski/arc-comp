@@ -1,5 +1,5 @@
+import { prismaOrThrow } from '@/lib/prisma'
 import { join } from 'path'
-import { prismaOrThrow } from '../../../../../lib/prisma'
 import { TournamentResultsData } from '../../resultsActions'
 import { IFAFExcellExporter } from './ifafExcellExporter'
 

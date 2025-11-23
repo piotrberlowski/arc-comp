@@ -1,17 +1,21 @@
 "use client"
 
+import { Participant } from "@/generated/prisma/browser"
 import { CheckCircleIcon, MinusCircleIcon } from "@heroicons/react/24/outline"
-import { Participant } from "@prisma/client"
 import { useTransition } from "react"
 import { checkInParticipant, uncheckParticipant } from "../participantActions"
 
-interface CheckInButtonProps {
+export default function CheckInButton({
+    participant,
+    onUpdate,
+    disabled = false,
+    compact = false
+}: {
     participant: Participant
-    onUpdate: () => void
+    onUpdate?: () => void
     disabled?: boolean
-}
-
-export default function CheckInButton({ participant, onUpdate, disabled = false }: CheckInButtonProps) {
+    compact?: boolean
+}) {
     const [isPending, startTransition] = useTransition()
 
     const handleToggle = () => {
@@ -22,7 +26,7 @@ export default function CheckInButton({ participant, onUpdate, disabled = false 
                 } else {
                     await checkInParticipant(participant.id)
                 }
-                onUpdate()
+                onUpdate?.()
             } catch (error) {
                 console.error('Failed to toggle check-in status:', error)
             }
@@ -32,24 +36,24 @@ export default function CheckInButton({ participant, onUpdate, disabled = false 
     if (participant.checkedIn) {
         return (
             <button
-                className="btn btn-info btn-sm"
+                className={compact ? "btn btn-info btn-xs" : "btn btn-info btn-sm"}
                 disabled={isPending || disabled}
                 onClick={handleToggle}
             >
-                <MinusCircleIcon className="w-4 h-4" />
-                <span className="hidden md:block">Uncheck</span>
+                <MinusCircleIcon className={compact ? "w-3 h-3" : "w-4 h-4"} />
+                {!compact && <span className="hidden md:block">Uncheck</span>}
             </button>
         )
     }
 
     return (
         <button
-            className="btn btn-success btn-sm"
+            className={compact ? "btn btn-success btn-xs" : "btn btn-success btn-sm"}
             disabled={isPending || disabled}
             onClick={handleToggle}
         >
-            <CheckCircleIcon className="w-4 h-4" />
-            <span className="hidden md:block">Check In</span>
+            <CheckCircleIcon className={compact ? "w-3 h-3" : "w-4 h-4"} />
+            {!compact && <span className="hidden md:block">Check In</span>}
         </button>
     )
 }

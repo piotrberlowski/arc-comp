@@ -1,8 +1,8 @@
 "use server"
 
-import { GroupAssignment, Participant, ParticipantScore } from "@prisma/client"
+import { GroupAssignment, Participant, ParticipantScore } from "@/generated/prisma/client"
+import { prismaOrThrow } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { prismaOrThrow } from "../../../../lib/prisma"
 
 export type ParticipantWithScore = Participant & { participantScore: ParticipantScore | null, groupAssignment: GroupAssignment | null }
 export type TournamentScores = (ParticipantWithScore)[]

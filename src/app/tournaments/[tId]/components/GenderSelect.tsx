@@ -1,7 +1,7 @@
-import {GenderGroup} from "@prisma/client"
+import { GenderGroup } from "@/generated/prisma/enums"
 import { SelectElementParams } from "./api"
 
-export default function GenderSelect(props:SelectElementParams) {
+export default function GenderSelect(props: SelectElementParams) {
 
     return (
         <select {...props} key={props.defaultValue}>

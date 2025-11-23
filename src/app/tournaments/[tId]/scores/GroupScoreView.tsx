@@ -30,7 +30,9 @@ export default function GroupScoreView({ participants, onScoreChange }: GroupSco
         .map(([groupNumber, participants]) => ({
             groupNumber: parseInt(groupNumber),
             participants,
-            isComplete: participants.every(p => !!p.participantScore)
+            isComplete: participants
+                .filter(p => p.checkedIn)
+                .every(p => !!p.participantScore)
         }))
         .sort((a, b) => a.groupNumber - b.groupNumber)
 

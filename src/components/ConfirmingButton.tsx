@@ -6,7 +6,7 @@ interface BtnProps {
     children: JSX.Element
 }
 
-export default function ConfirmingButton({ action, baseButton, confirmButton }: { action: () => Promise<unknown>, baseButton: BtnProps, confirmButton: BtnProps }) {
+export default function ConfirmingButton({ action, baseButton, confirmButton, className }: { action: () => Promise<unknown>, baseButton: BtnProps, confirmButton: BtnProps, className?: string }) {
     const [isConfirming, setConfirming] = useState(false)
     const [isLoading, setLoading] = useState(false)
 
@@ -25,7 +25,7 @@ export default function ConfirmingButton({ action, baseButton, confirmButton }: 
     }
 
     return (
-        <form action={stateBasedAction}>
+        <form action={stateBasedAction} className={className}>
             <button className={`btn ${button.className}`}>{button.children}</button>
         </form>
     )

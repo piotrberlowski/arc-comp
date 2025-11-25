@@ -60,9 +60,17 @@ export async function getTournamentGroups(tournamentId: string): Promise<Tournam
         }
     })
 
-    // Populate groups with assigned participants
+    // Populate groups with assigned participants, sorted with target captain first
     groups.forEach(group => {
-        group.participants = assignedParticipants[group.groupNumber] || []
+        const participants = assignedParticipants[group.groupNumber] || []
+        // Sort: target captain first, then others
+        group.participants = participants.sort((a, b) => {
+            const aIsCaptain = a.groupAssignment?.isCaptain ?? false
+            const bIsCaptain = b.groupAssignment?.isCaptain ?? false
+            if (aIsCaptain && !bIsCaptain) return -1
+            if (!aIsCaptain && bIsCaptain) return 1
+            return 0
+        })
     })
 
     return {
@@ -72,56 +80,110 @@ export async function getTournamentGroups(tournamentId: string): Promise<Tournam
     }
 }
 
+// Helper function to reassign captain in a group (first remaining person)
+async function reassignCaptainInGroup(
+    tx: Parameters<Parameters<ReturnType<typeof prismaOrThrow>['$transaction']>[0]>[0],
+    tournamentId: string,
+    groupNumber: number
+): Promise<void> {
+    const firstRemaining = await tx.groupAssignment.findFirst({
+        where: {
+            tournamentId,
+            groupNumber
+        },
+        orderBy: {
+            id: 'asc'
+        }
+    })
+
+    if (firstRemaining) {
+        await tx.groupAssignment.update({
+            where: {
+                participantId_tournamentId: {
+                    participantId: firstRemaining.participantId,
+                    tournamentId
+                }
+            },
+            data: {
+                isCaptain: true
+            }
+        })
+    }
+}
+
 export async function assignParticipantToGroup(
     participantId: string,
     tournamentId: string,
     groupNumber: number
 ): Promise<void> {
-    // Get tournament format to check group size
+    // Get tournament with format and participants in the target group in a single query
     const tournament = await prismaOrThrow("get tournament for validation").tournament.findUnique({
         where: { id: tournamentId },
-        include: { format: true }
+        include: {
+            format: true,
+            groupAssignments: {
+                where: { groupNumber }
+            }
+        }
     })
 
     if (!tournament) {
         throw new Error("Tournament not found")
     }
 
-    // Check if participant exists
-    const participant = await prismaOrThrow("get participant for validation").participant.findUnique({
-        where: { id: participantId }
+    // Check if group is full (using the preloaded groupAssignments) - do this before querying participant
+    if (tournament.groupAssignments.length >= tournament.format.groupSize) {
+        throw new Error(`Group ${groupNumber} is already full (${tournament.groupAssignments.length}/${tournament.format.groupSize})`)
+    }
+
+    // Check if participant exists and get their current assignment
+    const participant = await prismaOrThrow("get participant with assignment").participant.findUnique({
+        where: { id: participantId },
+        include: { groupAssignment: true }
     })
 
     if (!participant) {
         throw new Error("Participant not found")
     }
 
-    // Check current group size
-    const currentGroupCount = await prismaOrThrow("count group participants").groupAssignment.count({
-        where: {
-            tournamentId,
-            groupNumber
-        }
-    })
+    const oldGroupNumber = participant.groupAssignment?.groupNumber
+    const wasCaptain = participant.groupAssignment?.isCaptain ?? false
 
-    if (currentGroupCount >= tournament.format.groupSize) {
-        throw new Error(`Group ${groupNumber} is already full (${currentGroupCount}/${tournament.format.groupSize})`)
+    // If already in the target group, nothing to do
+    if (oldGroupNumber === groupNumber) {
+        return
     }
 
-    await prismaOrThrow("assign participant to group").groupAssignment.upsert({
-        where: {
-            participantId_tournamentId: {
+    // Check if this is the first person in the group (should be target captain)
+    const isFirstInGroup = tournament.groupAssignments.length === 0
+
+    await prismaOrThrow("assign participant to group in transaction").$transaction(async (tx) => {
+        // Assign participant to group
+        await tx.groupAssignment.upsert({
+            where: {
+                participantId_tournamentId: {
+                    participantId,
+                    tournamentId
+                }
+            },
+            update: {
+                groupNumber,
+                // If moving to a new group and it's empty (first person), make them captain
+                // Otherwise, clear captain status (they can be set as captain manually later)
+                isCaptain: isFirstInGroup
+            },
+            create: {
                 participantId,
-                tournamentId
+                tournamentId,
+                groupNumber,
+                // Set as captain if this is the first person in the group
+                isCaptain: isFirstInGroup
             }
-        },
-        update: {
-            groupNumber
-        },
-        create: {
-            participantId,
-            tournamentId,
-            groupNumber
+        })
+
+        // If they were captain in the old group, reassign captain (first remaining person)
+        if (wasCaptain && oldGroupNumber) {
+            await reassignCaptainInGroup(tx, tournamentId, oldGroupNumber)
         }
     })
 
@@ -133,7 +195,8 @@ export async function unassignParticipantFromGroup(
     participantId: string,
     tournamentId: string
 ): Promise<void> {
-    await prismaOrThrow("unassign participant from group").groupAssignment.delete({
+    // Get the assignment before deleting to check if they were captain
+    const assignment = await prismaOrThrow("get assignment before delete").groupAssignment.findUnique({
         where: {
             participantId_tournamentId: {
                 participantId,
@@ -142,16 +205,73 @@ export async function unassignParticipantFromGroup(
         }
     })
 
+    // If no assignment exists, nothing to do
+    if (!assignment) {
+        return
+    }
+
+    const wasCaptain = assignment.isCaptain
+    const groupNumber = assignment.groupNumber
+
+    await prismaOrThrow("unassign participant from group in transaction").$transaction(async (tx) => {
+        // Delete the assignment
+        await tx.groupAssignment.delete({
+            where: {
+                participantId_tournamentId: {
+                    participantId,
+                    tournamentId
+                }
+            }
+        })
+
+        // If they were the captain, reassign captain (first remaining person in the group)
+        if (wasCaptain) {
+            await reassignCaptainInGroup(tx, tournamentId, groupNumber)
+        }
+    })
+
     revalidatePath(`/tournaments/${tournamentId}/groups`)
     revalidatePath(`/tournaments/${tournamentId}/scores`, "page")
 }
 
-export async function moveParticipantBetweenGroups(
+export async function setTargetCaptain(
     participantId: string,
     tournamentId: string,
-    newGroupNumber: number
+    groupNumber: number
 ): Promise<void> {
-    await assignParticipantToGroup(participantId, tournamentId, newGroupNumber)
+    await prismaOrThrow("set target captain in transaction").$transaction(async (tx) => {
+        // Optimistically set this participant as captain (only if they're in the expected group)
+        const updateResult = await tx.groupAssignment.updateMany({
+            where: {
+                participantId,
+                tournamentId,
+                groupNumber // Ensure they're in the expected group
+            },
+            data: {
+                isCaptain: true
+            }
+        })
+
+        // If the update modified records (participant exists and was updated), unset other captains
+        if (updateResult.count > 0) {
+            await tx.groupAssignment.updateMany({
+                where: {
+                    tournamentId,
+                    groupNumber,
+                    isCaptain: true,
+                    participantId: { not: participantId } // Exclude the participant we just set
+                },
+                data: {
+                    isCaptain: false
+                }
+            })
+        } else {
+            throw new Error("Participant is not assigned to the specified group")
+        }
+    })
+
+    revalidatePath(`/tournaments/${tournamentId}/groups`)
+    revalidatePath(`/tournaments/${tournamentId}/scores`, "page")
 }
 
 export async function cleanupGroups(tournamentId: string): Promise<number> {

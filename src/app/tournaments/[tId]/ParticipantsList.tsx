@@ -66,8 +66,9 @@ export default function ParticipantsList({ participants, onEditParticipant, edit
                     <thead className="w-full bg-primary text-primary-content">
                         <tr>
                             <th>Name</th>
+                            <th className="hidden sm:table-cell">Membership No</th>
                             <th>Category</th>
-                            <th className="hidden lg:table-cell">Club</th>
+                            <th className="hidden md:table-cell">Club</th>
                             <th className="w-50">Actions</th>
                         </tr>
                     </thead>
@@ -78,10 +79,13 @@ export default function ParticipantsList({ participants, onEditParticipant, edit
                                     <td>
                                         {p.name}
                                     </td>
+                                    <td className="hidden sm:table-cell">
+                                        {p.membershipNo || "-"}
+                                    </td>
                                     <td>
                                         {p.ageGroupId}{p.genderGroup}{p.categoryId}
                                     </td>
-                                    <td className="hidden lg:table-cell">
+                                    <td className="hidden md:table-cell">
                                         {p.club || "Independent"}
                                     </td>
                                     <td className="flex gap-2">

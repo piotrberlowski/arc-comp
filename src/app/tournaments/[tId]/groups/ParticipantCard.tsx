@@ -1,7 +1,8 @@
 "use client"
 
 import { GroupAssignment, Participant } from "@/generated/prisma/browser"
-import { UserPlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { StarIcon, UserPlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid"
 import { useState } from "react"
 import { useGroupAssignment } from "../TournamentContext"
 import CheckInButton from "../components/CheckInButton"
@@ -23,7 +24,8 @@ export default function ParticipantCard({
     groupSize: number
 }) {
     const [showGroupSelect, setShowGroupSelect] = useState(false)
-    const { handleUnassignParticipant, isPending } = useGroupAssignment()
+    const { handleUnassignParticipant, handleSetTargetCaptain, isPending } = useGroupAssignment()
+    const isTargetCaptain = participant.groupAssignment?.isCaptain ?? false
 
     return (
         <div
@@ -36,6 +38,9 @@ export default function ParticipantCard({
             <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0 text-secondary-content">
                     <div className="flex items-center gap-2">
+                        {isTargetCaptain && (
+                            <StarIconSolid className="w-4 h-4 text-warning" title="Target Captain" />
+                        )}
                         <p className="font-medium text-sm truncate">{participant.name}</p>
                         {!participant.checkedIn && (
                             <span className="badge badge-warning badge-xs">Not Checked In</span>
@@ -49,6 +54,20 @@ export default function ParticipantCard({
                     )}
                 </div>
                 <div className="flex gap-1">
+                    {participant.groupAssignment && !isTargetCaptain && (
+                        <button
+                            className="btn btn-warning btn-xs"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                handleSetTargetCaptain(participant.id, participant.groupAssignment!.groupNumber)
+                            }}
+                            disabled={isPending}
+                            title="Set as Target Captain"
+                        >
+                            <StarIcon className="w-3 h-3" />
+                        </button>
+                    )}
+
                     <button
                         className="btn btn-primary btn-xs"
                         onClick={(e) => {

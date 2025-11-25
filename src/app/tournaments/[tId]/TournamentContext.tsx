@@ -5,7 +5,7 @@ import { format } from "date-fns/format";
 import React, { createContext, useContext, useTransition } from "react";
 import { TournamentUpdate, updateTournament } from "../tournamentActions";
 import { TOURNAMENT_DATE_FORMAT } from "../utils";
-import { assignParticipantToGroup, moveParticipantBetweenGroups, unassignParticipantFromGroup } from "./groupActions";
+import { assignParticipantToGroup, setTargetCaptain, unassignParticipantFromGroup } from "./groupActions";
 
 
 export class TournamentEditController {
@@ -50,8 +50,8 @@ export class TournamentEditController {
         return unassignParticipantFromGroup(participantId, this.tournament.id)
     }
 
-    public async moveParticipantBetweenGroups(participantId: string, newGroupNumber: number): Promise<void> {
-        return moveParticipantBetweenGroups(participantId, this.tournament.id, newGroupNumber)
+    public async setTargetCaptain(participantId: string, groupNumber: number): Promise<void> {
+        return setTargetCaptain(participantId, this.tournament.id, groupNumber)
     }
 }
 
@@ -93,7 +93,13 @@ export function useGroupAssignment() {
 
     const handleMoveParticipant = (participantId: string, newGroupNumber: number) => {
         startTransition(() => {
-            context.moveParticipantBetweenGroups(participantId, newGroupNumber)
+            context.assignParticipantToGroup(participantId, newGroupNumber)
+        })
+    }
+
+    const handleSetTargetCaptain = (participantId: string, groupNumber: number) => {
+        startTransition(() => {
+            context.setTargetCaptain(participantId, groupNumber)
         })
     }
 
@@ -102,6 +108,7 @@ export function useGroupAssignment() {
         isPending,
         handleAssignParticipant,
         handleUnassignParticipant,
-        handleMoveParticipant
+        handleMoveParticipant,
+        handleSetTargetCaptain
     }
 }

@@ -25,15 +25,25 @@ export default function GroupScoreView({ participants, onScoreChange }: GroupSco
         return acc
     }, {} as Record<number, ParticipantWithScore[]>)
 
-    // Convert to array and sort by group number
+    // Convert to array and sort by group number, with participants sorted (target captain first)
     const sortedGroups = Object.entries(groups)
-        .map(([groupNumber, participants]) => ({
-            groupNumber: parseInt(groupNumber),
-            participants,
-            isComplete: participants
-                .filter(p => p.checkedIn)
-                .every(p => !!p.participantScore)
-        }))
+        .map(([groupNumber, participants]) => {
+            // Sort participants: target captain first
+            const sortedParticipants = participants.sort((a, b) => {
+                const aIsCaptain = a.groupAssignment?.isCaptain ?? false
+                const bIsCaptain = b.groupAssignment?.isCaptain ?? false
+                if (aIsCaptain && !bIsCaptain) return -1
+                if (!aIsCaptain && bIsCaptain) return 1
+                return 0
+            })
+            return {
+                groupNumber: parseInt(groupNumber),
+                participants: sortedParticipants,
+                isComplete: participants
+                    .filter(p => p.checkedIn)
+                    .every(p => !!p.participantScore)
+            }
+        })
         .sort((a, b) => a.groupNumber - b.groupNumber)
 
     // Separate into outstanding and complete groups

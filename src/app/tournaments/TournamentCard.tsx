@@ -53,42 +53,45 @@ export default function TournamentCard({ tournament, onArchived }: { tournament:
                     {data.isArchive && (<span className="badge badge-sm badge-warning">Archived</span>)}
                 </div>
                 <div className="flex justify-between p-3 bg-secondary text-secondary-content rounded-md">
-                    <h2 className="card-title text-xl">{data.name}</h2>
-                    <span className="text-xl">{format(data.date, "yyyy-MM-dd")}</span>
+                    <h2 className="card-title text-sm md:text-lg">{data.name}</h2>
+                    <span className="text-sm md:text-lg">{format(data.date, "yyyy-MM-dd")}</span>
                 </div>
                 {!data.isArchive && (
-                    <div className="justify-end card-actions">
-                        <Form action={`/tournaments/${data.id}`}>
-                            <button className="btn btn-success btn-sm"><PencilSquareIcon width={24} />Manage</button>
+                    <div className="card-actions flex gap-1 justify-between">
+                        <Form action={`/tournaments/${data.id}`} className="w-1/3 flex-1 box-border">
+                            <button className="btn btn-success btn-sm w-full text-xs md:text-sm"><PencilSquareIcon className="w-3 h-3 md:w-4 md:h-4" />Manage</button>
                         </Form>
-                        <button
-                            className="btn btn-primary btn-sm"
-                            onClick={handleOpenSharing}
-                            disabled={isLoadingSharing}
-                        >
-                            <ShareIcon width={24} />
-                            Sharing
-                        </button>
+                        <div className="w-1/3 flex-1 box-border">
+                            <button
+                                className="btn btn-primary btn-sm w-full text-xs md:text-sm"
+                                onClick={handleOpenSharing}
+                                disabled={isLoadingSharing}
+                            >
+                                <ShareIcon className="w-3 h-3 md:w-4 md:h-4" />
+                                Sharing
+                            </button>
+                        </div>
                         <ConfirmingButton
+                            className="w-1/3 flex-1 box-border"
                             action={() => archiveTournament(data.id)
                                 .then(t => {
                                     setData(t)
                                     onArchived(t.id)
                                 })}
                             baseButton={{
-                                className: "btn btn-warning btn-sm",
+                                className: "btn btn-warning btn-sm w-full text-xs md:text-sm",
                                 children: (
                                     <>
-                                        <ArchiveBoxArrowDownIcon width={24} />
+                                        <ArchiveBoxArrowDownIcon className="w-3 h-3 md:w-4 md:h-4" />
                                         Archive
                                     </>
                                 )
                             }}
                             confirmButton={{
-                                className: "btn btn-warning btn-sm",
+                                className: "btn btn-warning btn-sm w-full text-xs md:text-sm",
                                 children: (
                                     <>
-                                        <HandThumbUpIcon width={24} />
+                                        <HandThumbUpIcon className="w-3 h-3 md:w-4 md:h-4" />
                                         Confirm?
                                     </>
                                 )

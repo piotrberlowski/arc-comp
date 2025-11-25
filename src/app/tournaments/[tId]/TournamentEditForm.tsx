@@ -13,14 +13,15 @@ function TournamentDetailsDisplay({ onEdit }: { onEdit: () => void }) {
 
     return (
         <>
-            <span className="flex-1 text-left md:text-center">
+            <div className="grow hidden md:flex max-w-fit text-lg">
+                {ctrl.getTournament().organizerClub}
+            </div>
+            <div className="flex-1 text-left md:text-center text-base md:text-2xl">
                 {ctrl.getTournament().name}
-            </span>
-            <div className="flex-0 max-w-fit min-w-fit max-w-fit text-2xl">
-                <span className="text-xl">
-                    {ctrl.getTournamentDate()}
-                </span>
-                <PencilSquareIcon width={16} className="btn btn-sm btn-primary flex-0 pr-0 mr-0" onClick={onEdit} />
+            </div>
+            <div className="flex-0 min-w-fit max-w-fit text-sm md:text-xl">
+                {ctrl.getTournamentDate()}
+                <PencilSquareIcon className="btn btn-sm btn-primary pr-0 mr-0 w-8 h-8 md:w-10 md:h-10" onClick={onEdit} />
             </div>
         </>
     )
@@ -100,9 +101,6 @@ export default function TournamentEditForm() {
         <div className="mb-1">
             <div className="flex w-full">
                 <h1 className="flex-1 mx-auto text-3xl bg-primary text-primary-content text-center p-4 mt-2 rounded-t-md justify-between flex">
-                    <span className="flex-grow hidden md:flex max-w-fit text-xl">
-                        {tEdit?.getTournament().organizerClub}
-                    </span>
                     <TournamentDetailsHeader onError={setError} />
                 </h1>
             </div>

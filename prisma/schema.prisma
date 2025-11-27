@@ -5,17 +5,17 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output = "../src/generated/prisma"
-  engineType = "client"
-  runtime                = "nodejs"
-  moduleFormat           = "cjs"
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  engineType          = "client"
+  runtime             = "nodejs"
+  moduleFormat        = "cjs"
   importFileExtension = ""
 }
 
 datasource db {
-  provider  = "postgresql"
-   url       = env("DB_POSTGRES_PRISMA_URL") // uses connection pooling
+  provider = "postgresql"
+  url      = env("DB_POSTGRES_PRISMA_URL") // uses connection pooling
   // directUrl = env("DB_POSTGRES_URL_NON_POOLING") // uses a direct connection
 }
 
@@ -131,6 +131,8 @@ model Tournament {
   formatId          String
   organizerClub     String
   format            RoundFormat        @relation(fields: [formatId], references: [id], onDelete: Restrict)
+  endCount          Int
+  groupSize         Int
   participants      Participant[]
   groupAssignments  GroupAssignment[]
   participantScores ParticipantScore[] @relation("ParticipantScore")

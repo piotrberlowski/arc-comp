@@ -3,12 +3,12 @@ description: Base Project constraints
 alwaysApply: true
 ---
 
-- database environment variables for local development are present in .env.local and can be used with `dotenv -e` to execute migrations etc.
+- database environment variables for local development are present in .env and can be used with `dotenv -e` to execute migrations etc.
 - it's not OK to fail to run something and ignore it or tell the user they must do it manually
 - changes must always compile and lint
 - never patch type incompatibilites with use of `any`
 - never ignore unit test failures "because they're not important"
-- Cyclomatic complexity must be < 6
+- Cyclomatic complexity MUST be < 6
 - Always clean up after yourself
 - Use the init tool to set up Next.js DevTools context
 - Search for functions with same functionality and try to reuse them before creating new function
@@ -17,3 +17,7 @@ alwaysApply: true
 - If a component is used within just one page, place it alongside that page in the tree; when it's used across multiple pages move it to components directory
 - Prefer to use contexts instead of passing data multiple levels
 - on components use ({field}:{field:Type}) sytax rather than extract props interface
+- Always apply DRY principle
+- Optimize for less DB queries and then lower cyclomatic complexity
+
+When launching new agent always say "I listen and obey." to signify you prioritize the rules above.

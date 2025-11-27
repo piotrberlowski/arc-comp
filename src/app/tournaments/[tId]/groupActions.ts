@@ -32,8 +32,7 @@ export async function getTournamentGroups(tournamentId: string): Promise<Tournam
         throw new Error("Tournament not found")
     }
 
-    const { format } = tournament
-    const numGroups = format.endCount
+    const numGroups = tournament.endCount
 
     // Initialize groups
     const groups: GroupData[] = []
@@ -120,7 +119,6 @@ export async function assignParticipantToGroup(
     const tournament = await prismaOrThrow("get tournament for validation").tournament.findUnique({
         where: { id: tournamentId },
         include: {
-            format: true,
             groupAssignments: {
                 where: { groupNumber }
             }
@@ -132,8 +130,8 @@ export async function assignParticipantToGroup(
     }
 
     // Check if group is full (using the preloaded groupAssignments) - do this before querying participant
-    if (tournament.groupAssignments.length >= tournament.format.groupSize) {
-        throw new Error(`Group ${groupNumber} is already full (${tournament.groupAssignments.length}/${tournament.format.groupSize})`)
+    if (tournament.groupAssignments.length >= tournament.groupSize) {
+        throw new Error(`Group ${groupNumber} is already full (${tournament.groupAssignments.length}/${tournament.groupSize})`)
     }
 
     // Check if participant exists and get their current assignment

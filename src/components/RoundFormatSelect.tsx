@@ -3,7 +3,7 @@ import { RoundFormat } from "@/generated/prisma/browser"
 import { useEffect, useState } from "react"
 
 
-export default function RoundFormatSelect({ formatId, className, onChange }: { formatId?: string, className?: string, onChange: (f: string) => void }) {
+export default function RoundFormatSelect({ formatId, className, onChange }: { formatId?: string, className?: string, onChange: (format: RoundFormat | null) => void }) {
     const [formats, setFormats] = useState<RoundFormat[]>([])
 
     useEffect(
@@ -17,7 +17,10 @@ export default function RoundFormatSelect({ formatId, className, onChange }: { f
         , [])
 
     return (
-        <select className={`select ${className}`} value={formatId} onChange={(evt) => onChange(evt.target.value)}>
+        <select className={`select ${className}`} value={formatId} onChange={(evt) => {
+            const selectedFormat = formats.find(f => f.id === evt.target.value) || null
+            onChange(selectedFormat)
+        }}>
             <option value="" disabled={true}>Round Format</option>
             {(formats && formats.map(f => (
                 <option key={`rnd-format-${f.id}`} value={f.id}>{f.name}</option>

@@ -46,7 +46,7 @@ export default function TournamentNavigation({ tournamentId }: TournamentNavigat
                         className={`tab flex items-center gap-2 min-w-0 flex-1 justify-center ${item.isActive ? activeStyle : 'hover:bg-base-300'
                             }`}
                     >
-                        <Icon className="w-4 h-4 flex-shrink-0" />
+                        <Icon className="w-4 h-4 shrink-0" />
                         <span className="hidden md:block whitespace-nowrap">{item.label}</span>
                     </Link>
                 )

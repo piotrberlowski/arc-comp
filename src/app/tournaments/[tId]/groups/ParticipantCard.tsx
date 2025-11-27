@@ -1,41 +1,57 @@
 "use client"
 
 import { GroupAssignment, Participant } from "@/generated/prisma/browser"
-import { StarIcon, UserPlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { Bars3Icon, StarIcon, UserPlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid"
 import { useState } from "react"
 import { useGroupAssignment } from "../TournamentContext"
 import CheckInButton from "../components/CheckInButton"
 import GroupSelect from "../components/GroupSelect"
+import useErrorContext from "@/components/errors/ErrorContext"
+import { useDraggable } from "@dnd-kit/core"
 
 export default function ParticipantCard({
     participant,
     isDraggable = false,
-    onDragStart,
-    onDragEnd,
     availableGroups,
     groupSize
 }: {
     participant: Participant & { groupAssignment: GroupAssignment | null }
     isDraggable?: boolean
-    onDragStart?: () => void
-    onDragEnd?: () => void
     availableGroups: { groupNumber: number; participants: Participant[] }[]
     groupSize: number
 }) {
     const [showGroupSelect, setShowGroupSelect] = useState(false)
     const { handleUnassignParticipant, handleSetTargetCaptain, isPending } = useGroupAssignment()
+    const setError = useErrorContext()
     const isTargetCaptain = participant.groupAssignment?.isCaptain ?? false
+
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+        id: participant.id,
+        disabled: !isDraggable
+    })
+
+    const style = transform ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    } : undefined
 
     return (
         <div
-            className={`bg-secondary border border-secondary rounded-lg p-3 cursor-pointer hover:shadow-md transition-shadow ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''
-                } ${isPending ? 'opacity-50' : ''} ${!participant.checkedIn ? 'opacity-60 border-dashed bg-secondary/50' : ''}`}
-            draggable={isDraggable}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
+            ref={setNodeRef}
+            style={style}
+            className={`bg-secondary border border-secondary rounded-lg p-3 hover:shadow-md transition-shadow ${isPending ? 'opacity-50' : ''} ${!participant.checkedIn ? 'opacity-60 border-dashed bg-secondary/50' : ''} ${isDragging ? 'opacity-50' : ''}`}
         >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
+                {isDraggable && (
+                    <div 
+                        className="text-secondary-content/40 hover:text-secondary-content/80 cursor-grab active:cursor-grabbing flex-shrink-0"
+                        style={{ touchAction: 'none' }}
+                        {...listeners}
+                        {...attributes}
+                    >
+                        <Bars3Icon className="w-5 h-5" />
+                    </div>
+                )}
                 <div className="flex-1 min-w-0 text-secondary-content">
                     <div className="flex items-center gap-2">
                         {isTargetCaptain && (
@@ -57,9 +73,13 @@ export default function ParticipantCard({
                     {participant.groupAssignment && !isTargetCaptain && (
                         <button
                             className="btn btn-warning btn-xs"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                                 e.stopPropagation()
-                                handleSetTargetCaptain(participant.id, participant.groupAssignment!.groupNumber)
+                                try {
+                                    await handleSetTargetCaptain(participant.id, participant.groupAssignment!.groupNumber)
+                                } catch (err) {
+                                    setError(err instanceof Error ? err.message : 'Failed to set target captain')
+                                }
                             }}
                             disabled={isPending}
                             title="Set as Target Captain"
@@ -88,9 +108,13 @@ export default function ParticipantCard({
                     {participant.groupAssignment && (
                         <button
                             className="btn btn-error btn-xs"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                                 e.stopPropagation()
-                                handleUnassignParticipant(participant.id)
+                                try {
+                                    await handleUnassignParticipant(participant.id)
+                                } catch (err) {
+                                    setError(err instanceof Error ? err.message : 'Failed to unassign participant')
+                                }
                             }}
                             disabled={isPending}
                         >

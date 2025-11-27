@@ -8,16 +8,12 @@ interface UnassignedParticipantsProps {
     participants: (Participant & { groupAssignment: GroupAssignment | null })[]
     availableGroups: { groupNumber: number; participants: Participant[] }[]
     groupSize: number
-    onDragStart?: (participantId: string) => void
-    onDragEnd?: () => void
 }
 
 export default function UnassignedParticipants({
     participants,
     availableGroups,
-    groupSize,
-    onDragStart,
-    onDragEnd
+    groupSize
 }: UnassignedParticipantsProps) {
     if (participants.length === 0) {
         return null
@@ -35,8 +31,6 @@ export default function UnassignedParticipants({
                         key={participant.id}
                         participant={participant}
                         isDraggable={true}
-                        onDragStart={() => onDragStart?.(participant.id)}
-                        onDragEnd={onDragEnd}
                         availableGroups={availableGroups}
                         groupSize={groupSize}
                     />

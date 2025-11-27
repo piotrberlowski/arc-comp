@@ -155,6 +155,8 @@ const mockTournamentData: TournamentResultsData = {
         date: new Date('2024-01-15'),
         formatId: 'format-1',
         organizerClub: 'Test Archery Club',
+        endCount: 28,
+        groupSize: 4,
         isArchive: false,
         isPublished: true,
         isShared: false,

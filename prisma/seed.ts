@@ -9,7 +9,7 @@ async function main() {
                 data: [
                     { name: "Unmarked Animal Round" },
                     { name: "3D-Standard Round" },
-                    { name: "Hunting Round (Bowhunting)" },
+                    { name: "3D Hunting Round (1 Arrow)" },
                     { name: "Field Round" },
                     { name: "Hunter Round (Field)" },
                     { name: "Marked Animal Round" },

@@ -33,14 +33,16 @@ export async function listRoundFormats() {
     })
 }
 
-export async function createTournament(name: string, formatId: string, club: string, date: Date) {
+export async function createTournament(name: string, formatId: string, club: string, date: Date, endCount: number, groupSize: number) {
     return await prismaOrThrow("create tournament").tournament.create(
         {
             data: {
                 name: name,
                 organizerClub: club,
                 formatId: formatId,
-                date: date
+                date: date,
+                endCount: endCount,
+                groupSize: groupSize
             }
         }
     ).then(

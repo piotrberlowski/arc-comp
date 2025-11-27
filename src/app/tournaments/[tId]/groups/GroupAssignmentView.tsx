@@ -1,38 +1,77 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import { TournamentGroupsData, cleanupGroups } from "../groupActions"
+import useErrorContext from "@/components/errors/ErrorContext"
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
+import { useEffect, useState, useTransition } from "react"
 import { useGroupAssignment } from "../TournamentContext"
+import { TournamentGroupsData, cleanupGroups } from "../groupActions"
 import GroupCard from "./GroupCard"
-import UnassignedParticipants from "./UnassignedParticipants"
 import GroupWarningHeader from "./GroupWarningHeader"
+import UnassignedParticipants from "./UnassignedParticipants"
 
 export default function GroupAssignmentView({ groupsData }: {
     groupsData: TournamentGroupsData
 }) {
-    const [draggedParticipant, setDraggedParticipant] = useState<string | null>(null)
     const [isCleanupPending, startCleanupTransition] = useTransition()
+    const [activeId, setActiveId] = useState<string | null>(null)
+    const [isClient, setIsClient] = useState(false)
+    const setError = useErrorContext()
     const { handleMoveParticipant } = useGroupAssignment()
 
-    const handleDragStart = (participantId: string) => {
-        setDraggedParticipant(participantId)
+    useEffect(() => {
+        setIsClient(true)
+    }, [])
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 5,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                distance: 5,
+            },
+        })
+    )
+
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveId(event.active.id as string)
     }
 
-    const handleDragEnd = () => {
-        setDraggedParticipant(null)
-    }
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event
+        setActiveId(null)
 
-    const handleDrop = (groupNumber: number) => {
-        if (draggedParticipant) {
+        if (!over) return
+
+        const participantId = active.id as string
+        const overId = over.id as string
+
+        // Extract group number from drop zone id
+        if (overId.startsWith('group-')) {
+            const groupNumber = parseInt(overId.replace('group-', ''))
+
             const currentGroup = groupsData.groups.find(g =>
-                g.participants.some(p => p.id === draggedParticipant)
+                g.participants.some(p => p.id === participantId)
             )
+            const targetGroup = groupsData.groups.find(g => g.groupNumber === groupNumber)
 
+            // Check if moving to a different group
             if (currentGroup?.groupNumber !== groupNumber) {
-                handleMoveParticipant(draggedParticipant, groupNumber)
+                // Check if target group is full
+                if (targetGroup && targetGroup.participants.length >= groupsData.tournament.groupSize) {
+                    setError(`Target ${groupNumber} is already full (${targetGroup.participants.length}/${groupsData.tournament.groupSize} participants)`)
+                    return
+                }
+
+                try {
+                    await handleMoveParticipant(participantId, groupNumber)
+                } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Failed to move participant')
+                }
             }
         }
-        setDraggedParticipant(null)
     }
 
     // Calculate warning header data
@@ -46,8 +85,8 @@ export default function GroupAssignmentView({ groupsData }: {
             startCleanupTransition(async () => {
                 try {
                     await cleanupGroups(groupsData.tournament.id)
-                } catch (error) {
-                    console.error('Failed to cleanup groups:', error)
+                } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Failed to cleanup groups')
                 }
             })
         }
@@ -61,7 +100,11 @@ export default function GroupAssignmentView({ groupsData }: {
         return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
     }
 
-    return (
+    const activeParticipant = activeId
+        ? [...groupsData.unassignedParticipants, ...groupsData.groups.flatMap(g => g.participants)].find(p => p.id === activeId)
+        : null
+
+    const content = (
         <div className="w-full p-4 space-y-6">
             {/* Warning Header */}
             <GroupWarningHeader
@@ -75,9 +118,7 @@ export default function GroupAssignmentView({ groupsData }: {
             <UnassignedParticipants
                 participants={groupsData.unassignedParticipants}
                 availableGroups={groupsData.groups}
-                groupSize={groupsData.tournament.format.groupSize}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
+                groupSize={groupsData.tournament.groupSize}
             />
 
             {/* Groups Grid */}
@@ -86,15 +127,33 @@ export default function GroupAssignmentView({ groupsData }: {
                     <GroupCard
                         key={group.groupNumber}
                         group={group}
-                        onDrop={() => handleDrop(group.groupNumber)}
-                        draggedParticipant={draggedParticipant}
-                        onDragStart={handleDragStart}
-                        onDragEnd={handleDragEnd}
                         availableGroups={groupsData.groups}
-                        groupSize={groupsData.tournament.format.groupSize}
+                        groupSize={groupsData.tournament.groupSize}
                     />
                 ))}
             </div>
         </div>
+    )
+
+    if (!isClient) {
+        return content
+    }
+
+    return (
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            {content}
+            <DragOverlay>
+                {activeParticipant && (
+                    <div className="bg-secondary border-2 border-primary rounded-lg p-3 shadow-lg opacity-90 cursor-grabbing">
+                        <div className="text-secondary-content">
+                            <p className="font-medium text-sm">{activeParticipant.name}</p>
+                            <p className="text-xs text-secondary-content/70">
+                                {activeParticipant.ageGroupId}{activeParticipant.genderGroup} • {activeParticipant.categoryId}
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </DragOverlay>
+        </DndContext>
     )
 }

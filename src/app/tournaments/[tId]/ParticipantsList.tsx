@@ -47,7 +47,7 @@ export default function ParticipantsList({ participants, onEditParticipant, edit
         <div className="md:w-4/5 mx-auto space-y-6">
 
             <div className="w-full flex" >
-                <div className="flex-grow">
+                <div className="grow">
                     {/* Filter Section */}
                     <ParticipantFilter
                         participants={displayP}

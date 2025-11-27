@@ -2,28 +2,23 @@
 
 import { GroupAssignment, Participant } from "@/generated/prisma/browser";
 import ParticipantCard from "./ParticipantCard";
+import { useDroppable } from "@dnd-kit/core";
 
 interface GroupCardProps {
     group: { groupNumber: number; participants: (Participant & { groupAssignment: GroupAssignment | null })[] }
-    onDrop: () => void
-    draggedParticipant: string | null
-    onDragStart?: (participantId: string) => void
-    onDragEnd?: () => void
     availableGroups: { groupNumber: number; participants: Participant[] }[]
     groupSize: number
 }
 
 export default function GroupCard({
     group,
-    onDrop,
-    onDragStart,
-    onDragEnd,
     availableGroups,
     groupSize
 }: GroupCardProps) {
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault()
-    }
+    const { setNodeRef, isOver } = useDroppable({
+        id: `group-${group.groupNumber}`,
+        data: { groupNumber: group.groupNumber }
+    })
 
     const isOddGroup = group.groupNumber % 2 === 1
     const headerBgClass = isOddGroup ? 'bg-primary' : 'bg-neutral'
@@ -31,9 +26,10 @@ export default function GroupCard({
 
     return (
         <div
-            className="bg-base-100 border border-base-300 rounded-lg p-4 min-h-[200px]"
-            onDragOver={handleDragOver}
-            onDrop={onDrop}
+            ref={setNodeRef}
+            className={`bg-base-100 border rounded-lg p-4 min-h-[200px] transition-colors ${
+                isOver ? 'border-primary border-2 bg-primary/5' : 'border-base-300'
+            }`}
         >
             <div className={`flex items-center justify-between mb-3 p-3 rounded-lg ${headerBgClass} ${headerTextClass}`}>
                 <h3 className="font-semibold text-lg">Target {group.groupNumber}</h3>
@@ -48,8 +44,6 @@ export default function GroupCard({
                         key={participant.id}
                         participant={participant}
                         isDraggable={true}
-                        onDragStart={() => onDragStart?.(participant.id)}
-                        onDragEnd={onDragEnd}
                         availableGroups={availableGroups}
                         groupSize={groupSize}
                     />

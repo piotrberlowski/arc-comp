@@ -2,6 +2,7 @@
 
 import { Participant } from "@/generated/prisma/browser";
 import { useGroupAssignment } from "../TournamentContext";
+import useErrorContext from "@/components/errors/ErrorContext";
 
 interface GroupSelectProps {
     participantId: string
@@ -17,14 +18,19 @@ export default function GroupSelect({
     onSelect
 }: GroupSelectProps) {
     const { handleAssignParticipant, isPending } = useGroupAssignment()
+    const setError = useErrorContext()
 
     const nonFullGroups = availableGroups.filter(group => group.participants.length < groupSize)
 
-    const handleGroupSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const handleGroupSelect = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const groupNumber = parseInt(e.target.value)
         if (groupNumber && groupNumber > 0) {
-            handleAssignParticipant(participantId, groupNumber)
-            onSelect?.()
+            try {
+                await handleAssignParticipant(participantId, groupNumber)
+                onSelect?.()
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to assign participant')
+            }
         }
     }
 

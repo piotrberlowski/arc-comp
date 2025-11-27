@@ -79,27 +79,55 @@ export function useGroupAssignment() {
         throw new Error('useGroupAssignment must be used within TournamentEditContextProvider')
     }
 
-    const handleAssignParticipant = (participantId: string, groupNumber: number) => {
-        startTransition(() => {
-            context.assignParticipantToGroup(participantId, groupNumber)
+    const handleAssignParticipant = async (participantId: string, groupNumber: number) => {
+        return new Promise<void>((resolve, reject) => {
+            startTransition(async () => {
+                try {
+                    await context.assignParticipantToGroup(participantId, groupNumber)
+                    resolve()
+                } catch (err) {
+                    reject(err)
+                }
+            })
         })
     }
 
-    const handleUnassignParticipant = (participantId: string) => {
-        startTransition(() => {
-            context.unassignParticipantFromGroup(participantId)
+    const handleUnassignParticipant = async (participantId: string) => {
+        return new Promise<void>((resolve, reject) => {
+            startTransition(async () => {
+                try {
+                    await context.unassignParticipantFromGroup(participantId)
+                    resolve()
+                } catch (err) {
+                    reject(err)
+                }
+            })
         })
     }
 
-    const handleMoveParticipant = (participantId: string, newGroupNumber: number) => {
-        startTransition(() => {
-            context.assignParticipantToGroup(participantId, newGroupNumber)
+    const handleMoveParticipant = async (participantId: string, newGroupNumber: number) => {
+        return new Promise<void>((resolve, reject) => {
+            startTransition(async () => {
+                try {
+                    await context.assignParticipantToGroup(participantId, newGroupNumber)
+                    resolve()
+                } catch (err) {
+                    reject(err)
+                }
+            })
         })
     }
 
-    const handleSetTargetCaptain = (participantId: string, groupNumber: number) => {
-        startTransition(() => {
-            context.setTargetCaptain(participantId, groupNumber)
+    const handleSetTargetCaptain = async (participantId: string, groupNumber: number) => {
+        return new Promise<void>((resolve, reject) => {
+            startTransition(async () => {
+                try {
+                    await context.setTargetCaptain(participantId, groupNumber)
+                    resolve()
+                } catch (err) {
+                    reject(err)
+                }
+            })
         })
     }
 

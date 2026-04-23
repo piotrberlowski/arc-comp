@@ -104,8 +104,6 @@ export async function updateShootoffScore(
     tournamentId: string,
     shootoff: number
 ): Promise<void> {
-    console.log(`[updateShootoffScore] Called with participantId=${participantId}, tournamentId=${tournamentId}, shootoff=${shootoff}`)
-    
     const existing = await prismaOrThrow("get score for shootoff").participantScore.findUnique({
         where: { participantId_tournamentId: { participantId, tournamentId } }
     })
@@ -116,15 +114,11 @@ export async function updateShootoffScore(
 
     const currentScore = Math.floor(Number(existing.score))
     const newScore = toScore(currentScore, shootoff)
-    
-    console.log(`[updateShootoffScore] Existing score=${existing.score}, currentScore=${currentScore}, newScore=${newScore}`)
 
     await prismaOrThrow("update shootoff").participantScore.update({
         where: { participantId_tournamentId: { participantId, tournamentId } },
         data: { score: newScore }
     })
-    
-    console.log(`[updateShootoffScore] Update complete`)
 
     revalidatePath(`/tournaments/${tournamentId}/scores`)
 }

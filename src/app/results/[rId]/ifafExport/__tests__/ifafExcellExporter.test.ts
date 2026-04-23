@@ -178,11 +178,10 @@ const mockTournamentData: TournamentResultsData = {
             club: 'Test Archery Club',
             genderGroup: 'M',
             checkedIn: true,
-            participantScore: {
-                id: 'score-1',
-                participantId: 'participant-1',
-                tournamentId: 'test-tournament-1',
-                score: 280
+            result: {
+                status: 'COMPLETED' as const,
+                score: 280,
+                shootoff: null
             },
             ageGroup: { id: 'S', name: 'Senior' },
             category: { id: 'BBC', name: 'Barebow Compound' }
@@ -197,11 +196,10 @@ const mockTournamentData: TournamentResultsData = {
             club: 'Test Archery Club',
             genderGroup: 'F',
             checkedIn: true,
-            participantScore: {
-                id: 'score-2',
-                participantId: 'participant-2',
-                tournamentId: 'test-tournament-1',
-                score: 275
+            result: {
+                status: 'COMPLETED' as const,
+                score: 275,
+                shootoff: null
             },
             ageGroup: { id: 'S', name: 'Senior' },
             category: { id: 'BBC', name: 'Barebow Compound' }
@@ -216,11 +214,10 @@ const mockTournamentData: TournamentResultsData = {
             club: 'Independent',
             genderGroup: 'M',
             checkedIn: true,
-            participantScore: {
-                id: 'score-3',
-                participantId: 'participant-3',
-                tournamentId: 'test-tournament-1',
-                score: 290
+            result: {
+                status: 'COMPLETED' as const,
+                score: 290,
+                shootoff: null
             },
             ageGroup: { id: 'A', name: 'Adult' },
             category: { id: 'BBR', name: 'Barebow Recurve' }
@@ -235,11 +232,10 @@ const mockTournamentData: TournamentResultsData = {
             club: 'Test Archery Club',
             genderGroup: 'F',
             checkedIn: true,
-            participantScore: {
-                id: 'score-4',
-                participantId: 'participant-4',
-                tournamentId: 'test-tournament-1',
-                score: 285
+            result: {
+                status: 'COMPLETED' as const,
+                score: 285,
+                shootoff: null
             },
             ageGroup: { id: 'A', name: 'Adult' },
             category: { id: 'BBR', name: 'Barebow Recurve' }
@@ -254,11 +250,10 @@ const mockTournamentData: TournamentResultsData = {
             club: 'Youth Archery Club',
             genderGroup: 'M',
             checkedIn: true,
-            participantScore: {
-                id: 'score-5',
-                participantId: 'participant-5',
-                tournamentId: 'test-tournament-1',
-                score: 270
+            result: {
+                status: 'COMPLETED' as const,
+                score: 270,
+                shootoff: null
             },
             ageGroup: { id: 'J', name: 'Junior' },
             category: { id: 'BHC', name: 'Bowhunter Compound' }

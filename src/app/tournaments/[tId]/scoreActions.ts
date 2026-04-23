@@ -1,14 +1,19 @@
 "use server"
 
-import { GroupAssignment, Participant, ParticipantScore } from "@/generated/prisma/client"
+import { GroupAssignment, Participant } from "@/generated/prisma/client"
 import { prismaOrThrow } from "@/lib/prisma"
+import { ParticipantResult, SCORE_DNC, SCORE_DNF, toResult, toScore } from "@/lib/scoreUtils"
 import { revalidatePath } from "next/cache"
 
-export type ParticipantWithScore = Participant & { participantScore: ParticipantScore | null, groupAssignment: GroupAssignment | null }
-export type TournamentScores = (ParticipantWithScore)[]
+export type ParticipantWithResult = Participant & { 
+    result: ParticipantResult | null
+    groupAssignment: GroupAssignment | null 
+}
+export type TournamentResults = ParticipantWithResult[]
 
-export async function getTournamentScores(tournamentId: string): Promise<TournamentScores> {
-    return prismaOrThrow("get tournament scores").participant.findMany({
+
+export async function getTournamentResults(tournamentId: string): Promise<TournamentResults> {
+    const participants = await prismaOrThrow("get tournament results").participant.findMany({
         where: {
             tournamentId: tournamentId,
             checkedIn: true,
@@ -18,9 +23,19 @@ export async function getTournamentScores(tournamentId: string): Promise<Tournam
             groupAssignment: true,
         }
     })
+
+    return participants.map(p => {
+        const { participantScore, ...rest } = p
+        return {
+            ...rest,
+            result: participantScore 
+                ? toResult(Number(participantScore.score))
+                : null
+        }
+    })
 }
 
-export async function getTournamentWithScoresStatus(tournamentId: string): Promise<{ tournament: { id: string, isPublished: boolean, isShared: boolean }, allScoresComplete: boolean }> {
+export async function getTournamentWithResultsStatus(tournamentId: string): Promise<{ tournament: { id: string, isPublished: boolean, isShared: boolean }, allResultsComplete: boolean }> {
     const tournament = await prismaOrThrow("get tournament with scores status").tournament.findUnique({
         where: { id: tournamentId },
         include: {
@@ -39,7 +54,7 @@ export async function getTournamentWithScoresStatus(tournamentId: string): Promi
         throw new Error("Tournament not found")
     }
 
-    const allScoresComplete = tournament.participants.length > 0 && tournament.participants.every(p => !!p.participantScore)
+    const allResultsComplete = tournament.participants.length > 0 && tournament.participants.every(p => !!p.participantScore)
 
     return {
         tournament: {
@@ -47,42 +62,69 @@ export async function getTournamentWithScoresStatus(tournamentId: string): Promi
             isPublished: tournament.isPublished,
             isShared: tournament.isShared
         },
-        allScoresComplete
+        allResultsComplete
     }
 }
 
-export async function updateScore(
+export async function setScore(
     participantId: string,
     tournamentId: string,
-    score: number | null
+    score: number,
+    shootoff?: number
 ): Promise<void> {
-    if (score === null) {
-        // Remove the score record to blank it
-        await prismaOrThrow("blank score").participantScore.deleteMany({
-            where: {
-                participantId,
-                tournamentId
-            }
-        })
-    } else {
-        // Upsert the score
-        await prismaOrThrow("update score").participantScore.upsert({
-            where: {
-                participantId_tournamentId: {
-                    participantId,
-                    tournamentId
-                }
-            },
-            update: {
-                score
-            },
-            create: {
-                participantId,
-                tournamentId,
-                score
-            }
-        })
+    await upsertScore(participantId, tournamentId, toScore(score, shootoff))
+}
+
+export async function setDNF(participantId: string, tournamentId: string): Promise<void> {
+    await upsertScore(participantId, tournamentId, SCORE_DNF)
+}
+
+export async function setDNC(participantId: string, tournamentId: string): Promise<void> {
+    await upsertScore(participantId, tournamentId, SCORE_DNC)
+}
+
+export async function clearScore(participantId: string, tournamentId: string): Promise<void> {
+    await prismaOrThrow("clear score").participantScore.deleteMany({
+        where: { participantId, tournamentId }
+    })
+    revalidatePath(`/tournaments/${tournamentId}/scores`)
+}
+
+async function upsertScore(participantId: string, tournamentId: string, score: number): Promise<void> {
+    await prismaOrThrow("upsert score").participantScore.upsert({
+        where: { participantId_tournamentId: { participantId, tournamentId } },
+        update: { score },
+        create: { participantId, tournamentId, score }
+    })
+    revalidatePath(`/tournaments/${tournamentId}/scores`)
+}
+
+export async function updateShootoffScore(
+    participantId: string,
+    tournamentId: string,
+    shootoff: number
+): Promise<void> {
+    console.log(`[updateShootoffScore] Called with participantId=${participantId}, tournamentId=${tournamentId}, shootoff=${shootoff}`)
+    
+    const existing = await prismaOrThrow("get score for shootoff").participantScore.findUnique({
+        where: { participantId_tournamentId: { participantId, tournamentId } }
+    })
+
+    if (!existing) {
+        throw new Error("Cannot add shootoff to non-existent score")
     }
+
+    const currentScore = Math.floor(Number(existing.score))
+    const newScore = toScore(currentScore, shootoff)
+    
+    console.log(`[updateShootoffScore] Existing score=${existing.score}, currentScore=${currentScore}, newScore=${newScore}`)
+
+    await prismaOrThrow("update shootoff").participantScore.update({
+        where: { participantId_tournamentId: { participantId, tournamentId } },
+        data: { score: newScore }
+    })
+    
+    console.log(`[updateShootoffScore] Update complete`)
 
     revalidatePath(`/tournaments/${tournamentId}/scores`)
 }

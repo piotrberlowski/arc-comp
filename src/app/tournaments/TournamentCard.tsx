@@ -4,20 +4,20 @@ import { ArchiveBoxArrowDownIcon, HandThumbUpIcon, PencilSquareIcon, ShareIcon }
 import { format } from 'date-fns';
 import Form from "next/form";
 import { useState } from "react";
-import { getTournamentWithScoresStatus } from "./[tId]/scoreActions";
+import { getTournamentWithResultsStatus } from "./[tId]/scoreActions";
 import SharingDrawer from "./[tId]/scores/SharingDrawer";
 import { archiveTournament } from "./tournamentActions";
 
 export default function TournamentCard({ tournament, onArchived }: { tournament: Tournament & { format: RoundFormat }, onArchived: (id: string) => void }) {
     const [data, setData] = useState(tournament)
     const [isSharingDrawerOpen, setIsSharingDrawerOpen] = useState(false)
-    const [sharingData, setSharingData] = useState<{ tournament: { id: string, isPublished: boolean, isShared: boolean }, allScoresComplete: boolean } | null>(null)
+    const [sharingData, setSharingData] = useState<{ tournament: { id: string, isPublished: boolean, isShared: boolean }, allResultsComplete: boolean } | null>(null)
     const [isLoadingSharing, setIsLoadingSharing] = useState(false)
 
     const handleOpenSharing = async () => {
         setIsLoadingSharing(true)
         try {
-            const sharingInfo = await getTournamentWithScoresStatus(data.id)
+            const sharingInfo = await getTournamentWithResultsStatus(data.id)
             setSharingData(sharingInfo)
             setIsSharingDrawerOpen(true)
         } catch (error) {
@@ -37,7 +37,7 @@ export default function TournamentCard({ tournament, onArchived }: { tournament:
 
         // Refresh sharing data to get latest state
         try {
-            const sharingInfo = await getTournamentWithScoresStatus(updatedTournament.id)
+            const sharingInfo = await getTournamentWithResultsStatus(updatedTournament.id)
             setSharingData(sharingInfo)
         } catch (error) {
             console.error("Failed to refresh sharing data:", error)
@@ -104,7 +104,7 @@ export default function TournamentCard({ tournament, onArchived }: { tournament:
                 <SharingDrawer
                     isOpen={isSharingDrawerOpen}
                     onClose={() => setIsSharingDrawerOpen(false)}
-                    allScoresComplete={sharingData.allScoresComplete}
+                    allResultsComplete={sharingData.allResultsComplete}
                     tournament={sharingData.tournament}
                     onSharingUpdated={handleSharingUpdated}
                 />

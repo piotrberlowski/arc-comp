@@ -5,7 +5,7 @@
       "name": "Next.js: debug server-side",
       "type": "node-terminal",
       "request": "launch",
-      "command": "dotenv -e .env.local npm run dev",
+      "command": "dotenv -e .env npm run dev",
       "env": {
         "NODE_OPTIONS": "--inspect"
       }
@@ -20,7 +20,7 @@
       "name": "Next.js: debug full stack",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm run dev",
+      "command": "dotenv -e .env npm run dev",
       "serverReadyAction": {
         "pattern": "started server on .+, url: (https?://.+)",
         "uriFormat": "%s",

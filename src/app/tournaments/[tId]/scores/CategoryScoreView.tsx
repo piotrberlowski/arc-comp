@@ -2,39 +2,51 @@
 
 import MedalIcon from "../components/MedalIcon"
 import ScoreInput from "../components/ScoreInput"
-import { ParticipantWithScore } from "../scoreActions"
+import { ParticipantWithResult } from "../scoreActions"
+
+function getDisplayValue(result: ParticipantWithResult['result']): string {
+    if (!result) return '-'
+    if (result.status === 'DNF') return 'DNF'
+    if (result.status === 'DNC') return 'DNC'
+    if (result.shootoff !== null) return `${result.score} (${result.shootoff})`
+    return result.score?.toString() ?? ''
+}
 
 /**
- * Comparator function for sorting participants by completion status, score, and name.
- * Sorts incomplete participants first, then by score descending, then by name ascending.
+ * Comparator function for sorting participants by completion status, score (with shootoff), and name.
+ * Sorts incomplete participants first, then by score descending (including shootoff tiebreaker), then by name ascending.
  */
-export function compareParticipants(a: ParticipantWithScore, b: ParticipantWithScore): number {
-    const aHasScore = !!a.participantScore
-    const bHasScore = !!b.participantScore
+export function compareParticipants(a: ParticipantWithResult, b: ParticipantWithResult): number {
+    const aHasResult = !!a.result
+    const bHasResult = !!b.result
 
-    // First sort by completion status (incomplete first, then complete)
-    if (aHasScore !== bHasScore) {
-        return aHasScore ? 1 : -1
+    if (aHasResult !== bHasResult) {
+        return aHasResult ? 1 : -1
     }
 
-    // Then sort by score descending
-    const aScore = a.participantScore?.score || 0
-    const bScore = b.participantScore?.score || 0
+    const aScore = a.result?.score ?? 0
+    const bScore = b.result?.score ?? 0
     if (aScore !== bScore) {
         return bScore - aScore
     }
 
-    // Finally sort by name ascending
+    const aShootoff = a.result?.shootoff ?? 0
+    const bShootoff = b.result?.shootoff ?? 0
+    if (aShootoff !== bShootoff) {
+        return bShootoff - aShootoff
+    }
+
     return a.name.localeCompare(b.name)
 }
 
 
 // Extended interfaces for participants with place information
-interface ParticipantWithPlace extends ParticipantWithScore {
+interface ParticipantWithPlace extends ParticipantWithResult {
     place: number
     isCategoryHeader: false
     category: string
     categoryComplete: boolean
+    hasUnresolvedTie: boolean
 }
 
 interface CategoryHeaderRow {
@@ -56,11 +68,13 @@ interface CategoryHeaderRow {
 type TableRow = ParticipantWithPlace | CategoryHeaderRow
 
 interface CategoryScoreViewProps {
-    participants: ParticipantWithScore[]
-    onScoreChange: (participantId: string, score: number | null) => void
+    participants: ParticipantWithResult[]
+    unresolvedTieParticipantIds?: Set<string>
 }
 
-export default function CategoryScoreView({ participants, onScoreChange }: CategoryScoreViewProps) {
+export default function CategoryScoreView({ 
+    participants, unresolvedTieParticipantIds 
+}: CategoryScoreViewProps) {
     // Group participants by category
     const categories = participants.reduce((acc, participant) => {
         const category = `${participant.ageGroupId}${participant.genderGroup}${participant.categoryId}`
@@ -69,14 +83,14 @@ export default function CategoryScoreView({ participants, onScoreChange }: Categ
         }
         acc[category].push(participant)
         return acc
-    }, {} as Record<string, ParticipantWithScore[]>)
+    }, {} as Record<string, ParticipantWithResult[]>)
 
     // Convert to array and sort by category
     const sortedCategories = Object.entries(categories)
         .map(([category, participants]) => ({
             category,
             participants: participants.sort(compareParticipants),
-            isComplete: participants.every(p => !!p.participantScore)
+            isComplete: participants.every(p => !!p.result)
         }))
         .sort((a, b) => a.category.localeCompare(b.category))
 
@@ -100,7 +114,8 @@ export default function CategoryScoreView({ participants, onScoreChange }: Categ
                 isCategoryHeader: false,
                 category: categoryData.category,
                 categoryComplete: categoryData.isComplete,
-                place: 0 // Will be calculated properly in complete participants
+                place: 0,
+                hasUnresolvedTie: unresolvedTieParticipantIds?.has(participant.id) ?? false
             } as ParticipantWithPlace))
         ])
 
@@ -113,7 +128,8 @@ export default function CategoryScoreView({ participants, onScoreChange }: Categ
                 isCategoryHeader: false,
                 category: categoryData.category,
                 categoryComplete: categoryData.isComplete,
-                place: index + 1
+                place: index + 1,
+                hasUnresolvedTie: unresolvedTieParticipantIds?.has(participant.id) ?? false
             }))
 
             return [
@@ -165,15 +181,19 @@ export default function CategoryScoreView({ participants, onScoreChange }: Categ
                                 )
                             }
 
+                            const rowClass = participant.hasUnresolvedTie 
+                                ? 'bg-warning/20 [&>*]:!bg-warning/20' 
+                                : ''
+
                             return (
-                                <tr key={participant.id}>
+                                <tr key={participant.id} className={rowClass}>
                                     <td>
                                         <div className="flex items-center gap-1">
                                             {!participant.isCategoryHeader && (
                                                 <>
                                                     <MedalIcon place={participant.place} />
                                                     <span className="font-mono text-sm font-semibold">
-                                                        {participant.place}
+                                                        {participant.hasUnresolvedTie ? '?' : participant.place}
                                                     </span>
                                                 </>
                                             )}
@@ -184,6 +204,9 @@ export default function CategoryScoreView({ participants, onScoreChange }: Categ
                                             <p className="font-medium text-sm">{participant.name}</p>
                                             <p className="text-xs text-base-content/70">
                                                 {participant.ageGroupId}{participant.genderGroup}
+                                                {participant.hasUnresolvedTie && (
+                                                    <span className="ml-1 text-warning font-medium">(tie)</span>
+                                                )}
                                             </p>
                                         </div>
                                     </td>
@@ -192,15 +215,13 @@ export default function CategoryScoreView({ participants, onScoreChange }: Categ
                                     </td>
                                     <td className="hidden md:table-cell">
                                         <span className="font-mono text-sm">
-                                            {participant.participantScore?.score ?? '-'}
+                                            {getDisplayValue(participant.result)}
                                         </span>
                                     </td>
                                     <td>
                                         <ScoreInput
-                                            currentScore={participant.participantScore?.score ?? null}
-                                            onScoreChange={(score) =>
-                                                onScoreChange(participant.id, score)
-                                            }
+                                            participantId={participant.id}
+                                            currentResult={participant.result}
                                         />
                                     </td>
                                 </tr>

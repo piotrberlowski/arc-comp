@@ -1,31 +1,51 @@
 "use client"
 
-import { XMarkIcon } from "@heroicons/react/24/outline"
-import { useState } from "react"
+import { EllipsisVerticalIcon } from "@heroicons/react/24/outline"
+import { useEffect, useRef, useState } from "react"
+import { ParticipantResult } from "@/lib/scoreUtils"
+import { useScoreActions } from "../scores/ScoreActionsContext"
 
 interface ScoreInputProps {
-    currentScore: number | null
-    onScoreChange: (score: number | null) => void
+    participantId: string
+    currentResult: ParticipantResult | null
 }
 
 export default function ScoreInput({
-    currentScore,
-    onScoreChange
+    participantId,
+    currentResult,
 }: ScoreInputProps) {
-    const [score, setScore] = useState(currentScore?.toString() || '')
-    const [isPending, setIsPending] = useState(false)
+    const { setScore: onSetScore, clear: onClear, setDNF: onDNF, setDNC: onDNC } = useScoreActions()
+    const isSpecialResult = currentResult?.status === 'DNF' || currentResult?.status === 'DNC'
 
-    // Save on blur (lose focus)
+    const [score, setScore] = useState(currentResult?.score?.toString() || '')
+    const [isPending, setIsPending] = useState(false)
+    const [menuOpen, setMenuOpen] = useState(false)
+    const menuRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setMenuOpen(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [])
+
     const handleBlur = async () => {
-        if (isPending) return
+        if (isPending || isSpecialResult) return
 
         const scoreValue = score === '' ? null : parseInt(score)
+        const currentValue = currentResult?.score ?? null
 
-        // Only save if the value has actually changed
-        if (scoreValue !== currentScore) {
+        if (scoreValue !== currentValue) {
             setIsPending(true)
             try {
-                await onScoreChange(scoreValue)
+                if (scoreValue === null) {
+                    await onClear(participantId)
+                } else {
+                    await onSetScore(participantId, scoreValue)
+                }
             } finally {
                 setIsPending(false)
             }
@@ -33,26 +53,32 @@ export default function ScoreInput({
     }
 
     const handleScoreChange = (value: string) => {
-        // Only allow digits and limit to 4 digits
         const numericValue = value.replace(/\D/g, '').slice(0, 4)
         setScore(numericValue)
     }
 
-    const handleClear = async () => {
+    const handleAction = async (action: 'CLEAR' | 'DNF' | 'DNC') => {
         if (isPending) return
 
+        setMenuOpen(false)
         setIsPending(true)
         try {
             setScore('')
-            await onScoreChange(null)
+            if (action === 'CLEAR') await onClear(participantId)
+            else if (action === 'DNF') await onDNF(participantId)
+            else await onDNC(participantId)
         } finally {
             setIsPending(false)
         }
     }
 
     return (
-        <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1">
+            {isSpecialResult ? (
+                <span className="badge badge-warning badge-sm w-16 justify-center">
+                    {currentResult?.status}
+                </span>
+            ) : (
                 <input
                     type="text"
                     className="input input-bordered input-sm w-16 text-center"
@@ -63,20 +89,41 @@ export default function ScoreInput({
                     maxLength={4}
                     disabled={isPending}
                 />
-                {isPending && (
-                    <span className="text-xs text-base-content/70">Saving...</span>
-                )}
-            </div>
+            )}
 
-            <div className="flex items-center gap-1">
+            {isPending && (
+                <span className="text-xs text-base-content/70">...</span>
+            )}
+
+            <div className="relative" ref={menuRef}>
                 <button
-                    className="btn btn-error btn-sm"
-                    onClick={handleClear}
+                    className="btn btn-ghost btn-sm btn-square"
+                    onClick={() => setMenuOpen(!menuOpen)}
                     disabled={isPending}
+                    aria-label="Score actions"
                 >
-                    <XMarkIcon className="w-4 h-4 md:hidden" />
-                    <span className="hidden md:block">Clear</span>
+                    <EllipsisVerticalIcon className="w-4 h-4" />
                 </button>
+
+                {menuOpen && (
+                    <ul className="menu bg-base-200 rounded-box absolute right-0 top-full z-50 w-32 shadow-lg">
+                        <li>
+                            <button onClick={() => handleAction('CLEAR')}>
+                                Clear
+                            </button>
+                        </li>
+                        <li>
+                            <button onClick={() => handleAction('DNF')}>
+                                DNF
+                            </button>
+                        </li>
+                        <li>
+                            <button onClick={() => handleAction('DNC')}>
+                                DNC
+                            </button>
+                        </li>
+                    </ul>
+                )}
             </div>
         </div>
     )

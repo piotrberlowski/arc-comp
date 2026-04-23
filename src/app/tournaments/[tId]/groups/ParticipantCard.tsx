@@ -1,14 +1,14 @@
 "use client"
 
+import useErrorContext from "@/components/errors/ErrorContext"
 import { GroupAssignment, Participant } from "@/generated/prisma/browser"
+import { useDraggable } from "@dnd-kit/core"
 import { Bars3Icon, StarIcon, UserPlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid"
 import { useState } from "react"
 import { useGroupAssignment } from "../TournamentContext"
 import CheckInButton from "../components/CheckInButton"
 import GroupSelect from "../components/GroupSelect"
-import useErrorContext from "@/components/errors/ErrorContext"
-import { useDraggable } from "@dnd-kit/core"
 
 export default function ParticipantCard({
     participant,
@@ -41,9 +41,9 @@ export default function ParticipantCard({
             style={style}
             className={`bg-secondary border border-secondary rounded-lg p-3 hover:shadow-md transition-shadow ${isPending ? 'opacity-50' : ''} ${!participant.checkedIn ? 'opacity-60 border-dashed bg-secondary/50' : ''} ${isDragging ? 'opacity-50' : ''}`}
         >
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
                 {isDraggable && (
-                    <div 
+                    <div
                         className="text-secondary-content/40 hover:text-secondary-content/80 cursor-grab active:cursor-grabbing flex-shrink-0"
                         style={{ touchAction: 'none' }}
                         {...listeners}
@@ -52,14 +52,14 @@ export default function ParticipantCard({
                         <Bars3Icon className="w-5 h-5" />
                     </div>
                 )}
-                <div className="flex-1 min-w-0 text-secondary-content">
-                    <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-[150px] text-secondary-content">
+                    <div className="flex items-center gap-2 flex-wrap">
                         {isTargetCaptain && (
-                            <StarIconSolid className="w-4 h-4 text-warning" title="Target Captain" />
+                            <StarIconSolid className="w-4 h-4 text-warning shrink-0" title="Target Captain" />
                         )}
-                        <p className="font-medium text-sm truncate">{participant.name}</p>
+                        <p className="font-medium text-xs sm:text-sm">{participant.name}</p>
                         {!participant.checkedIn && (
-                            <span className="badge badge-warning badge-xs">Not Checked In</span>
+                            <span className="badge badge-warning badge-xs shrink-0">Not Checked In</span>
                         )}
                     </div>
                     <p className="text-xs text-secondary-content/70">
@@ -69,7 +69,7 @@ export default function ParticipantCard({
                         <p className="text-xs text-secondary-content/60">{participant.club}</p>
                     )}
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 shrink-0">
                     {participant.groupAssignment && !isTargetCaptain && (
                         <button
                             className="btn btn-warning btn-xs"

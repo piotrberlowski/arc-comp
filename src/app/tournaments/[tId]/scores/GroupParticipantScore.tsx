@@ -1,13 +1,14 @@
+"use client"
+
 import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid"
 import ScoreInput from "../components/ScoreInput"
-import { ParticipantWithScore } from "../scoreActions"
+import { ParticipantWithResult } from "../scoreActions"
 
 interface GroupParticipantScoreProps {
-    participant: ParticipantWithScore
-    onScoreChange: (participantId: string, score: number | null) => void
+    participant: ParticipantWithResult
 }
 
-export default function GroupParticipantScore({ participant, onScoreChange }: GroupParticipantScoreProps) {
+export default function GroupParticipantScore({ participant }: GroupParticipantScoreProps) {
     const isTargetCaptain = participant.groupAssignment?.isCaptain ?? false
 
     return (
@@ -31,10 +32,8 @@ export default function GroupParticipantScore({ participant, onScoreChange }: Gr
 
             <div className="ml-2">
                 <ScoreInput
-                    currentScore={participant.participantScore?.score ?? null}
-                    onScoreChange={(score) =>
-                        onScoreChange(participant.id, score)
-                    }
+                    participantId={participant.id}
+                    currentResult={participant.result}
                 />
             </div>
         </div>

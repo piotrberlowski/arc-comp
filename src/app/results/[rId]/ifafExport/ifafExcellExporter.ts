@@ -147,16 +147,12 @@ export class IFAFExcellExporter {
         // Group participants by age/gender
         const participantsByAgeGender = this.groupParticipantsByAgeGender(participants)
 
-        // Process each age/gender group
+        // Process each age/gender group (participants are pre-sorted by score from DB)
         for (const [ageGenderKey, groupParticipants] of participantsByAgeGender) {
             const ageGenderMapping = this.ageGenderMap.get(ageGenderKey)
             if (!ageGenderMapping) continue
 
-            // Sort participants by score (descending)
-            const sortedParticipants = this.sortParticipants(groupParticipants)
-
-            // Insert participant rows
-            currentRow = this.insertParticipantRows(worksheet, sortedParticipants, ageGenderMapping, currentRow)
+            currentRow = this.insertParticipantRows(worksheet, groupParticipants, ageGenderMapping, currentRow)
 
             // Insert empty row after each age/gender group
             worksheet.insertRow(currentRow, [], 'i+')
@@ -176,15 +172,6 @@ export class IFAFExcellExporter {
         return participantsByAgeGender
     }
 
-    private sortParticipants(participants: ParticipantResultData[]): ParticipantResultData[] {
-        return participants.sort((a, b) => {
-            if (a.participantScore.score !== b.participantScore.score) {
-                return b.participantScore.score - a.participantScore.score
-            }
-            return a.name.localeCompare(b.name)
-        })
-    }
-
     private insertParticipantRows(
         worksheet: ExcelJS.Worksheet,
         participants: ParticipantResultData[],
@@ -192,12 +179,15 @@ export class IFAFExcellExporter {
         currentRow: number
     ): number {
         for (const participant of participants) {
+            const { status, score } = participant.result
+            const scoreDisplay = status === 'COMPLETED' ? score?.toString() ?? '' : status
+
             const rowValues = [
                 `${ageGenderMapping.ifafCategoryCode}. ${ageGenderMapping.ifafCategoryName}`,
                 participant.name,
                 participant.membershipNo || '',
                 participant.club || 'Independent',
-                participant.participantScore.score
+                scoreDisplay
             ]
             worksheet.insertRow(currentRow, rowValues, 'i+')
             currentRow++

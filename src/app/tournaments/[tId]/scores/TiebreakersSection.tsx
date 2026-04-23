@@ -25,28 +25,13 @@ export default function TiebreakersSection({ tiebreakers, onShootoffChange }: Ti
 
     const handleBlur = async (participantId: string, currentShootoff: number | null) => {
         const value = shootoffs[participantId]
-        console.log(`[handleBlur] participantId=${participantId}, value=${value}, currentShootoff=${currentShootoff}, pending=${pending[participantId]}`)
-        
-        if (pending[participantId]) {
-            console.log(`[handleBlur] Skipping - already pending`)
-            return
-        }
-        if (!value && currentShootoff === null) {
-            console.log(`[handleBlur] Skipping - no value and no current shootoff`)
-            return
-        }
-        if (value === currentShootoff?.toString()) {
-            console.log(`[handleBlur] Skipping - value unchanged`)
-            return
-        }
+        if (pending[participantId]) return
+        if (!value && currentShootoff === null) return
+        if (value === currentShootoff?.toString()) return
 
-        console.log(`[handleBlur] Calling onShootoffChange with shootoff=${parseInt(value || '0')}`)
         setPending(prev => ({ ...prev, [participantId]: true }))
         try {
             await onShootoffChange(participantId, parseInt(value || '0'))
-            console.log(`[handleBlur] onShootoffChange completed`)
-        } catch (error) {
-            console.error(`[handleBlur] Error:`, error)
         } finally {
             setPending(prev => ({ ...prev, [participantId]: false }))
         }

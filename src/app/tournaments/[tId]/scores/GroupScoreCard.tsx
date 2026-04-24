@@ -1,14 +1,15 @@
-import { ParticipantWithScore } from "../scoreActions"
+import { ParticipantWithResult } from "../scoreActions"
 import GroupParticipantScore from "./GroupParticipantScore"
 
 interface GroupScoreCardProps {
     groupNumber: number
-    participants: ParticipantWithScore[]
+    participants: ParticipantWithResult[]
     isComplete: boolean
-    onScoreChange: (participantId: string, score: number | null) => void
 }
 
-export default function GroupScoreCard({ groupNumber, participants, isComplete, onScoreChange }: GroupScoreCardProps) {
+export default function GroupScoreCard({ 
+    groupNumber, participants, isComplete 
+}: GroupScoreCardProps) {
     return (
         <div className="bg-base-100 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
@@ -23,7 +24,6 @@ export default function GroupScoreCard({ groupNumber, participants, isComplete, 
                     <GroupParticipantScore
                         key={participant.id}
                         participant={participant}
-                        onScoreChange={onScoreChange}
                     />
                 ))}
             </div>

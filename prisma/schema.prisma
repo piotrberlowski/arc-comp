@@ -182,7 +182,7 @@ model ParticipantScore {
   id            String      @id @default(cuid())
   participantId String      @unique
   tournamentId  String
-  score         Int
+  score         Decimal     @db.Decimal(10, 3)
   participant   Participant @relation("ParticipantScore", fields: [participantId], references: [id], onDelete: Cascade)
   tournament    Tournament  @relation("ParticipantScore", fields: [tournamentId], references: [id], onDelete: Cascade)
 

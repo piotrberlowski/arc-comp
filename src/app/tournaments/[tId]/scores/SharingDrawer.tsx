@@ -14,14 +14,14 @@ interface TournamentData {
 interface SharingDrawerProps {
     isOpen: boolean
     onClose: () => void
-    allScoresComplete: boolean
+    allResultsComplete: boolean
     tournament?: TournamentData
     onSharingUpdated?: (updatedTournament: TournamentData) => void
 }
 
 type SharingOption = 'private' | 'link-shared' | 'public'
 
-export default function SharingDrawer({ isOpen, onClose, allScoresComplete, tournament: tournamentProp, onSharingUpdated }: SharingDrawerProps) {
+export default function SharingDrawer({ isOpen, onClose, allResultsComplete, tournament: tournamentProp, onSharingUpdated }: SharingDrawerProps) {
     const tCtx = useTournamentContext()
     const setError = useErrorContext()
     const [isUpdating, setIsUpdating] = useState(false)
@@ -70,7 +70,7 @@ export default function SharingDrawer({ isOpen, onClose, allScoresComplete, tour
     }, [isOpen, tournament?.isPublished, tournament?.isShared])
 
     const handleSharingChange = async (option: SharingOption) => {
-        if (option === 'public' && !allScoresComplete) {
+        if (option === 'public' && !allResultsComplete) {
             setError("Cannot make results public: all participants must have completed scores")
             return
         }
@@ -127,7 +127,9 @@ export default function SharingDrawer({ isOpen, onClose, allScoresComplete, tour
         }
     }
 
-    const resultsUrl = `${window.location.origin}/results/${tournament.id}`
+    const resultsUrl = typeof window !== 'undefined' 
+        ? `${window.location.origin}/results/${tournament.id}`
+        : `/results/${tournament.id}`
     const isLinkShared = !tournament.isPublished && tournament.isShared
 
     return (
@@ -202,12 +204,12 @@ export default function SharingDrawer({ isOpen, onClose, allScoresComplete, tour
                                     className="radio radio-primary"
                                     checked={selectedOption === 'public'}
                                     onChange={() => setSelectedOption('public')}
-                                    disabled={isUpdating || !allScoresComplete}
+                                    disabled={isUpdating || !allResultsComplete}
                                 />
                             </label>
-                            {!allScoresComplete && (
+                            {!allResultsComplete && (
                                 <div className="text-xs text-warning mt-1 ml-4">
-                                    All scores must be complete to make results public
+                                    All results must be complete to make results public
                                 </div>
                             )}
                         </div>

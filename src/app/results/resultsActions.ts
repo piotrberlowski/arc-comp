@@ -1,10 +1,11 @@
 "use server"
 
-import { AgeGroup, EquipmentCategory, Participant, ParticipantScore, RoundFormat, Tournament } from "@/generated/prisma/client"
+import { AgeGroup, EquipmentCategory, Participant, RoundFormat, Tournament } from "@/generated/prisma/client"
 import { prismaOrThrow } from "@/lib/prisma"
+import { ParticipantResult, toResult } from "@/lib/scoreUtils"
 import { notFound } from "next/navigation"
 
-export type ParticipantResultsData = Participant & { participantScore: ParticipantScore, ageGroup: AgeGroup, category: EquipmentCategory }
+export type ParticipantResultsData = Participant & { result: ParticipantResult, ageGroup: AgeGroup, category: EquipmentCategory }
 // Alias for backward compatibility
 export type ParticipantResultData = ParticipantResultsData
 export type TournamentResultsData = { tournament: Tournament & { format: RoundFormat }, participants: ParticipantResultsData[] }
@@ -24,12 +25,17 @@ export async function getTournamentResults(tournamentId: string): Promise<Tourna
             participants: {
                 where: {
                     checkedIn: true,
+                    participantScore: { isNot: null }
                 },
                 include: {
                     participantScore: true,
                     ageGroup: true,
                     category: true
-                }
+                },
+                orderBy: [
+                    { participantScore: { score: 'desc' } },
+                    { name: 'asc' }
+                ]
             }
         }
     })
@@ -38,17 +44,18 @@ export async function getTournamentResults(tournamentId: string): Promise<Tourna
         notFound()
     }
 
-    // Filter out participants without scores (shouldn't happen for published tournaments, but type-safe)
-    const participantsWithScores = tournament.participants.filter(
-        (p): p is ParticipantResultsData => p.participantScore !== null
-    )
+    const participantsWithResults: ParticipantResultsData[] = tournament.participants.map(p => {
+        const { participantScore, ...rest } = p
+        return {
+            ...rest,
+            result: toResult(Number(participantScore!.score))
+        }
+    })
 
+    const { participants: _, ...tournamentWithoutParticipants } = tournament
     return {
-        tournament: {
-            ...tournament,
-            format: tournament.format
-        },
-        participants: participantsWithScores
+        tournament: { ...tournamentWithoutParticipants, format: tournament.format },
+        participants: participantsWithResults
     }
 }
 

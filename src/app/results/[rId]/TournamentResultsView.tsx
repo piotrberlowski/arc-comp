@@ -1,9 +1,17 @@
 "use client"
 
 import MedalIcon from "@/app/tournaments/[tId]/components/MedalIcon"
+import { ParticipantResult } from "@/lib/scoreUtils"
 import React from "react"
 import { ParticipantResultData, TournamentResultsData } from "../resultsActions"
 import ExportButton from "./components/ExportButton"
+
+function getDisplayValue(result: ParticipantResult): string {
+    if (result.status === 'DNF') return 'DNF'
+    if (result.status === 'DNC') return 'DNC'
+    if (result.shootoff !== null) return `${result.score} (${result.shootoff})`
+    return result.score?.toString() ?? ''
+}
 
 interface TournamentResultsViewProps {
     tournamentData: TournamentResultsData
@@ -12,10 +20,10 @@ interface TournamentResultsViewProps {
 // Category header row component
 const CategoryHeaderRow = ({ category, id }: { category: string, id: string }) => (
     <React.Fragment key={`category-${id}`}>
-        <tr className="bg-base-100 [&>*]:!bg-base-100">
+        <tr className="bg-base-100 *:bg-base-100!">
             <td colSpan={4} className="py-2"></td>
         </tr>
-        <tr className="sticky top-0 bg-primary text-primary-content z-10 [&>*]:!bg-primary [&>*]:!text-primary-content">
+        <tr className="sticky top-0 bg-primary text-primary-content z-10 *:bg-primary! *:text-primary-content!">
             <td colSpan={4} className="font-semibold py-3">
                 <div className="flex items-center gap-2">
                     <span className="font-mono text-sm">{category}</span>
@@ -28,7 +36,7 @@ const CategoryHeaderRow = ({ category, id }: { category: string, id: string }) =
 
 // Sub-header row component
 const SubHeaderRow = ({ subCategory, id }: { subCategory: string, id: string }) => (
-    <tr key={id} className="bg-secondary text-secondary-content [&>*]:!bg-secondary [&>*]:!text-secondary-content">
+    <tr key={id} className="bg-secondary text-secondary-content *:bg-secondary! *:text-secondary-content!">
         <td colSpan={4} className="font-semibold py-2 pl-8">
             <span className="text-sm">{subCategory}</span>
         </td>
@@ -36,33 +44,38 @@ const SubHeaderRow = ({ subCategory, id }: { subCategory: string, id: string }) 
 )
 
 // Participant row component
-const ParticipantRow = ({ participant, place }: { participant: ParticipantResultData, place: number }) => (
-    <tr key={participant.id}>
-        <td className="pl-8">
-            <div className="flex items-center gap-1">
-                <MedalIcon place={place} />
-                <span className="font-mono text-xs font-semibold">
-                    {place}
+const ParticipantRow = ({ participant, place }: { participant: ParticipantResultData, place: number }) => {
+    const isSpecial = participant.result.status !== 'COMPLETED'
+
+    return (
+        <tr key={participant.id}>
+            <td className="pl-8">
+                <div className="flex items-center gap-1">
+                    {!isSpecial && <MedalIcon place={place} />}
+                    <span className="font-mono text-xs font-semibold">
+                        {isSpecial ? '-' : place}
+                    </span>
+                </div>
+            </td>
+            <td>
+                <div>
+                    <p className="font-medium text-xs">{participant.name}</p>
+                </div>
+            </td>
+            <td>
+                <span className="text-xs">{participant.club || 'Independent'}</span>
+            </td>
+            <td>
+                <span className={`font-mono text-xs font-semibold ${isSpecial ? 'text-warning' : ''}`}>
+                    {getDisplayValue(participant.result)}
                 </span>
-            </div>
-        </td>
-        <td>
-            <div>
-                <p className="font-medium text-xs">{participant.name}</p>
-            </div>
-        </td>
-        <td>
-            <span className="text-xs">{participant.club || 'Independent'}</span>
-        </td>
-        <td>
-            <span className="font-mono text-xs font-semibold">
-                {participant.participantScore.score}
-            </span>
-        </td>
-    </tr>
-)
+            </td>
+        </tr>
+    )
+}
 
 // Group participants by equipment category and age+gender
+// Participants are pre-sorted by score (desc) from database, grouping preserves order
 function groupParticipantsByCategory(participants: ParticipantResultData[]) {
     const equipmentCategories = participants.reduce((acc, participant) => {
         const equipmentCategory = participant.category.name
@@ -79,18 +92,6 @@ function groupParticipantsByCategory(participants: ParticipantResultData[]) {
         acc[equipmentCategory][ageGenderKey].push(participant)
         return acc
     }, {} as Record<string, Record<string, ParticipantResultData[]>>)
-
-    // Sort participants within each age+gender group by score descending
-    Object.keys(equipmentCategories).forEach(equipmentCategory => {
-        Object.keys(equipmentCategories[equipmentCategory]).forEach(ageGenderKey => {
-            equipmentCategories[equipmentCategory][ageGenderKey].sort((a, b) => {
-                if (a.participantScore.score !== b.participantScore.score) {
-                    return (b.participantScore.score) - (a.participantScore.score)
-                }
-                return a.name.localeCompare(b.name)
-            })
-        })
-    })
 
     return equipmentCategories
 }

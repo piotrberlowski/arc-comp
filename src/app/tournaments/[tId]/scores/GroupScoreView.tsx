@@ -1,20 +1,19 @@
 "use client"
 
-import { ParticipantWithScore } from "../scoreActions"
+import { ParticipantWithResult } from "../scoreActions"
 import GroupScoreCard from "./GroupScoreCard"
 
 interface GroupScoreViewProps {
-    participants: ParticipantWithScore[]
-    onScoreChange: (participantId: string, score: number | null) => void
+    participants: ParticipantWithResult[]
 }
 
 interface GroupData {
     groupNumber: number
-    participants: ParticipantWithScore[]
+    participants: ParticipantWithResult[]
     isComplete: boolean
 }
 
-export default function GroupScoreView({ participants, onScoreChange }: GroupScoreViewProps) {
+export default function GroupScoreView({ participants }: GroupScoreViewProps) {
     // Group participants by group assignment
     const groups = participants.reduce((acc, participant) => {
         const groupNumber = participant.groupAssignment?.groupNumber || 0
@@ -23,7 +22,7 @@ export default function GroupScoreView({ participants, onScoreChange }: GroupSco
         }
         acc[groupNumber].push(participant)
         return acc
-    }, {} as Record<number, ParticipantWithScore[]>)
+    }, {} as Record<number, ParticipantWithResult[]>)
 
     // Convert to array and sort by group number, with participants sorted (target captain first)
     const sortedGroups = Object.entries(groups)
@@ -41,7 +40,7 @@ export default function GroupScoreView({ participants, onScoreChange }: GroupSco
                 participants: sortedParticipants,
                 isComplete: participants
                     .filter(p => p.checkedIn)
-                    .every(p => !!p.participantScore)
+                    .every(p => !!p.result)
             }
         })
         .sort((a, b) => a.groupNumber - b.groupNumber)
@@ -64,7 +63,6 @@ export default function GroupScoreView({ participants, onScoreChange }: GroupSco
                         groupNumber={group.groupNumber}
                         participants={group.participants}
                         isComplete={group.isComplete}
-                        onScoreChange={onScoreChange}
                     />
                 ))}
             </div>

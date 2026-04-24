@@ -4,7 +4,7 @@ import { getTournamentById } from "../../tournamentActions"
 import { TournamentEditContextProvider } from "../TournamentContext"
 import TournamentEditForm from "../TournamentEditForm"
 import TournamentNavigation from "../TournamentNavigation"
-import { getTournamentScores } from "../scoreActions"
+import { getTournamentResults } from "../scoreActions"
 import ScoreEntryView from "./ScoreEntryView"
 
 interface ScoreEntryPageProps {
@@ -16,7 +16,7 @@ interface ScoreEntryPageProps {
 export default async function ScoreEntryPage({ params }: ScoreEntryPageProps) {
     const { tId } = await params
     const tournament = await getTournamentById(tId)
-    const scores = getTournamentScores(tId)
+    const results = getTournamentResults(tId)
 
     return (
         <div className="w-full min-h-max">
@@ -26,7 +26,7 @@ export default async function ScoreEntryPage({ params }: ScoreEntryPageProps) {
                     <TournamentNavigation tournamentId={tId} />
                     <div className="border border-secondary border-solid w-full min-h-max">
                         <Suspense fallback={`Loading Scores`}>
-                            <ScoreEntryView scores={scores} />
+                            <ScoreEntryView results={results} />
                         </Suspense>
                     </div>
                 </ErrorContextProvider>

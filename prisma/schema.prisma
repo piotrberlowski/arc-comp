@@ -131,6 +131,7 @@ model Tournament {
   formatId          String
   organizerClub     String
   format            RoundFormat        @relation(fields: [formatId], references: [id], onDelete: Restrict)
+  championshipRound ChampionshipRound? @relation("ChampionshipRoundTournament")
   endCount          Int
   groupSize         Int
   participants      Participant[]
@@ -151,6 +152,7 @@ model Participant {
   id               String            @id @default(cuid())
   name             String
   membershipNo     String
+  competitorNumber Int?
   ageGroupId       String
   categoryId       String
   tournamentId     String
@@ -164,6 +166,7 @@ model Participant {
   participantScore ParticipantScore? @relation("ParticipantScore")
 
   @@unique([tournamentId, membershipNo])
+  @@unique([tournamentId, competitorNumber])
 }
 
 model GroupAssignment {
@@ -198,6 +201,45 @@ model IFAFBowStyleMapping {
   equipmentCategory   EquipmentCategory @relation(fields: [equipmentCategoryId], references: [id], onDelete: Cascade)
 
   @@unique([equipmentCategoryId])
+}
+
+model Championship {
+  id            String                   @id @default(cuid())
+  name          String
+  organizerClub String
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  rounds        ChampionshipRound[]
+  registrations ChampionshipRegistration[]
+
+  @@index([organizerClub])
+}
+
+model ChampionshipRound {
+  id             String       @id @default(cuid())
+  championshipId String
+  dayOrder       Int
+  label          String?
+  tournamentId   String       @unique
+  championship   Championship @relation(fields: [championshipId], references: [id], onDelete: Cascade)
+  tournament     Tournament   @relation("ChampionshipRoundTournament", fields: [tournamentId], references: [id], onDelete: Restrict)
+
+  @@unique([championshipId, dayOrder])
+  @@index([championshipId])
+}
+
+model ChampionshipRegistration {
+  id             String       @id @default(cuid())
+  championshipId String
+  membershipNo   String
+  competitorNumber Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  championship   Championship @relation(fields: [championshipId], references: [id], onDelete: Cascade)
+
+  @@unique([championshipId, membershipNo])
+  @@unique([championshipId, competitorNumber])
+  @@index([championshipId])
 }
 
 model IFAFAgeGenderMapping {

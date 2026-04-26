@@ -13,6 +13,3 @@ WHERE t."formatId" = rf.id;
 ALTER TABLE "Tournament" ALTER COLUMN "endCount" SET NOT NULL,
 ALTER COLUMN "groupSize" SET NOT NULL;
 
-
-
-1

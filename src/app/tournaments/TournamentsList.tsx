@@ -2,6 +2,7 @@
 
 import { RoundFormat, Tournament } from "@/generated/prisma/browser"
 import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
 import TournamentCard from "./TournamentCard"
 import TournamentHeader from "./TournamentHeader"
 import { listTournamentsForClubs } from "./tournamentActions"
@@ -11,6 +12,7 @@ interface tf extends Tournament {
 }
 
 export default function TournamentsList({ clubs }: { clubs: string[] }) {
+    const { data: session } = useSession()
     const [tournaments, setTournaments] = useState<tf[]>(new Array<tf>())
     const [includeArchive, setIncludeArchive] = useState(false)
 
@@ -22,8 +24,12 @@ export default function TournamentsList({ clubs }: { clubs: string[] }) {
 
     function onTournamentArchived(id: string) {
         if (!includeArchive) {
-            setTournaments(tournaments.filter(t => t.id !== id))
+            setTournaments(prev => prev.filter(t => t.id !== id))
         }
+    }
+
+    function onTournamentUnarchived(tournament: tf) {
+        setTournaments(prev => prev.map(t => t.id === tournament.id ? tournament : t))
     }
 
     return (
@@ -36,7 +42,7 @@ export default function TournamentsList({ clubs }: { clubs: string[] }) {
                 </label>
             </div>
             <div className="w-full flex flex-wrap gap-4 mt-5 bg-primary p-5 rounded-sm justify-center">
-                {tournaments && tournaments.map(t => (<TournamentCard key={`tournament-${t.id}`} tournament={t} onArchived={onTournamentArchived} />))}
+                {tournaments && tournaments.map(t => (<TournamentCard key={`tournament-${t.id}`} tournament={t} isAdmin={!!session?.isAdmin} onArchived={onTournamentArchived} onUnarchived={onTournamentUnarchived} />))}
             </div>
         </div>
     )

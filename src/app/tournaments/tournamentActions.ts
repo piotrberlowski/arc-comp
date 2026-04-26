@@ -51,20 +51,28 @@ export async function createTournament(name: string, formatId: string, club: str
 
 }
 
-export async function archiveTournament(id: string) {
-    return await prismaOrThrow("archive tournament").tournament.update(
+async function setTournamentArchiveState(id: string, isArchive: boolean, operationName: string) {
+    return await prismaOrThrow(operationName).tournament.update(
         {
             where: {
                 id: id,
             },
             data: {
-                isArchive: true
+                isArchive: isArchive
             },
             include: {
                 format: true
             }
         }
     )
+}
+
+export async function archiveTournament(id: string) {
+    return await setTournamentArchiveState(id, true, "archive tournament")
+}
+
+export async function unarchiveTournament(id: string) {
+    return await setTournamentArchiveState(id, false, "unarchive tournament")
 }
 
 export async function getTournamentById(id: string) {

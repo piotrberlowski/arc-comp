@@ -1,14 +1,14 @@
 import ConfirmingButton from "@/components/ConfirmingButton";
 import { RoundFormat, Tournament } from "@/generated/prisma/browser";
-import { ArchiveBoxArrowDownIcon, HandThumbUpIcon, PencilSquareIcon, ShareIcon } from "@heroicons/react/24/outline";
+import { ArchiveBoxArrowDownIcon, ArrowUturnUpIcon, HandThumbUpIcon, PencilSquareIcon, ShareIcon } from "@heroicons/react/24/outline";
 import { format } from 'date-fns';
 import Form from "next/form";
 import { useState } from "react";
 import { getTournamentWithResultsStatus } from "./[tId]/scoreActions";
 import SharingDrawer from "./[tId]/scores/SharingDrawer";
-import { archiveTournament } from "./tournamentActions";
+import { archiveTournament, unarchiveTournament } from "./tournamentActions";
 
-export default function TournamentCard({ tournament, onArchived }: { tournament: Tournament & { format: RoundFormat }, onArchived: (id: string) => void }) {
+export default function TournamentCard({ tournament, isAdmin, onArchived, onUnarchived }: { tournament: Tournament & { format: RoundFormat }, isAdmin: boolean, onArchived: (id: string) => void, onUnarchived: (t: Tournament & { format: RoundFormat }) => void }) {
     const [data, setData] = useState(tournament)
     const [isSharingDrawerOpen, setIsSharingDrawerOpen] = useState(false)
     const [sharingData, setSharingData] = useState<{ tournament: { id: string, isPublished: boolean, isShared: boolean }, allResultsComplete: boolean } | null>(null)
@@ -89,6 +89,36 @@ export default function TournamentCard({ tournament, onArchived }: { tournament:
                             }}
                             confirmButton={{
                                 className: "btn btn-warning btn-sm w-full text-xs md:text-sm",
+                                children: (
+                                    <>
+                                        <HandThumbUpIcon className="w-3 h-3 md:w-4 md:h-4" />
+                                        Confirm?
+                                    </>
+                                )
+                            }}
+                        />
+                    </div>
+                )}
+                {data.isArchive && isAdmin && (
+                    <div className="card-actions">
+                        <ConfirmingButton
+                            className="w-full"
+                            action={() => unarchiveTournament(data.id)
+                                .then(t => {
+                                    setData(t)
+                                    onUnarchived(t)
+                                })}
+                            baseButton={{
+                                className: "btn btn-info btn-sm w-full text-xs md:text-sm",
+                                children: (
+                                    <>
+                                        <ArrowUturnUpIcon className="w-3 h-3 md:w-4 md:h-4" />
+                                        Unarchive
+                                    </>
+                                )
+                            }}
+                            confirmButton={{
+                                className: "btn btn-info btn-sm w-full text-xs md:text-sm",
                                 children: (
                                     <>
                                         <HandThumbUpIcon className="w-3 h-3 md:w-4 md:h-4" />

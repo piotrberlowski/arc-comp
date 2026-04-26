@@ -1,5 +1,67 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Database migrations (Prisma)
+
+Migrations live in `prisma/migrations/`. Prisma reads the database URL from **`DB_POSTGRES_PRISMA_URL`** (see `prisma/schema.prisma` and `prisma.config.ts`). Load the correct `.env` file before running any Prisma command so that variable is set.
+
+### Local development
+
+Create or update the schema and generate a migration (interactive; uses your dev database):
+
+```bash
+dotenv -e .env -- npx prisma migrate dev
+```
+
+There is also an npm script that loads `.env.development.local`:
+
+```bash
+npm run prismaVer
+```
+
+After pulling changes that include new migrations, apply them without prompting:
+
+```bash
+dotenv -e .env -- npx prisma migrate deploy
+```
+
+Check whether anything is pending:
+
+```bash
+dotenv -e .env -- npx prisma migrate status
+```
+
+Regenerate the Prisma client after schema changes (also runs automatically on `npm run build`):
+
+```bash
+npx prisma generate
+```
+
+### Production (or any remote database)
+
+Use **`migrate deploy`**, not `migrate dev`. Point `DB_POSTGRES_PRISMA_URL` at the **production** database (never use a development `.env` file by mistake).
+
+Example with a gitignored file you populate from your host or secrets:
+
+```bash
+dotenv -e .env.production.local -- npx prisma migrate deploy
+```
+
+On **Vercel**, production credentials are usually under Project **Settings → Environment Variables**. To copy them locally for a one-off deploy, you can use the Vercel CLI (from a linked project directory):
+
+```bash
+vercel link
+vercel env pull .env.production.local --environment=production
+dotenv -e .env.production.local -- npx prisma migrate deploy
+```
+
+Treat any file containing production URLs as a secret; keep it out of version control.
+
+### After deploying schema changes
+
+1. Merge migrations to the branch Vercel builds from.
+2. Run `prisma migrate deploy` against production (CI job or manual step as above).
+3. Ensure `npx prisma generate` runs in the build (this repo’s `npm run build` already runs `prisma generate` first).
+
 ## Getting Started
 
 First, run the development server:

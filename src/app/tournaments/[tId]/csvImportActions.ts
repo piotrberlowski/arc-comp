@@ -157,6 +157,7 @@ function processRow(
             tournamentId,
             name: results[0].value as string,
             membershipNo: results[1].value as string,
+            competitorNumber: null,
             genderGroup: results[2].value as GenderGroup,
             ageGroupId: results[3].value as string,
             categoryId: results[4].value as string,

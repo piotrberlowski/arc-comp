@@ -1,61 +1,51 @@
--- DropForeignKey
-ALTER TABLE "ChampionshipDay" DROP CONSTRAINT "ChampionshipDay_championshipId_fkey";
+-- Convert existing Championships foundation model to final shape without dropping data.
 
--- DropForeignKey
-ALTER TABLE "ChampionshipDay" DROP CONSTRAINT "ChampionshipDay_tournamentId_fkey";
+-- Drop backward-reference FK and index artifacts from Tournament.
+ALTER TABLE "Tournament" DROP CONSTRAINT IF EXISTS "Tournament_championshipDayId_fkey";
+DROP INDEX IF EXISTS "Tournament_championshipDayId_key";
+DROP INDEX IF EXISTS "Tournament_organizerClub_championshipDayId_idx";
+ALTER TABLE "Tournament" DROP COLUMN IF EXISTS "championshipDayId";
 
--- DropForeignKey
-ALTER TABLE "Tournament" DROP CONSTRAINT "Tournament_championshipDayId_fkey";
+-- Rename ChampionshipDay to ChampionshipRound and refresh relation/index names.
+ALTER TABLE "ChampionshipDay" DROP CONSTRAINT IF EXISTS "ChampionshipDay_championshipId_fkey";
+ALTER TABLE "ChampionshipDay" DROP CONSTRAINT IF EXISTS "ChampionshipDay_tournamentId_fkey";
+ALTER TABLE "ChampionshipDay" RENAME TO "ChampionshipRound";
 
--- DropIndex
-DROP INDEX "ChampionshipRegistration_championshipId_registrationKey_key";
+DROP INDEX IF EXISTS "ChampionshipDay_tournamentId_key";
+DROP INDEX IF EXISTS "ChampionshipDay_championshipId_idx";
+DROP INDEX IF EXISTS "ChampionshipDay_championshipId_dayOrder_key";
 
--- DropIndex
-DROP INDEX "Tournament_championshipDayId_key";
-
--- DropIndex
-DROP INDEX "Tournament_organizerClub_championshipDayId_idx";
-
--- AlterTable
-ALTER TABLE "ChampionshipRegistration" DROP COLUMN "displayNameSnapshot",
-DROP COLUMN "registrationKey",
-ADD COLUMN     "competitorNumber" INTEGER NOT NULL,
-ADD COLUMN     "membershipNo" TEXT NOT NULL;
-
--- AlterTable
-ALTER TABLE "Tournament" DROP COLUMN "championshipDayId";
-
--- DropTable
-DROP TABLE "ChampionshipDay";
-
--- CreateTable
-CREATE TABLE "ChampionshipRound" (
-    "id" TEXT NOT NULL,
-    "championshipId" TEXT NOT NULL,
-    "dayOrder" INTEGER NOT NULL,
-    "label" TEXT,
-    "tournamentId" TEXT NOT NULL,
-
-    CONSTRAINT "ChampionshipRound_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex
 CREATE UNIQUE INDEX "ChampionshipRound_tournamentId_key" ON "ChampionshipRound"("tournamentId");
-
--- CreateIndex
 CREATE INDEX "ChampionshipRound_championshipId_idx" ON "ChampionshipRound"("championshipId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "ChampionshipRound_championshipId_dayOrder_key" ON "ChampionshipRound"("championshipId", "dayOrder");
 
--- CreateIndex
-CREATE UNIQUE INDEX "ChampionshipRegistration_championshipId_membershipNo_key" ON "ChampionshipRegistration"("championshipId", "membershipNo");
+-- Convert ChampionshipRegistration key fields in-place.
+DROP INDEX IF EXISTS "ChampionshipRegistration_championshipId_registrationKey_key";
 
--- CreateIndex
-CREATE UNIQUE INDEX "ChampionshipRegistration_championshipId_competitorNumber_key" ON "ChampionshipRegistration"("championshipId", "competitorNumber");
+ALTER TABLE "ChampionshipRegistration" RENAME COLUMN "registrationKey" TO "membershipNo";
+ALTER TABLE "ChampionshipRegistration" DROP COLUMN "displayNameSnapshot";
+ALTER TABLE "ChampionshipRegistration" ADD COLUMN "competitorNumber" INTEGER;
 
--- AddForeignKey
-ALTER TABLE "ChampionshipRound" ADD CONSTRAINT "ChampionshipRound_championshipId_fkey" FOREIGN KEY ("championshipId") REFERENCES "Championship"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+WITH numbered AS (
+    SELECT
+        "id",
+        ROW_NUMBER() OVER (PARTITION BY "championshipId" ORDER BY "createdAt", "id") AS rn
+    FROM "ChampionshipRegistration"
+)
+UPDATE "ChampionshipRegistration" cr
+SET "competitorNumber" = numbered.rn
+FROM numbered
+WHERE cr."id" = numbered."id";
 
--- AddForeignKey
-ALTER TABLE "ChampionshipRound" ADD CONSTRAINT "ChampionshipRound_tournamentId_fkey" FOREIGN KEY ("tournamentId") REFERENCES "Tournament"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ChampionshipRegistration" ALTER COLUMN "competitorNumber" SET NOT NULL;
+
+CREATE UNIQUE INDEX "ChampionshipRegistration_championshipId_membershipNo_key"
+    ON "ChampionshipRegistration"("championshipId", "membershipNo");
+CREATE UNIQUE INDEX "ChampionshipRegistration_championshipId_competitorNumber_key"
+    ON "ChampionshipRegistration"("championshipId", "competitorNumber");
+
+-- Recreate FKs with final names.
+ALTER TABLE "ChampionshipRound" ADD CONSTRAINT "ChampionshipRound_championshipId_fkey"
+    FOREIGN KEY ("championshipId") REFERENCES "Championship"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ChampionshipRound" ADD CONSTRAINT "ChampionshipRound_tournamentId_fkey"
+    FOREIGN KEY ("tournamentId") REFERENCES "Tournament"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

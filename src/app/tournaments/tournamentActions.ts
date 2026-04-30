@@ -2,6 +2,7 @@
 
 import { Prisma } from "@/generated/prisma/client"
 import { prismaOrThrow } from "@/lib/prisma"
+import { standaloneTournamentWhere } from "@/lib/standaloneTournamentScope"
 
 export interface TournamentUpdate {
     name?: string,
@@ -12,6 +13,7 @@ export async function listTournamentsForClubs(clubs: string[], includeArchive: b
     const isArchive: boolean | Prisma.BoolFilter<"Tournament"> | undefined = (includeArchive) ? undefined : false
     return prismaOrThrow("list tournaments").tournament.findMany({
         where: {
+            ...standaloneTournamentWhere,
             organizerClub: {
                 in: clubs
             },

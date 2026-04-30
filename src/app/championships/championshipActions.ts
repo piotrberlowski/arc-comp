@@ -126,6 +126,23 @@ export async function getChampionshipById(championshipId: string) {
     }).catch((error) => logAndReturnNull("Failed to load championship", error))
 }
 
+export async function listChampionshipDayTournaments(championshipId: string, organizerClubs: string[]) {
+    return prismaOrThrow("list championship day tournaments").championshipRound.findMany({
+        where: {
+            championshipId,
+            championship: {
+                organizerClub: { in: organizerClubs },
+            },
+        },
+        include: {
+            tournament: {
+                include: { format: true },
+            },
+        },
+        orderBy: { dayOrder: "asc" },
+    }).catch((error) => logAndReturnNull("Failed to list championship day tournaments", error))
+}
+
 export async function addRoundTournament(input: CreateRoundTournamentInput) {
     return prismaOrThrow("add championship round").championshipRound.create({
         data: {

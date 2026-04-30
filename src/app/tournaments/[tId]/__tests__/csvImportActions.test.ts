@@ -50,6 +50,7 @@ describe('CSV Import Parsing', () => {
                 tournamentId,
                 name: 'John Doe',
                 membershipNo: '12345',
+                competitorNumber: null,
                 genderGroup: GenderGroup.M,
                 ageGroupId: 'S',
                 categoryId: 'BBC',

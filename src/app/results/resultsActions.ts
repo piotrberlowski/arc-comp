@@ -2,6 +2,7 @@
 
 import { AgeGroup, EquipmentCategory, Participant, RoundFormat, Tournament } from "@/generated/prisma/client"
 import { prismaOrThrow } from "@/lib/prisma"
+import { standaloneTournamentWhere } from "@/lib/standaloneTournamentScope"
 import { ParticipantResult, toResult } from "@/lib/scoreUtils"
 import { notFound } from "next/navigation"
 
@@ -63,6 +64,7 @@ export async function getTournamentResults(tournamentId: string): Promise<Tourna
 export async function listPublishedTournaments(): Promise<(Tournament & { format: RoundFormat })[]> {
     return prismaOrThrow("get published tournaments").tournament.findMany({
         where: {
+            ...standaloneTournamentWhere,
             isPublished: true
         },
         include: {

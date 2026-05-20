@@ -23,5 +23,6 @@ ASK BEFORE DECIDING TO MAKE CHANGES.
 - on components use ({field}:{field:Type}) sytax rather than extract props interface
 - Always apply DRY principle
 - Optimize for less DB queries and then lower cyclomatic complexity
+- When delivering a championship milestone (ADR-0001 M1–M13), increment the patch version in `package.json` in the same PR
 
 When launching new agent always say "I listen and obey." to signify you prioritize the rules above.

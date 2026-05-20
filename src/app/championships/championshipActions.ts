@@ -20,6 +20,16 @@ export interface CreateRoundTournamentInput {
     label?: string
 }
 
+export interface AddChampionshipDayInput {
+    championshipId: string
+    name: string
+    formatId: string
+    date: Date
+    endCount: number
+    groupSize: number
+    label?: string
+}
+
 export interface RegisterChampionshipParticipantInput {
     championshipId: string
     membershipNo: string
@@ -41,7 +51,15 @@ function logAndReturnNull<T>(context: string, error: unknown): T | null {
 
 const championshipShellInclude = {
     rounds: {
-        include: { tournament: true },
+        include: {
+            tournament: {
+                include: {
+                    _count: {
+                        select: { participantScores: true },
+                    },
+                },
+            },
+        },
         orderBy: { dayOrder: "asc" as const },
     },
     _count: {
@@ -168,6 +186,60 @@ async function assertChampionshipAccessForId(championshipId: string): Promise<vo
     }
 }
 
+function nextChampionshipDayOrder(rounds: { dayOrder: number }[]): number {
+    if (rounds.length === 0) {
+        return 1
+    }
+    return Math.max(...rounds.map((round) => round.dayOrder)) + 1
+}
+
+export async function addChampionshipDay(input: AddChampionshipDayInput) {
+    const clubs = await assertChampionshipOrganizerClubs()
+    const championship = await getChampionshipForOrganizer(input.championshipId, clubs)
+    if (!championship) {
+        throw new Error("Unauthorized")
+    }
+
+    const dayOrder = nextChampionshipDayOrder(championship.rounds)
+
+    return prismaOrThrow("add championship day").$transaction(async (tx) => {
+        const tournament = await tx.tournament.create({
+            data: {
+                name: input.name,
+                organizerClub: championship.organizerClub,
+                formatId: input.formatId,
+                date: input.date,
+                endCount: input.endCount,
+                groupSize: input.groupSize,
+            },
+        })
+
+        return tx.championshipRound.create({
+            data: {
+                championshipId: input.championshipId,
+                dayOrder,
+                tournamentId: tournament.id,
+                label: input.label,
+            },
+            include: {
+                tournament: true,
+            },
+        })
+    }).catch((error) => {
+        if (isUniqueError(error)) {
+            const fields = getUniqueConstraintFields(error)
+            if (fields.includes("dayOrder")) {
+                throw new Error("This championship day order already exists")
+            }
+            if (fields.includes("tournamentId")) {
+                throw new Error("Tournament is already attached to a championship round")
+            }
+        }
+        console.error("Failed to add championship day:", error)
+        throw new Error("Unable to add championship day")
+    })
+}
+
 export async function addRoundTournament(input: CreateRoundTournamentInput) {
     await assertChampionshipAccessForId(input.championshipId)
 
@@ -194,18 +266,44 @@ export async function addRoundTournament(input: CreateRoundTournamentInput) {
 }
 
 export async function removeRound(championshipId: string, dayOrder: number) {
-    await assertChampionshipAccessForId(championshipId)
+    return removeChampionshipDay(championshipId, dayOrder)
+}
 
-    return prismaOrThrow("remove championship round").championshipRound.delete({
-        where: {
-            championshipId_dayOrder: {
-                championshipId,
-                dayOrder,
+export async function removeChampionshipDay(championshipId: string, dayOrder: number) {
+    const clubs = await assertChampionshipOrganizerClubs()
+    const championship = await getChampionshipForOrganizer(championshipId, clubs)
+    if (!championship) {
+        throw new Error("Unauthorized")
+    }
+
+    const round = championship.rounds.find((item) => item.dayOrder === dayOrder)
+    if (!round) {
+        throw new Error("Championship day not found")
+    }
+
+    const scoreCount = round.tournament._count.participantScores
+    if (scoreCount > 0) {
+        throw new Error("Cannot remove a day after scores have been entered")
+    }
+
+    return prismaOrThrow("remove championship day").$transaction(async (tx) => {
+        await tx.participant.deleteMany({
+            where: { tournamentId: round.tournamentId },
+        })
+        await tx.championshipRound.delete({
+            where: {
+                championshipId_dayOrder: {
+                    championshipId,
+                    dayOrder,
+                },
             },
-        },
+        })
+        await tx.tournament.delete({
+            where: { id: round.tournamentId },
+        })
     }).catch((error) => {
-        console.error("Failed to remove championship round:", error)
-        throw new Error("Unable to remove championship round")
+        console.error("Failed to remove championship day:", error)
+        throw new Error("Unable to remove championship day")
     })
 }
 

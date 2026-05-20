@@ -4,7 +4,6 @@ import {
     hasChampionshipOrganizerAccess,
 } from "@/lib/championshipOrganizerScope"
 import { auth } from "../../auth"
-import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getChampionshipForOrganizer } from "../championshipActions"
 import { competitorsRegisteredLabel } from "../competitorsRegisteredLabel"
@@ -36,12 +35,6 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
 
     return (
         <div className="w-full p-4">
-            <div className="breadcrumbs text-sm mb-4">
-                <ul>
-                    <li><Link href="/championships">My Championships</Link></li>
-                    <li>{championship.name}</li>
-                </ul>
-            </div>
             <div className="flex flex-wrap items-baseline justify-between gap-2 mb-6">
                 <ChampionshipNameEdit championshipId={championship.id} initialName={championship.name} />
                 <span className="badge badge-lg badge-info badge-outline">{championship.organizerClub}</span>

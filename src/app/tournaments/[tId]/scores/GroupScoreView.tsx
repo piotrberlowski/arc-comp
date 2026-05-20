@@ -13,6 +13,32 @@ interface GroupData {
     isComplete: boolean
 }
 
+function GroupScoreSection({
+    groups,
+    title,
+    bgColor,
+}: {
+    groups: GroupData[]
+    title: string
+    bgColor: string
+}) {
+    return (
+        <div className={`${bgColor} rounded-lg p-4 mb-4`}>
+            <h3 className="text-lg font-semibold mb-4">{title}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {groups.map((group) => (
+                    <GroupScoreCard
+                        key={group.groupNumber}
+                        groupNumber={group.groupNumber}
+                        participants={group.participants}
+                        isComplete={group.isComplete}
+                    />
+                ))}
+            </div>
+        </div>
+    )
+}
+
 export default function GroupScoreView({ participants }: GroupScoreViewProps) {
     // Group participants by group assignment
     const groups = participants.reduce((acc, participant) => {
@@ -49,30 +75,10 @@ export default function GroupScoreView({ participants }: GroupScoreViewProps) {
     const outstandingGroups = sortedGroups.filter(g => !g.isComplete)
     const completeGroups = sortedGroups.filter(g => g.isComplete)
 
-    const GroupSection = ({ groups, title, bgColor }: {
-        groups: GroupData[],
-        title: string,
-        bgColor: string
-    }) => (
-        <div className={`${bgColor} rounded-lg p-4 mb-4`}>
-            <h3 className="text-lg font-semibold mb-4">{title}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {groups.map((group) => (
-                    <GroupScoreCard
-                        key={group.groupNumber}
-                        groupNumber={group.groupNumber}
-                        participants={group.participants}
-                        isComplete={group.isComplete}
-                    />
-                ))}
-            </div>
-        </div>
-    )
-
     return (
         <div className="space-y-6">
             {outstandingGroups.length > 0 && (
-                <GroupSection
+                <GroupScoreSection
                     groups={outstandingGroups}
                     title="Outstanding Groups"
                     bgColor="bg-warning/10"
@@ -80,7 +86,7 @@ export default function GroupScoreView({ participants }: GroupScoreViewProps) {
             )}
 
             {completeGroups.length > 0 && (
-                <GroupSection
+                <GroupScoreSection
                     groups={completeGroups}
                     title="Complete Groups"
                     bgColor="bg-success/10"

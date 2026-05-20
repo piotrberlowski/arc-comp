@@ -44,9 +44,9 @@ export default function ParticipantFilter({
 }: ParticipantFilterProps) {
     const [filter, setFilter] = useState<FilterType>('all')
 
-    // Load filter from localStorage on mount
     useEffect(() => {
         const storedFilter = getStoredFilter()
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only hydration of persisted filter preference
         setFilter(storedFilter)
     }, [])
 

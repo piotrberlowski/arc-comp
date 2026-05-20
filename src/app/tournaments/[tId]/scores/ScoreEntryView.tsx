@@ -49,6 +49,17 @@ export default function ScoreEntryView({ results }: { results: Promise<Tournamen
 
     const t = tCtx?.getTournament()
 
+    const allResultsComplete = resultsData.every(p => !!p.result)
+    const tiebreakers = useMemo(
+        () => computeTiebreakers(resultsData, allResultsComplete),
+        [resultsData, allResultsComplete]
+    )
+
+    const unresolvedTieParticipantIds = useMemo(
+        () => computeUnresolvedTieParticipantIds(tiebreakers),
+        [tiebreakers]
+    )
+
     if (!t?.id) {
         return (
             <div className="w-full p-4 space-y-6">
@@ -92,19 +103,7 @@ export default function ScoreEntryView({ results }: { results: Promise<Tournamen
         "Failed to update shootoff:"
     )
 
-    const allResultsComplete = resultsData.every(p => !!p.result)
     const isPublished = t.isPublished
-
-    const tiebreakers = useMemo(
-        () => computeTiebreakers(resultsData, allResultsComplete),
-        [resultsData, allResultsComplete]
-    )
-
-    const unresolvedTieParticipantIds = useMemo(
-        () => computeUnresolvedTieParticipantIds(tiebreakers),
-        [tiebreakers]
-    )
-
 
     return (
         <ScoreActionsProvider actions={scoreActions}>

@@ -2,25 +2,26 @@
 
 import useErrorContext from "@/components/errors/ErrorContext"
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
-import { useEffect, useState, useTransition } from "react"
+import { useState, useSyncExternalStore, useTransition } from "react"
 import { useGroupAssignment } from "../TournamentContext"
 import { TournamentGroupsData, cleanupGroups } from "../groupActions"
 import GroupCard from "./GroupCard"
 import GroupWarningHeader from "./GroupWarningHeader"
 import UnassignedParticipants from "./UnassignedParticipants"
 
+function subscribeNothing(onStoreChange: () => void) {
+    void onStoreChange
+    return () => {}
+}
+
 export default function GroupAssignmentView({ groupsData }: {
     groupsData: TournamentGroupsData
 }) {
     const [isCleanupPending, startCleanupTransition] = useTransition()
     const [activeId, setActiveId] = useState<string | null>(null)
-    const [isClient, setIsClient] = useState(false)
+    const isClient = useSyncExternalStore(subscribeNothing, () => true, () => false)
     const setError = useErrorContext()
     const { handleMoveParticipant } = useGroupAssignment()
-
-    useEffect(() => {
-        setIsClient(true)
-    }, [])
 
     const sensors = useSensors(
         useSensor(PointerSensor, {

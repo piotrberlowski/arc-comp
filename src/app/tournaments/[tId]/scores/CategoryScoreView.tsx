@@ -1,16 +1,7 @@
 "use client"
 
-import MedalIcon from "../components/MedalIcon"
-import ScoreInput from "../components/ScoreInput"
 import { ParticipantWithResult } from "../scoreActions"
-
-function getDisplayValue(result: ParticipantWithResult['result']): string {
-    if (!result) return '-'
-    if (result.status === 'DNF') return 'DNF'
-    if (result.status === 'DNC') return 'DNC'
-    if (result.shootoff !== null) return `${result.score} (${result.shootoff})`
-    return result.score?.toString() ?? ''
-}
+import CategoryParticipantTableRow, { type ParticipantWithPlace } from "./CategoryParticipantTableRow"
 
 /**
  * Comparator function for sorting participants by completion status, score (with shootoff), and name.
@@ -40,15 +31,6 @@ export function compareParticipants(a: ParticipantWithResult, b: ParticipantWith
 }
 
 
-// Extended interfaces for participants with place information
-interface ParticipantWithPlace extends ParticipantWithResult {
-    place: number
-    isCategoryHeader: false
-    category: string
-    categoryComplete: boolean
-    hasUnresolvedTie: boolean
-}
-
 interface CategoryHeaderRow {
     isCategoryHeader: true
     category: string
@@ -66,6 +48,58 @@ interface CategoryHeaderRow {
 }
 
 type TableRow = ParticipantWithPlace | CategoryHeaderRow
+
+function CategoryParticipantTable({
+    participants,
+    title,
+    bgColor,
+}: {
+    participants: TableRow[]
+    title: string
+    bgColor: string
+}) {
+    return (
+        <div className={`${bgColor} rounded-lg p-3 mb-3`}>
+            <h3 className="text-base font-semibold mb-2">{title}</h3>
+            <div className="overflow-x-auto">
+                <table className="table table-compact table-zebra w-full">
+                    <thead>
+                        <tr>
+                            <th className="w-1/12">Place</th>
+                            <th className="w-2/5">Name</th>
+                            <th className="w-1/5 hidden md:table-cell">Club</th>
+                            <th className="w-1/12 hidden md:table-cell">Score</th>
+                            <th className="w-2/5">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {participants.map((participant) => {
+                            if (participant.isCategoryHeader) {
+                                return (
+                                    <tr key={participant.participantId} className="sticky top-0 bg-primary text-primary-content z-10 [&>*]:!bg-primary [&>*]:!text-primary-content">
+                                        <td colSpan={5} className="font-semibold py-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono text-sm">{participant.category}</span>
+                                                <div className="flex-1 border-t border-primary-content/20"></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )
+                            }
+
+                            return (
+                                <CategoryParticipantTableRow
+                                    key={participant.id}
+                                    participant={participant}
+                                />
+                            )
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    )
+}
 
 interface CategoryScoreViewProps {
     participants: ParticipantWithResult[]
@@ -148,95 +182,10 @@ export default function CategoryScoreView({
             ]
         })
 
-    const ParticipantTable = ({ participants, title, bgColor }: {
-        participants: TableRow[],
-        title: string,
-        bgColor: string
-    }) => (
-        <div className={`${bgColor} rounded-lg p-3 mb-3`}>
-            <h3 className="text-base font-semibold mb-2">{title}</h3>
-            <div className="overflow-x-auto">
-                <table className="table table-compact table-zebra w-full">
-                    <thead>
-                        <tr>
-                            <th className="w-1/12">Place</th>
-                            <th className="w-2/5">Name</th>
-                            <th className="w-1/5 hidden md:table-cell">Club</th>
-                            <th className="w-1/12 hidden md:table-cell">Score</th>
-                            <th className="w-2/5">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {participants.map((participant) => {
-                            if (participant.isCategoryHeader) {
-                                return (
-                                    <tr key={participant.participantId} className="sticky top-0 bg-primary text-primary-content z-10 [&>*]:!bg-primary [&>*]:!text-primary-content">
-                                        <td colSpan={5} className="font-semibold py-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-mono text-sm">{participant.category}</span>
-                                                <div className="flex-1 border-t border-primary-content/20"></div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )
-                            }
-
-                            const rowClass = participant.hasUnresolvedTie 
-                                ? 'bg-warning/20 [&>*]:!bg-warning/20' 
-                                : ''
-
-                            return (
-                                <tr key={participant.id} className={rowClass}>
-                                    <td>
-                                        <div className="flex items-center gap-1">
-                                            {!participant.isCategoryHeader && (
-                                                <>
-                                                    <MedalIcon place={participant.place} />
-                                                    <span className="font-mono text-sm font-semibold">
-                                                        {participant.hasUnresolvedTie ? '?' : participant.place}
-                                                    </span>
-                                                </>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div>
-                                            <p className="font-medium text-sm">{participant.name}</p>
-                                            <p className="text-xs text-base-content/70">
-                                                {participant.ageGroupId}{participant.genderGroup}
-                                                {participant.hasUnresolvedTie && (
-                                                    <span className="ml-1 text-warning font-medium">(tie)</span>
-                                                )}
-                                            </p>
-                                        </div>
-                                    </td>
-                                    <td className="hidden md:table-cell">
-                                        <span className="text-sm">{participant.club || 'Independent'}</span>
-                                    </td>
-                                    <td className="hidden md:table-cell">
-                                        <span className="font-mono text-sm">
-                                            {getDisplayValue(participant.result)}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <ScoreInput
-                                            participantId={participant.id}
-                                            currentResult={participant.result}
-                                        />
-                                    </td>
-                                </tr>
-                            )
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    )
-
     return (
         <div className="space-y-3">
             {outstandingParticipants.length > 0 && (
-                <ParticipantTable
+                <CategoryParticipantTable
                     participants={outstandingParticipants}
                     title="Outstanding Categories"
                     bgColor="bg-warning/10"
@@ -244,7 +193,7 @@ export default function CategoryScoreView({
             )}
 
             {completeParticipants.length > 0 && (
-                <ParticipantTable
+                <CategoryParticipantTable
                     participants={completeParticipants}
                     title="Complete Categories"
                     bgColor="bg-success/10"

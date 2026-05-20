@@ -95,7 +95,7 @@ function TournamentDetailsHeader({ onError }: { onError: (e: string) => void }) 
 
 export default function TournamentEditForm() {
     const [error, setError] = useState<string | undefined>(undefined)
-    const tEdit = useTournamentContext()
+
     return (
 
         <div className="mb-1">

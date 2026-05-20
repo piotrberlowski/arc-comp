@@ -1,14 +1,13 @@
 "use client"
 
 import useErrorContext from "@/components/errors/ErrorContext";
-import { Participant } from "@/generated/prisma/browser";
-import { PencilIcon, XCircleIcon } from "@heroicons/react/24/outline";
-import { useCallback, useState, useTransition } from "react";
+import { Participant } from "@/generated/prisma/browser"
+import { useCallback, useEffect, useState, useTransition } from "react"
 import useTournamentContext from "./TournamentContext";
-import CSVImport from "./components/CSVImport";
-import CheckInButton from "./components/CheckInButton";
+import CSVImport from "./components/CSVImport"
 import ParticipantFilter from "./components/ParticipantFilter";
-import { listParticipants, removeParticipant } from "./participantActions";
+import { listParticipants, removeParticipant } from "./participantActions"
+import ParticipantsListRow from "./ParticipantsListRow"
 
 interface ParticipantsListProps {
     participants: Participant[]
@@ -17,25 +16,35 @@ interface ParticipantsListProps {
 }
 
 export default function ParticipantsList({ participants, onEditParticipant, editingParticipantId }: ParticipantsListProps) {
+    const [importFeedback, setImportFeedback] = useState<string | null>(null)
     const [displayP, setDisplayP] = useState(participants)
     const [filteredParticipants, setFilteredParticipants] = useState(participants)
     const [isPending, startTransition] = useTransition()
-    const [importResult, setImportResult] = useState<{ success: boolean; message: string; importedCount: number; errors: string[] } | null>(null)
     const tEdit = useTournamentContext()
     const setError = useErrorContext()
+
+    useEffect(() => {
+        if (!importFeedback) return
+        const id = setTimeout(() => setImportFeedback(null), 8000)
+        return () => clearTimeout(id)
+    }, [importFeedback])
 
     const handleFilteredChange = useCallback((filtered: Participant[]) => {
         setFilteredParticipants(filtered)
     }, [])
 
     const handleImportComplete = useCallback(async (result: { success: boolean; message: string; importedCount: number; errors: string[] }) => {
-        setImportResult(result)
-
         if (result.success && tEdit) {
             // Refresh the participants list
             try {
                 const updatedParticipants = await listParticipants(tEdit.getTournament().id)
                 setDisplayP(updatedParticipants)
+                const summary =
+                    result.message.trim() ||
+                    (result.importedCount > 0
+                        ? `Imported ${result.importedCount} participant${result.importedCount === 1 ? "" : "s"}.`
+                        : "Import completed.")
+                setImportFeedback(summary)
             } catch (error) {
                 console.error("Failed to refresh participants:", error)
                 setError(error instanceof Error ? error.message : 'Failed to refresh participants')
@@ -43,8 +52,48 @@ export default function ParticipantsList({ participants, onEditParticipant, edit
         }
     }, [tEdit, setError])
 
+    const refreshParticipants = useCallback(async () => {
+        if (!tEdit) return
+        try {
+            const updatedParticipants = await listParticipants(tEdit.getTournament().id)
+            setDisplayP(updatedParticipants)
+        } catch (e) {
+            console.error("Failed to refresh participants:", e)
+            setError(e instanceof Error ? e.message : 'Failed to refresh participants')
+        }
+    }, [tEdit, setError])
+
+    const handleRemoveParticipant = useCallback(
+        (p: Participant) => {
+            startTransition(() =>
+                removeParticipant(p.id)
+                    .then(() => setDisplayP((prev) => prev.filter((listedP) => listedP != p)))
+                    .catch((e) => {
+                        console.error("Failed to remove participant:", e)
+                        if (tEdit) {
+                            listParticipants(tEdit.getTournament().id).then((tP) => setDisplayP(tP))
+                        }
+                        setError(e)
+                    })
+            )
+        },
+        [tEdit, setError]
+    )
+
     return (
         <div className="md:w-4/5 mx-auto space-y-6">
+            {importFeedback && (
+                <div role="status" className="alert alert-success shadow-sm">
+                    <span>{importFeedback}</span>
+                    <button
+                        type="button"
+                        className="btn btn-sm btn-ghost"
+                        onClick={() => setImportFeedback(null)}
+                    >
+                        Dismiss
+                    </button>
+                </div>
+            )}
 
             <div className="w-full flex" >
                 <div className="grow">
@@ -73,68 +122,17 @@ export default function ParticipantsList({ participants, onEditParticipant, edit
                         </tr>
                     </thead>
                     <tbody className="w-full">
-                        {
-                            filteredParticipants.map(p => (
-                                <tr key={`pl-p-${p.id}`}>
-                                    <td>
-                                        {p.name}
-                                    </td>
-                                    <td className="hidden sm:table-cell">
-                                        {p.membershipNo || "-"}
-                                    </td>
-                                    <td>
-                                        {p.ageGroupId}{p.genderGroup}{p.categoryId}
-                                    </td>
-                                    <td className="hidden md:table-cell">
-                                        {p.club || "Independent"}
-                                    </td>
-                                    <td className="flex gap-2">
-                                        <CheckInButton
-                                            participant={p}
-                                            onUpdate={async () => {
-                                                if (tEdit) {
-                                                    try {
-                                                        const updatedParticipants = await listParticipants(tEdit.getTournament().id)
-                                                        setDisplayP(updatedParticipants)
-                                                    } catch (e) {
-                                                        console.error("Failed to refresh participants:", e)
-                                                        setError(e instanceof Error ? e.message : 'Failed to refresh participants')
-                                                    }
-                                                }
-                                            }}
-                                            disabled={isPending}
-                                        />
-                                        {onEditParticipant && (
-                                            <button
-                                                className="btn btn-info btn-sm"
-                                                disabled={isPending || editingParticipantId === p.id}
-                                                onClick={() => onEditParticipant(p)}
-                                            >
-                                                <PencilIcon className="w-4 h-4" />
-                                                <span className="hidden md:block">Edit</span>
-                                            </button>
-                                        )}
-                                        <button className="btn btn-error btn-sm" disabled={isPending} onClick={() => startTransition(
-                                            () => removeParticipant(p.id)
-                                                .then(
-                                                    () => setDisplayP(displayP.filter(listedP => listedP != p))
-                                                )
-                                                .catch(
-                                                    e => {
-                                                        console.error("Failed to remove participant:", e)
-                                                        if (tEdit) {
-                                                            listParticipants(tEdit.getTournament().id).then(tP => setDisplayP(tP))
-                                                        }
-                                                        setError(e)
-                                                    }
-                                                )
-                                        )}><XCircleIcon className="w-4 h-4" /><span className="hidden md:block">Remove</span></button>
-                                    </td>
-                                </tr>
-                            )
-                            )
-                        }
-
+                        {filteredParticipants.map((p) => (
+                            <ParticipantsListRow
+                                key={`pl-p-${p.id}`}
+                                participant={p}
+                                isPending={isPending}
+                                editingParticipantId={editingParticipantId}
+                                onEditParticipant={onEditParticipant}
+                                onRefreshParticipants={refreshParticipants}
+                                onRemoveParticipant={handleRemoveParticipant}
+                            />
+                        ))}
                     </tbody>
                 </table>
             </div>

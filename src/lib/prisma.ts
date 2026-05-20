@@ -20,8 +20,8 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 export default prisma
 
 export function prismaOrThrow(operation: string): PrismaClient {
-  if (!prisma) {
-    throw "No DB connection"
-  }
-  return prisma
+    if (!prisma) {
+        throw new Error(`No DB connection (${operation})`)
+    }
+    return prisma
 }

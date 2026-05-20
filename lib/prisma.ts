@@ -1,8 +1,7 @@
 import { PrismaClient } from "@/generated/prisma/client";
 
 declare global {
-  // eslint-disable-next-line
-  var globalForPrisma: PrismaClient | undefined
+    var globalForPrisma: PrismaClient | undefined
 }
 
 let prisma: PrismaClient;
@@ -19,8 +18,8 @@ if (process.env.NODE_ENV === 'production') {
 export default prisma;
 
 export function prismaOrThrow(operation: string): PrismaClient {
-  if (!prisma) {
-    throw "No DB connection"
-  }
-  return prisma
+    if (!prisma) {
+        throw new Error(`No DB connection (${operation})`)
+    }
+    return prisma
 }

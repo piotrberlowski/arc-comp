@@ -53,10 +53,12 @@ export async function getTournamentResults(tournamentId: string): Promise<Tourna
         }
     })
 
-    const { participants: _, ...tournamentWithoutParticipants } = tournament
+    // Drop nested `participants`; callers use `participantsWithResults` only.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- bind only to omit from `...rest`
+    const { participants: _omitFromTournament, ...tournamentWithoutParticipants } = tournament
     return {
         tournament: { ...tournamentWithoutParticipants, format: tournament.format },
-        participants: participantsWithResults
+        participants: participantsWithResults,
     }
 }
 

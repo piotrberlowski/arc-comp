@@ -1,7 +1,7 @@
 "use client"
 
 import useErrorContext from "@/components/errors/ErrorContext"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import useTournamentContext from "../TournamentContext"
 import { updateSharingSettings } from "../scoreActions"
 
@@ -21,53 +21,59 @@ interface SharingDrawerProps {
 
 type SharingOption = 'private' | 'link-shared' | 'public'
 
+function sharingOptionFromTournament(t: { isPublished: boolean; isShared: boolean }): SharingOption {
+    if (t.isPublished && t.isShared) return 'public'
+    if (!t.isPublished && t.isShared) return 'link-shared'
+    return 'private'
+}
+
 export default function SharingDrawer({ isOpen, onClose, allResultsComplete, tournament: tournamentProp, onSharingUpdated }: SharingDrawerProps) {
     const tCtx = useTournamentContext()
     const setError = useErrorContext()
     const [isUpdating, setIsUpdating] = useState(false)
     const [copied, setCopied] = useState(false)
     const drawerCheckboxRef = useRef<HTMLInputElement>(null)
+    const [selectedOption, setSelectedOption] = useState<SharingOption>('private')
 
-    // Use prop if provided, otherwise fall back to context
     const tFromContext = tCtx?.getTournament()
-    const tournament: TournamentData | null = tournamentProp || (tFromContext ? {
-        id: tFromContext.id,
-        isPublished: tFromContext.isPublished,
-        isShared: tFromContext.isShared
-    } : null)
+    const tournamentResolved = useMemo((): TournamentData | null => {
+        if (tournamentProp?.id) {
+            return tournamentProp
+        }
+        if (!tFromContext?.id) {
+            return null
+        }
+        return {
+            id: tFromContext.id,
+            isPublished: tFromContext.isPublished,
+            isShared: tFromContext.isShared,
+        }
+    }, [
+        tournamentProp,
+        tFromContext?.id,
+        tFromContext?.isPublished,
+        tFromContext?.isShared,
+    ])
 
-    if (!tournament?.id) {
-        return null
-    }
-
-    // Determine current sharing state
-    const getCurrentSharingOption = (): SharingOption => {
-        if (tournament.isPublished && tournament.isShared) return 'public'
-        if (!tournament.isPublished && tournament.isShared) return 'link-shared'
-        return 'private'
-    }
-
-    const [selectedOption, setSelectedOption] = useState<SharingOption>(getCurrentSharingOption())
-
-    // Sync checkbox with isOpen prop
     useEffect(() => {
         if (drawerCheckboxRef.current) {
             drawerCheckboxRef.current.checked = isOpen
         }
     }, [isOpen])
 
-    // Sync selectedOption with tournament state when drawer opens
     useEffect(() => {
-        if (isOpen && tournament) {
-            let currentOption: SharingOption = 'private'
-            if (tournament.isPublished && tournament.isShared) {
-                currentOption = 'public'
-            } else if (!tournament.isPublished && tournament.isShared) {
-                currentOption = 'link-shared'
-            }
-            setSelectedOption(currentOption)
-        }
-    }, [isOpen, tournament?.isPublished, tournament?.isShared])
+        if (!tournamentResolved?.id) return
+        if (!isOpen) return
+        setSelectedOption(sharingOptionFromTournament(tournamentResolved))
+    }, [isOpen, tournamentResolved])
+
+    if (!tournamentResolved?.id) {
+        return null
+    }
+
+    const tournament = tournamentResolved
+
+    const getCurrentSharingOption = (): SharingOption => sharingOptionFromTournament(tournament)
 
     const handleSharingChange = async (option: SharingOption) => {
         if (option === 'public' && !allResultsComplete) {

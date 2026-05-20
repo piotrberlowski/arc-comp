@@ -1,11 +1,9 @@
 import NextAuth, { NextAuthConfig, Session } from "next-auth"
-// eslint-disable-next-line
 import { Organizer } from "@/generated/prisma/client"
 import prisma, { prismaOrThrow } from "@/lib/prisma"
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import { JWT } from "next-auth/jwt"
-// eslint-disable-next-line
-import { AdapterUser } from "next-auth/adapters"
+import type {} from "next-auth/adapters"
+import type {} from "next-auth/jwt"
 import { NextRequest } from "next/server"
 import authConfig, { LOGIN_PATH } from "./auth.config"
 

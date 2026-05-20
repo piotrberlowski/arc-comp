@@ -6,7 +6,7 @@ import ErrorAlert from "@/components/errors/ErrorAlert"
 import { Participant } from "@/generated/prisma/browser"
 import { CheckCircleIcon, PencilIcon, PlusCircleIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import Form from "next/form"
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import GenderSelect from "./components/GenderSelect"
 import { AddParticipantState, addParticipant } from "./participantActions"
 
@@ -26,6 +26,14 @@ export default function AddParticipantForm({ tId, participant, onCancel }: AddPa
 
     const [formState, formAction, isPending] = useActionState(addParticipant, initialState, `/tournaments/${tId}`)
 
+    const errorSummary =
+        Object.keys(formState.errors).length > 0
+            ? Object.values(formState.errors).join(', ')
+            : undefined
+
+    const [errorBannerDismissed, setErrorBannerDismissed] = useState(false)
+    const visibleError = errorSummary && !errorBannerDismissed ? errorSummary : undefined
+
     const defaultName = participant?.name || formState.data?.name || ''
     const defaultMembershipNo = participant?.membershipNo || formState.data?.membershipNo || ''
     const defaultClub = participant?.club || formState.data?.club || ''
@@ -41,7 +49,13 @@ export default function AddParticipantForm({ tId, participant, onCancel }: AddPa
                     <span className="font-semibold">Editing: {participant?.name}</span>
                 </div>
             )}
-            <Form action={formAction} className="flex mx-auto gap-1 items-center items-stretch" >
+            <Form
+                action={formAction}
+                className="flex mx-auto gap-1 items-center items-stretch"
+                onSubmit={() => {
+                    setErrorBannerDismissed(false)
+                }}
+            >
                 <input type="hidden" name="tId" value={tId} />
                 <input type="hidden" name="participantId" value={participantId || ''} />
                 <div className="flex-1 flex gap-1 flex-wrap items-stretch">
@@ -77,7 +91,10 @@ export default function AddParticipantForm({ tId, participant, onCancel }: AddPa
                 </div>
                 <input type="hidden" name="target" value={`/tournaments/[tId]/`} />
             </Form>
-            <ErrorAlert error={Object.keys(formState.errors).length > 0 ? Object.values(formState.errors).join(', ') : undefined} resetAction={() => { formState.errors = {} }} />
+            <ErrorAlert
+                error={visibleError}
+                resetAction={() => setErrorBannerDismissed(true)}
+            />
         </div>
     )
 }

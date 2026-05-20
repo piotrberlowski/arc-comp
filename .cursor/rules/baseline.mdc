@@ -5,6 +5,7 @@ alwaysApply: true
 
 Keep your responses simple and short. Be concise and critical.
 Use follow-up questions to review your own response, don't assume that the user is always right.
+ASK BEFORE DECIDING TO MAKE CHANGES. 
 
 - database environment variables for local development are present in .env and can be used with `dotenv -e` to execute migrations etc.
 - it's not OK to fail to run something and ignore it or tell the user they must do it manually

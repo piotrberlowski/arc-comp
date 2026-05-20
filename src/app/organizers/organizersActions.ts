@@ -27,6 +27,7 @@ export async function createOrganizer(formData: FormData) {
         data: {
             userId: userId,
             club: club,
+            canManageChampionships: false,
         }
     }).then(
         () => {
@@ -55,6 +56,25 @@ export async function listUsers() {
                 not: null
             }
         }
+    })
+}
+
+export async function setChampionshipOrganizerPowerUp(
+    userId: string,
+    club: string,
+    canManageChampionships: boolean,
+    revalidate?: string
+) {
+    return prismaOrThrow("set championship organizer power-up").organizer.update({
+        where: {
+            userId_club: { userId, club },
+        },
+        data: { canManageChampionships },
+    }).then(
+        () => revalidate && revalidatePath(revalidate)
+    ).catch((e) => {
+        console.error("Failed to set championship organizer power-up:", e)
+        return e
     })
 }
 

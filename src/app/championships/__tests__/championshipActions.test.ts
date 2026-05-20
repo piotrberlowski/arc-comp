@@ -1,15 +1,56 @@
 import { prismaMock } from "@/test/prismaSingleton"
 import {
     addRoundTournament,
-    listChampionshipDayTournaments,
+    getChampionshipForOrganizer,
+    listChampionshipDayTournamentsForClubs,
     registerChampionshipParticipant,
 } from "../championshipActions"
+
+jest.mock("@/lib/championshipOrganizerSession", () => ({
+    assertChampionshipOrganizerClubs: jest.fn().mockResolvedValue(["ClubA"]),
+    resolveChampionshipOrganizerClubs: jest.fn().mockResolvedValue(["ClubA"]),
+}))
+
+describe("getChampionshipForOrganizer", () => {
+    it("returns null when organizer club list is empty", async () => {
+        await expect(getChampionshipForOrganizer("champ-1", [])).resolves.toBeNull()
+        expect(prismaMock.championship.findFirst).not.toHaveBeenCalled()
+    })
+
+    it("loads championship scoped to organizer clubs", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({ id: "champ-1" } as never)
+
+        await getChampionshipForOrganizer("champ-1", ["ClubA"])
+
+        expect(prismaMock.championship.findFirst).toHaveBeenCalledWith({
+            where: {
+                id: "champ-1",
+                organizerClub: { in: ["ClubA"] },
+            },
+            include: expect.objectContaining({
+                rounds: {
+                    include: { tournament: true },
+                    orderBy: { dayOrder: "asc" },
+                },
+                _count: {
+                    select: { registrations: true },
+                },
+            }),
+        })
+    })
+
+    it("returns null when championship lookup fails", async () => {
+        prismaMock.championship.findFirst.mockRejectedValue(new Error("db down"))
+
+        await expect(getChampionshipForOrganizer("champ-1", ["ClubA"])).resolves.toBeNull()
+    })
+})
 
 describe("listChampionshipDayTournaments", () => {
     it("loads rounds with tournaments ordered by day for authorized clubs", async () => {
         prismaMock.championshipRound.findMany.mockResolvedValue([])
 
-        await listChampionshipDayTournaments("champ-1", ["ClubA"])
+        await listChampionshipDayTournamentsForClubs("champ-1", ["ClubA"])
 
         expect(prismaMock.championshipRound.findMany).toHaveBeenCalledWith({
             where: {
@@ -30,11 +71,15 @@ describe("listChampionshipDayTournaments", () => {
     it("returns null when round lookup fails", async () => {
         prismaMock.championshipRound.findMany.mockRejectedValue(new Error("db down"))
 
-        await expect(listChampionshipDayTournaments("champ-1", ["ClubA"])).resolves.toBeNull()
+        await expect(listChampionshipDayTournamentsForClubs("champ-1", ["ClubA"])).resolves.toBeNull()
     })
 })
 
 describe("addRoundTournament", () => {
+    beforeEach(() => {
+        prismaMock.championship.findFirst.mockResolvedValue({ id: "champ-1" } as never)
+    })
+
     it("throws a specific error for duplicate day order", async () => {
         prismaMock.championshipRound.create.mockRejectedValue({
             code: "P2002",
@@ -79,6 +124,10 @@ describe("addRoundTournament", () => {
 })
 
 describe("registerChampionshipParticipant", () => {
+    beforeEach(() => {
+        prismaMock.championship.findFirst.mockResolvedValue({ id: "champ-1" } as never)
+    })
+
     it("retries on competitor number collisions and succeeds", async () => {
         prismaMock.$transaction
             .mockRejectedValueOnce({

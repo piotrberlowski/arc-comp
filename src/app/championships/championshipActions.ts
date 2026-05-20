@@ -1,6 +1,7 @@
 "use server"
 
 import { Prisma } from "@/generated/prisma/client"
+import { assertChampionshipOrganizerClubs, resolveChampionshipOrganizerClubs } from "@/lib/championshipOrganizerSession"
 import { prismaOrThrow } from "@/lib/prisma"
 
 export interface ChampionshipCreateInput {
@@ -38,6 +39,20 @@ function logAndReturnNull<T>(context: string, error: unknown): T | null {
     return null
 }
 
+const championshipShellInclude = {
+    rounds: {
+        include: { tournament: true },
+        orderBy: { dayOrder: "asc" as const },
+    },
+    _count: {
+        select: { registrations: true },
+    },
+} satisfies Prisma.ChampionshipInclude
+
+export type ChampionshipShellRow = Prisma.ChampionshipGetPayload<{
+    include: typeof championshipShellInclude
+}>
+
 function getUniqueConstraintFields(error: unknown): string[] {
     if (typeof error !== "object" || error === null || !("meta" in error)) {
         return []
@@ -52,6 +67,11 @@ function getUniqueConstraintFields(error: unknown): string[] {
 }
 
 export async function createChampionship(input: ChampionshipCreateInput) {
+    const clubs = await assertChampionshipOrganizerClubs()
+    if (!clubs.includes(input.organizerClub)) {
+        throw new Error("Unauthorized")
+    }
+
     return prismaOrThrow("create championship").championship.create({
         data: {
             name: input.name,
@@ -64,6 +84,12 @@ export async function createChampionship(input: ChampionshipCreateInput) {
 }
 
 export async function updateChampionship(championshipId: string, input: ChampionshipUpdateInput) {
+    const clubs = await assertChampionshipOrganizerClubs()
+    const existing = await getChampionshipForOrganizer(championshipId, clubs)
+    if (!existing) {
+        throw new Error("Unauthorized")
+    }
+
     return prismaOrThrow("update championship").championship.update({
         where: { id: championshipId },
         data: input,
@@ -73,60 +99,51 @@ export async function updateChampionship(championshipId: string, input: Champion
     })
 }
 
-export async function listMyChampionships(clubs: string[]) {
+export async function listMyChampionships(): Promise<ChampionshipShellRow[] | null> {
+    const clubs = await resolveChampionshipOrganizerClubs()
+    if (!clubs) {
+        return null
+    }
+
+    return listMyChampionshipsForClubs(clubs)
+}
+
+export async function listMyChampionshipsForClubs(clubs: string[]): Promise<ChampionshipShellRow[] | null> {
     return prismaOrThrow("list championships").championship.findMany({
         where: {
             organizerClub: {
                 in: clubs,
             },
         },
-        include: {
-            rounds: {
-                include: {
-                    tournament: true,
-                },
-                orderBy: {
-                    dayOrder: "asc",
-                },
-            },
-            _count: {
-                select: {
-                    registrations: true,
-                },
-            },
-        },
+        include: championshipShellInclude,
         orderBy: {
             updatedAt: "desc",
         },
-    }).catch((error) => logAndReturnNull("Failed to list championships", error))
+    }).catch((error) => logAndReturnNull<ChampionshipShellRow[]>("Failed to list championships", error))
 }
 
-function championshipDetailsInclude() {
-    return {
-        rounds: {
-            include: {
-                tournament: true,
-            },
-            orderBy: {
-                dayOrder: "asc" as const,
-            },
-        },
-        registrations: {
-            orderBy: {
-                competitorNumber: "asc" as const,
-            },
-        },
+export async function getChampionshipForOrganizer(
+    championshipId: string,
+    organizerClubs: string[]
+): Promise<ChampionshipShellRow | null> {
+    if (organizerClubs.length === 0) {
+        return null
     }
-}
 
-export async function getChampionshipById(championshipId: string) {
-    return prismaOrThrow("get championship").championship.findUnique({
-        where: { id: championshipId },
-        include: championshipDetailsInclude(),
-    }).catch((error) => logAndReturnNull("Failed to load championship", error))
+    return prismaOrThrow("get championship for organizer").championship.findFirst({
+        where: {
+            id: championshipId,
+            organizerClub: { in: organizerClubs },
+        },
+        include: championshipShellInclude,
+    }).catch((error) => logAndReturnNull<ChampionshipShellRow>("Failed to load championship", error))
 }
 
 export async function listChampionshipDayTournaments(championshipId: string, organizerClubs: string[]) {
+    return listChampionshipDayTournamentsForClubs(championshipId, organizerClubs)
+}
+
+export async function listChampionshipDayTournamentsForClubs(championshipId: string, organizerClubs: string[]) {
     return prismaOrThrow("list championship day tournaments").championshipRound.findMany({
         where: {
             championshipId,
@@ -143,7 +160,17 @@ export async function listChampionshipDayTournaments(championshipId: string, org
     }).catch((error) => logAndReturnNull("Failed to list championship day tournaments", error))
 }
 
+async function assertChampionshipAccessForId(championshipId: string): Promise<void> {
+    const clubs = await assertChampionshipOrganizerClubs()
+    const championship = await getChampionshipForOrganizer(championshipId, clubs)
+    if (!championship) {
+        throw new Error("Unauthorized")
+    }
+}
+
 export async function addRoundTournament(input: CreateRoundTournamentInput) {
+    await assertChampionshipAccessForId(input.championshipId)
+
     return prismaOrThrow("add championship round").championshipRound.create({
         data: {
             championshipId: input.championshipId,
@@ -167,6 +194,8 @@ export async function addRoundTournament(input: CreateRoundTournamentInput) {
 }
 
 export async function removeRound(championshipId: string, dayOrder: number) {
+    await assertChampionshipAccessForId(championshipId)
+
     return prismaOrThrow("remove championship round").championshipRound.delete({
         where: {
             championshipId_dayOrder: {
@@ -181,6 +210,8 @@ export async function removeRound(championshipId: string, dayOrder: number) {
 }
 
 export async function reorderRounds(championshipId: string, orderedRoundIds: string[]) {
+    await assertChampionshipAccessForId(championshipId)
+
     const uniqueRoundIds = new Set(orderedRoundIds)
     if (uniqueRoundIds.size !== orderedRoundIds.length) {
         throw new Error("Duplicate round IDs are not allowed in reorder input")
@@ -221,6 +252,8 @@ export async function reorderRounds(championshipId: string, orderedRoundIds: str
 }
 
 export async function registerChampionshipParticipant(input: RegisterChampionshipParticipantInput) {
+    await assertChampionshipAccessForId(input.championshipId)
+
     const maxRetries = 5
     let attempt = 0
 

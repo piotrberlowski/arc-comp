@@ -94,8 +94,9 @@ model Authenticator {
 }
 
 model Organizer {
-  userId String
-  club   String
+  userId                   String
+  club                     String
+  canManageChampionships   Boolean  @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

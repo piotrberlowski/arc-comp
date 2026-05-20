@@ -1,4 +1,5 @@
 import { auth } from "@/app/auth";
+import { hasChampionshipOrganizerAccess } from "@/lib/championshipOrganizerScope";
 import { publicRuntimeConfig } from "@/lib/config";
 import { Bars3CenterLeftIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
@@ -8,6 +9,7 @@ export default async function Navigation({ className }: { className?: string }) 
     const session = await auth()
 
     const authenticated = !!session?.user?.name
+    const showChampionships = !!session && hasChampionshipOrganizerAccess(session.organizerRoles)
 
     return (
         <div className={`navbar bg-neutral ${className}`}>
@@ -19,7 +21,12 @@ export default async function Navigation({ className }: { className?: string }) 
                     <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
                         <li><Link href="/results">Results</Link></li>
                         {authenticated && (
-                            <li><Link href="/tournaments">My Tournaments</Link></li>
+                            <>
+                                <li><Link href="/tournaments">My Tournaments</Link></li>
+                                {showChampionships && (
+                                    <li><Link href="/championships">My Championships</Link></li>
+                                )}
+                            </>
                         )}
                     </ul>
                 </div>
@@ -29,7 +36,12 @@ export default async function Navigation({ className }: { className?: string }) 
                 <ul className="menu menu-horizontal px-1 bg-primary rounded-box">
                     <li><Link href="/results">Results</Link></li>
                     {authenticated && (
-                        <li><Link href="/tournaments">My Tournaments</Link></li>
+                        <>
+                            <li><Link href="/tournaments">My Tournaments</Link></li>
+                            {showChampionships && (
+                                <li><Link href="/championships">My Championships</Link></li>
+                            )}
+                        </>
                     )}
                 </ul>
             </div>

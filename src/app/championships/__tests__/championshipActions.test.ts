@@ -1,10 +1,12 @@
 import { prismaMock } from "@/test/prismaSingleton"
 import {
+    addChampionshipDay,
     addRoundTournament,
     createChampionship,
     getChampionshipForOrganizer,
     listChampionshipDayTournamentsForClubs,
     registerChampionshipParticipant,
+    removeChampionshipDay,
     updateChampionship,
 } from "../championshipActions"
 
@@ -95,7 +97,15 @@ describe("getChampionshipForOrganizer", () => {
             },
             include: expect.objectContaining({
                 rounds: {
-                    include: { tournament: true },
+                    include: {
+                        tournament: {
+                            include: {
+                                _count: {
+                                    select: { participantScores: true },
+                                },
+                            },
+                        },
+                    },
                     orderBy: { dayOrder: "asc" },
                 },
                 _count: {
@@ -138,6 +148,137 @@ describe("listChampionshipDayTournaments", () => {
         prismaMock.championshipRound.findMany.mockRejectedValue(new Error("db down"))
 
         await expect(listChampionshipDayTournamentsForClubs("champ-1", ["ClubA"])).resolves.toBeNull()
+    })
+})
+
+describe("addChampionshipDay", () => {
+    const dayInput = {
+        championshipId: "champ-1",
+        name: "Day 2 Finals",
+        formatId: "fmt-1",
+        date: new Date("2026-06-02"),
+        endCount: 28,
+        groupSize: 4,
+        label: "Finals",
+    }
+
+    beforeEach(() => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            id: "champ-1",
+            organizerClub: "ClubA",
+            rounds: [{ dayOrder: 1 }],
+        } as never)
+        prismaMock.$transaction.mockImplementation((callback) =>
+            typeof callback === "function" ? callback(prismaMock) : Promise.resolve(callback)
+        )
+        prismaMock.tournament.create.mockResolvedValue({ id: "tour-2" } as never)
+        prismaMock.championshipRound.create.mockResolvedValue({ id: "round-2", dayOrder: 2 } as never)
+    })
+
+    it("creates tournament and links next day order", async () => {
+        await expect(addChampionshipDay(dayInput)).resolves.toEqual({ id: "round-2", dayOrder: 2 })
+
+        expect(prismaMock.tournament.create).toHaveBeenCalledWith({
+            data: {
+                name: "Day 2 Finals",
+                organizerClub: "ClubA",
+                formatId: "fmt-1",
+                date: dayInput.date,
+                endCount: 28,
+                groupSize: 4,
+            },
+        })
+        expect(prismaMock.championshipRound.create).toHaveBeenCalledWith({
+            data: {
+                championshipId: "champ-1",
+                dayOrder: 2,
+                tournamentId: "tour-2",
+                label: "Finals",
+            },
+            include: { tournament: true },
+        })
+    })
+
+    it("starts at day 1 when no rounds exist", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            id: "champ-1",
+            organizerClub: "ClubA",
+            rounds: [],
+        } as never)
+
+        await addChampionshipDay({ ...dayInput, label: undefined })
+
+        expect(prismaMock.championshipRound.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({ dayOrder: 1, label: undefined }),
+            })
+        )
+    })
+
+    it("throws when championship is not in organizer scope", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue(null)
+
+        await expect(addChampionshipDay(dayInput)).rejects.toThrow("Unauthorized")
+        expect(prismaMock.$transaction).not.toHaveBeenCalled()
+    })
+})
+
+describe("removeChampionshipDay", () => {
+    beforeEach(() => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            id: "champ-1",
+            rounds: [
+                {
+                    dayOrder: 1,
+                    tournamentId: "tour-1",
+                    tournament: { _count: { participantScores: 0 } },
+                },
+            ],
+        } as never)
+        prismaMock.$transaction.mockImplementation((callback) =>
+            typeof callback === "function" ? callback(prismaMock) : Promise.resolve(callback)
+        )
+    })
+
+    it("removes participants, round, and tournament when no scores", async () => {
+        await expect(removeChampionshipDay("champ-1", 1)).resolves.toBeUndefined()
+
+        expect(prismaMock.participant.deleteMany).toHaveBeenCalledWith({
+            where: { tournamentId: "tour-1" },
+        })
+        expect(prismaMock.championshipRound.delete).toHaveBeenCalledWith({
+            where: {
+                championshipId_dayOrder: {
+                    championshipId: "champ-1",
+                    dayOrder: 1,
+                },
+            },
+        })
+        expect(prismaMock.tournament.delete).toHaveBeenCalledWith({
+            where: { id: "tour-1" },
+        })
+    })
+
+    it("throws when scores exist on the day tournament", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            id: "champ-1",
+            rounds: [
+                {
+                    dayOrder: 1,
+                    tournamentId: "tour-1",
+                    tournament: { _count: { participantScores: 2 } },
+                },
+            ],
+        } as never)
+
+        await expect(removeChampionshipDay("champ-1", 1)).rejects.toThrow(
+            "Cannot remove a day after scores have been entered"
+        )
+        expect(prismaMock.$transaction).not.toHaveBeenCalled()
+    })
+
+    it("throws when day order is not found", async () => {
+        await expect(removeChampionshipDay("champ-1", 9)).rejects.toThrow("Championship day not found")
     })
 })
 

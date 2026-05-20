@@ -7,8 +7,8 @@ import { auth } from "../../auth"
 import { notFound } from "next/navigation"
 import { getChampionshipForOrganizer } from "../championshipActions"
 import { competitorsRegisteredLabel } from "../competitorsRegisteredLabel"
+import ChampionshipDaysSection from "./ChampionshipDaysSection"
 import ChampionshipNameEdit from "./ChampionshipNameEdit"
-import ChampionshipRoundsList from "./ChampionshipRoundsList"
 
 export default async function ChampionshipDetailPage({ params }: { params: Promise<{ cId: string }> }) {
     const session = await auth()
@@ -31,6 +31,7 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
         label: round.label,
         tournamentId: round.tournamentId,
         tournamentName: round.tournament.name,
+        canRemove: round.tournament._count.participantScores === 0,
     }))
 
     return (
@@ -42,8 +43,11 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
             <p className="text-sm text-base-content/70 mb-2">
                 {competitorsRegisteredLabel(championship._count.registrations)}.
             </p>
-            <h2 className="text-lg font-medium mt-6 mb-3">Days (by order)</h2>
-            <ChampionshipRoundsList rounds={rounds} />
+            <ChampionshipDaysSection
+                championshipId={championship.id}
+                organizerClub={championship.organizerClub}
+                rounds={rounds}
+            />
         </div>
     )
 }

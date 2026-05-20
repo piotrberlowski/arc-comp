@@ -34,8 +34,8 @@ export default function CreateTournamentForm({ clubs }: { clubs: string[] }) {
         if (!endCount || endCount < 1) {
             errors.push("End count must be at least 1")
         }
-        if (!groupSize || groupSize < 1) {
-            errors.push("Group size must be at least 1")
+        if (!groupSize || groupSize < 2) {
+            errors.push("Group size must be at least 2")
         }
         if (errors.length > 0) {
             const err = errors.join("; ")
@@ -89,7 +89,7 @@ export default function CreateTournamentForm({ clubs }: { clubs: string[] }) {
                             className="input input-bordered w-full" 
                             value={groupSize} 
                             onChange={evt => setGroupSize(Number(evt.target.value))}
-                            min="1"
+                            min="2"
                             required
                         />
                     </div>

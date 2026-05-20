@@ -157,9 +157,11 @@ These are **different fields**; do not conflate them.
 
 Each milestone after M4 delivers **incremental organizer-facing functionality** verifiable through the UI (no “engine-only” or read-only slices). Server actions may land in the same PR as their milestone UI or in M2 when already present.
 
+**Versioning:** bump the **patch** version in `package.json` (semver `MAJOR.MINOR.PATCH`) in the same PR that delivers each milestone (M1–M13). Example: after M5 ships, `1.4.0` → `1.4.1`.
+
 **Every milestone (M1–M13)** must leave the standalone tournament invariant true; championship work must not be merged if My Tournaments create/manage/regress fails.
 
-M1–M4 are delivered in code (including Championship Organizer power-up on `Organizer.canManageChampionships`).
+M1–M5 are delivered in code (including Championship Organizer power-up on `Organizer.canManageChampionships`).
 
 ### M1 — Schema foundation (no behavior change) ✓
 - Add schema objects:
@@ -191,13 +193,13 @@ M1–M4 are delivered in code (including Championship Organizer power-up on `Org
   - **TO + CO** for club X: My Championships and championships for X; open linked day tournament.
   - **No TO rows:** both areas blocked.
 
-### M5 — Create and edit championships
+### M5 — Create and edit championships ✓
 - “New championship” on `/championships` (name + club from TO rows where `canManageChampionships`); wire to `createChampionship` / `updateChampionship`.
 - Server actions: CO guard (TO + `canManageChampionships` for club; same as M4).
 - Edit championship name on detail page.
 - **UI test:** create a championship → appears on list → rename on detail → name persists on reload.
 
-### M6 — Configure championship days
+### M6 — Configure championship days ✓
 - Add day: create a new `Tournament` for the day (reuse tournament create fields) and link via `ChampionshipRound` with the next `dayOrder` (append only).
 - Remove day link when allowed (e.g. no scores yet — document rules in runbook); optional day label.
 - Day list shows fixed order, label, tournament name, and links to overview, **groups**, and **scores** for each day.

@@ -3,12 +3,14 @@
 import ConfirmingButton from "@/components/ConfirmingButton"
 import { Organizer, User } from "@/generated/prisma/browser"
 import { HandThumbUpIcon, TrashIcon } from "@heroicons/react/24/outline"
+import ChampionshipOrganizerToggle from "./ChampionshipOrganizerToggle"
 import { removeOrganizer } from "./organizersActions"
 
 function OrganizerClubItem({ role, revalidate }: { role: Organizer, revalidate?: string }) {
     return (
-        <div className="btn btn-accent w-100 flex px-0">
+        <div className="btn btn-accent w-100 flex px-2 gap-2 items-center">
             <span className="flex-1">{role.club}</span>
+            <ChampionshipOrganizerToggle role={role} revalidate={revalidate} />
             <ConfirmingButton
                 action={() => removeOrganizer(role, revalidate)}
                 baseButton={{

@@ -8,6 +8,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getChampionshipForOrganizer } from "../championshipActions"
 import { competitorsRegisteredLabel } from "../competitorsRegisteredLabel"
+import ChampionshipNameEdit from "./ChampionshipNameEdit"
 import ChampionshipRoundsList from "./ChampionshipRoundsList"
 
 export default async function ChampionshipDetailPage({ params }: { params: Promise<{ cId: string }> }) {
@@ -42,7 +43,7 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
                 </ul>
             </div>
             <div className="flex flex-wrap items-baseline justify-between gap-2 mb-6">
-                <h1 className="text-2xl font-semibold">{championship.name}</h1>
+                <ChampionshipNameEdit championshipId={championship.id} initialName={championship.name} />
                 <span className="badge badge-lg badge-info badge-outline">{championship.organizerClub}</span>
             </div>
             <p className="text-sm text-base-content/70 mb-2">

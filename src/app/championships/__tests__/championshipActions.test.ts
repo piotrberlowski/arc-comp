@@ -1,15 +1,81 @@
 import { prismaMock } from "@/test/prismaSingleton"
 import {
     addRoundTournament,
+    createChampionship,
     getChampionshipForOrganizer,
     listChampionshipDayTournamentsForClubs,
     registerChampionshipParticipant,
+    updateChampionship,
 } from "../championshipActions"
 
 jest.mock("@/lib/championshipOrganizerSession", () => ({
     assertChampionshipOrganizerClubs: jest.fn().mockResolvedValue(["ClubA"]),
     resolveChampionshipOrganizerClubs: jest.fn().mockResolvedValue(["ClubA"]),
 }))
+
+describe("createChampionship", () => {
+    it("creates championship for authorized club", async () => {
+        prismaMock.championship.create.mockResolvedValue({ id: "champ-new" } as never)
+
+        await expect(
+            createChampionship({ name: "Spring Series", organizerClub: "ClubA" })
+        ).resolves.toEqual({ id: "champ-new" })
+
+        expect(prismaMock.championship.create).toHaveBeenCalledWith({
+            data: { name: "Spring Series", organizerClub: "ClubA" },
+        })
+    })
+
+    it("throws when club is not in CO scope", async () => {
+        await expect(
+            createChampionship({ name: "Spring Series", organizerClub: "ClubB" })
+        ).rejects.toThrow("Unauthorized")
+        expect(prismaMock.championship.create).not.toHaveBeenCalled()
+    })
+
+    it("throws generic message when create fails", async () => {
+        prismaMock.championship.create.mockRejectedValue(new Error("db down"))
+
+        await expect(
+            createChampionship({ name: "Spring Series", organizerClub: "ClubA" })
+        ).rejects.toThrow("Unable to create championship")
+    })
+})
+
+describe("updateChampionship", () => {
+    beforeEach(() => {
+        prismaMock.championship.findFirst.mockResolvedValue({ id: "champ-1" } as never)
+    })
+
+    it("updates championship name for authorized organizer", async () => {
+        prismaMock.championship.update.mockResolvedValue({ id: "champ-1", name: "Renamed" } as never)
+
+        await expect(updateChampionship("champ-1", { name: "Renamed" })).resolves.toEqual({
+            id: "champ-1",
+            name: "Renamed",
+        })
+
+        expect(prismaMock.championship.update).toHaveBeenCalledWith({
+            where: { id: "champ-1" },
+            data: { name: "Renamed" },
+        })
+    })
+
+    it("throws when championship is not in organizer scope", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue(null)
+
+        await expect(updateChampionship("champ-1", { name: "Renamed" })).rejects.toThrow("Unauthorized")
+        expect(prismaMock.championship.update).not.toHaveBeenCalled()
+    })
+
+    it("throws generic message when update fails", async () => {
+        prismaMock.championship.update.mockRejectedValue(new Error("db down"))
+
+        await expect(updateChampionship("champ-1", { name: "Renamed" })).rejects.toThrow(
+            "Unable to update championship"
+        )
+    })
+})
 
 describe("getChampionshipForOrganizer", () => {
     it("returns null when organizer club list is empty", async () => {

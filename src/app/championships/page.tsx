@@ -1,6 +1,10 @@
 import UnauthorizedChampionshipOrganizer from "@/components/UnauthorizedChampionshipOrganizer"
-import { hasChampionshipOrganizerAccess } from "@/lib/championshipOrganizerScope"
+import {
+    getChampionshipOrganizerClubs,
+    hasChampionshipOrganizerAccess,
+} from "@/lib/championshipOrganizerScope"
 import { auth } from "../auth"
+import ChampionshipsHeader from "./ChampionshipsHeader"
 import ChampionshipsList from "./ChampionshipsList"
 
 export default async function ChampionshipsPage() {
@@ -10,9 +14,11 @@ export default async function ChampionshipsPage() {
         return <UnauthorizedChampionshipOrganizer />
     }
 
+    const clubs = getChampionshipOrganizerClubs(session.organizerRoles)
+
     return (
         <div className="w-full p-4">
-            <h1 className="text-2xl font-semibold mb-2">My Championships</h1>
+            <ChampionshipsHeader clubs={clubs} />
             <p className="text-sm text-base-content/70 mb-4">
                 Multi-day events: open a championship to see days and jump to each tournament.
             </p>

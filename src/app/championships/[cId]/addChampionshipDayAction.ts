@@ -8,6 +8,7 @@ import type { AddChampionshipDayFormState } from "./addChampionshipDayFormState"
 
 const addChampionshipDayFormSchema = z.object({
     championshipId: z.string().min(1),
+    name: z.string().trim().min(1, "Tournament name cannot be empty"),
     formatId: z.string().min(1, "Round format must be selected"),
     date: z.coerce.date({ invalid_type_error: "Date is required" }),
     endCount: z.coerce.number().int().min(1, "End count must be at least 1"),
@@ -31,6 +32,7 @@ function normalizeFieldErrors(
 function formDataToInput(formData: FormData) {
     return {
         championshipId: formData.get("championshipId"),
+        name: formData.get("name"),
         formatId: formData.get("formatId"),
         date: formData.get("date"),
         endCount: formData.get("endCount"),

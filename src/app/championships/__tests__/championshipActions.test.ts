@@ -170,6 +170,7 @@ describe("listChampionshipDayTournaments", () => {
 describe("addChampionshipDay", () => {
     const dayInput = {
         championshipId: "champ-1",
+        name: "Spring Series — Day 2",
         formatId: "fmt-1",
         date: new Date("2026-06-02"),
         endCount: 28,
@@ -221,7 +222,10 @@ describe("addChampionshipDay", () => {
             rounds: [],
         } as never)
 
-        await addChampionshipDay(dayInput)
+        await addChampionshipDay({
+            ...dayInput,
+            name: "Spring Series — Day 1",
+        })
 
         expect(prismaMock.tournament.create).toHaveBeenCalledWith({
             data: expect.objectContaining({

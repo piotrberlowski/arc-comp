@@ -1,6 +1,6 @@
 "use client"
 
-import ErrorAlert from "@/components/errors/ErrorAlert"
+import useErrorContext from "@/components/errors/ErrorContext"
 import { PencilSquareIcon } from "@heroicons/react/24/solid"
 import Form from "next/form"
 import { useRouter } from "next/navigation"
@@ -21,8 +21,8 @@ function validateChampionshipInput(name: string, club: string): string | null {
 export default function CreateChampionshipForm({ clubs }: { clubs: string[] }) {
     const status = useFormStatus()
     const router = useRouter()
+    const setError = useErrorContext()
     const [name, setName] = useState("")
-    const [error, setError] = useState("")
     const [club, setClub] = useState(clubs[0] ?? "")
 
     return (
@@ -47,7 +47,6 @@ export default function CreateChampionshipForm({ clubs }: { clubs: string[] }) {
                     onChange={(evt) => setName(evt.target.value)}
                     required
                 />
-                <ErrorAlert error={error} resetAction={() => setError("")} />
                 <Form
                     className="justify-end card-actions"
                     action={() => {
@@ -56,6 +55,7 @@ export default function CreateChampionshipForm({ clubs }: { clubs: string[] }) {
                             setError(validationError)
                             return
                         }
+                        setError(undefined)
                         createChampionship({ name: name.trim(), organizerClub: club })
                             .then((created) => router.push(`/championships/${created.id}`))
                             .catch((e) => {

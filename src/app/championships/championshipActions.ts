@@ -1,7 +1,7 @@
 "use server"
 
 import { Prisma } from "@/generated/prisma/client"
-import { championshipDayTournamentName } from "@/lib/championshipDayNaming"
+import { championshipDayTournamentName, nextChampionshipDayOrder } from "@/lib/championshipDayNaming"
 import { assertChampionshipOrganizerClubs, resolveChampionshipOrganizerClubs } from "@/lib/championshipOrganizerSession"
 import { prismaOrThrow } from "@/lib/prisma"
 
@@ -23,6 +23,7 @@ export interface CreateRoundTournamentInput {
 
 export interface AddChampionshipDayInput {
     championshipId: string
+    name: string
     formatId: string
     date: Date
     endCount: number
@@ -220,13 +221,6 @@ async function assertChampionshipAccessForId(championshipId: string): Promise<vo
     }
 }
 
-function nextChampionshipDayOrder(rounds: { dayOrder: number }[]): number {
-    if (rounds.length === 0) {
-        return 1
-    }
-    return Math.max(...rounds.map((round) => round.dayOrder)) + 1
-}
-
 export async function addChampionshipDay(input: AddChampionshipDayInput) {
     const clubs = await assertChampionshipOrganizerClubs()
     const championship = await getChampionshipForOrganizer(input.championshipId, clubs)
@@ -235,12 +229,11 @@ export async function addChampionshipDay(input: AddChampionshipDayInput) {
     }
 
     const dayOrder = nextChampionshipDayOrder(championship.rounds)
-    const tournamentName = championshipDayTournamentName(championship.name, dayOrder)
 
     return prismaOrThrow("add championship day").$transaction(async (tx) => {
         const tournament = await tx.tournament.create({
             data: {
-                name: tournamentName,
+                name: input.name.trim(),
                 organizerClub: championship.organizerClub,
                 formatId: input.formatId,
                 date: input.date,

@@ -1,11 +1,12 @@
 "use client"
 
+import FormModal, { type FormModalHandle } from "@/components/FormModal"
 import { PlusCircleIcon } from "@heroicons/react/24/outline"
 import { useRef } from "react"
 import CreateChampionshipForm from "./CreateChampionshipForm"
 
 export default function ChampionshipsHeader({ clubs }: { clubs: string[] }) {
-    const dialogRef = useRef<HTMLDialogElement>(null)
+    const modalRef = useRef<FormModalHandle>(null)
 
     return (
         <div className="w-full flex flex-wrap items-center gap-4 mt-2 mb-4 bg-primary p-5 rounded-sm">
@@ -13,21 +14,14 @@ export default function ChampionshipsHeader({ clubs }: { clubs: string[] }) {
             <button
                 type="button"
                 className="btn btn-success"
-                onClick={() => dialogRef.current?.showModal()}
+                onClick={() => modalRef.current?.open()}
             >
                 <PlusCircleIcon width={24} />
                 New championship
             </button>
-            <dialog ref={dialogRef} className="modal">
-                <div className="modal-box p-10">
-                    <form method="dialog">
-                        <button type="submit" className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
-                            ✕
-                        </button>
-                    </form>
-                    <CreateChampionshipForm clubs={clubs} />
-                </div>
-            </dialog>
+            <FormModal ref={modalRef}>
+                <CreateChampionshipForm clubs={clubs} />
+            </FormModal>
         </div>
     )
 }

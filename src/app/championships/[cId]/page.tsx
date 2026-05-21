@@ -45,6 +45,7 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
             </p>
             <ChampionshipDaysSection
                 championshipId={championship.id}
+                championshipName={championship.name}
                 organizerClub={championship.organizerClub}
                 rounds={rounds}
             />

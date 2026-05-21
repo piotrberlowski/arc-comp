@@ -1,26 +1,17 @@
-'use client'
-import RoundFormatSelect from "@/components/RoundFormatSelect"
-import ErrorAlert from "@/components/errors/ErrorAlert"
-import { PencilSquareIcon } from "@heroicons/react/24/solid"
-import Form from "next/form"
+"use client"
+
+import useErrorContext from "@/components/errors/ErrorContext"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { useFormStatus } from "react-dom"
-import TournamentDayPicker from "./TournamentDayPicker"
+import TournamentSetupForm from "./TournamentSetupForm"
 import { createTournament } from "./tournamentActions"
 
 export default function CreateTournamentForm({ clubs }: { clubs: string[] }) {
-    const status = useFormStatus()
     const router = useRouter()
-    const [formatId, setFormatId] = useState("")
-    const [name, setName] = useState("")
-    const [date, setDate] = useState(new Date())
-    const [error, setError] = useState("")
+    const setError = useErrorContext()
     const [club, setClub] = useState(clubs.length > 0 ? clubs[0] : "")
-    const [endCount, setEndCount] = useState<number>(28)
-    const [groupSize, setGroupSize] = useState<number>(4)
 
-    function validateInput() {
+    function validateInput(name: string, formatId: string, endCount: number, groupSize: number) {
         const errors = []
         if (!name) {
             errors.push("Name cannot be empty")
@@ -38,78 +29,35 @@ export default function CreateTournamentForm({ clubs }: { clubs: string[] }) {
             errors.push("Group size must be at least 2")
         }
         if (errors.length > 0) {
-            const err = errors.join("; ")
-            setError(err)
+            setError(errors.join("; "))
             return false
         }
         return true
     }
 
     return (
-        <div className="card w-full bg-base-300 card-sm shadow-sm ">
-            <select className="select select-primary w-full bg-base-200" value={club} onChange={evt => setClub(evt.target.value)}>
-                {clubs.map(c => (
-                    <option key={`club-select-${c}`} value={c}>{c}</option>
-                ))}
-            </select>
-            <div className="card-body">
-                <span className="badge badge-info text-lg py-6">
-                    Format: <RoundFormatSelect className="select-sm select-accent text-primary-content" formatId={formatId} onChange={(format) => {
-                        if (format) {
-                            setFormatId(format.id)
-                            setEndCount(format.endCount)
-                            setGroupSize(format.groupSize)
-                        }
-                    }} />
-                </span>
-                <div className="flex justify-between p-3 bg-secondary rounded-md">
-                    <input type="text" name="tournamentName" placeholder="Tournament name" className="card-title input input-primary validator" value={name} onChange={evt => setName(evt.target.value)} required></input>
-                    <span className="text-xl"><TournamentDayPicker date={date} onChange={setDate} /></span>
-                </div>
-                <div className="flex gap-4 p-3 bg-base-200 rounded-md">
-                    <div className="flex-1">
-                        <label className="label">
-                            <span className="label-text">End Count</span>
-                        </label>
-                        <input 
-                            type="number" 
-                            className="input input-bordered w-full" 
-                            value={endCount} 
-                            onChange={evt => setEndCount(Number(evt.target.value))}
-                            min="1"
-                            required
-                        />
-                    </div>
-                    <div className="flex-1">
-                        <label className="label">
-                            <span className="label-text">Group Size</span>
-                        </label>
-                        <input 
-                            type="number" 
-                            className="input input-bordered w-full" 
-                            value={groupSize} 
-                            onChange={evt => setGroupSize(Number(evt.target.value))}
-                            min="2"
-                            required
-                        />
-                    </div>
-                </div>
-                <ErrorAlert error={error} resetAction={() => setError("")} />
-                <Form className="justify-end card-actions" action={() => {
-                    if (validateInput()) {
-                        createTournament(name, formatId, club, date, endCount, groupSize).then(
-                            tgt => router.push(`/tournaments/${tgt}`)
-                        ).catch(
-                            e => {
-                                console.error("Failed to create tournament:", e)
-                                setError(e)
-                            }
-                        )
-                    }
-                }}>
-                    <button type="submit" className="btn btn-success" disabled={status.pending}><PencilSquareIcon width={24} />Create!</button>
-                </Form>
-            </div>
-        </div>
+        <TournamentSetupForm
+            clubs={clubs}
+            club={club}
+            onClubChange={setClub}
+            action={(formData) => {
+                const name = String(formData.get("name") ?? "")
+                const formatId = String(formData.get("formatId") ?? "")
+                const date = new Date(String(formData.get("date") ?? ""))
+                const endCount = Number(formData.get("endCount"))
+                const groupSize = Number(formData.get("groupSize"))
+                if (!validateInput(name, formatId, endCount, groupSize)) {
+                    return
+                }
+                setError(undefined)
+                createTournament(name, formatId, club, date, endCount, groupSize)
+                    .then((tgt) => router.push(`/tournaments/${tgt}`))
+                    .catch((e) => {
+                        console.error("Failed to create tournament:", e)
+                        setError(String(e))
+                    })
+            }}
+            submitLabel="Create!"
+        />
     )
 }

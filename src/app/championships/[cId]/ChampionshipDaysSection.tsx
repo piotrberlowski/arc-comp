@@ -1,5 +1,7 @@
 "use client"
 
+import FormModal, { type FormModalHandle } from "@/components/FormModal"
+import { nextChampionshipDayOrder } from "@/lib/championshipDayNaming"
 import { PlusCircleIcon } from "@heroicons/react/24/outline"
 import { useRef } from "react"
 import AddChampionshipDayForm from "./AddChampionshipDayForm"
@@ -7,17 +9,20 @@ import ChampionshipRoundsList, { type ChampionshipRoundRow } from "./Championshi
 
 export default function ChampionshipDaysSection({
     championshipId,
+    championshipName,
     organizerClub,
     rounds,
 }: {
     championshipId: string
+    championshipName: string
     organizerClub: string
     rounds: ChampionshipRoundRow[]
 }) {
-    const dialogRef = useRef<HTMLDialogElement>(null)
+    const nextDayOrder = nextChampionshipDayOrder(rounds)
+    const modalRef = useRef<FormModalHandle>(null)
 
     function closeDialog() {
-        dialogRef.current?.close()
+        modalRef.current?.close()
     }
 
     return (
@@ -27,27 +32,22 @@ export default function ChampionshipDaysSection({
                 <button
                     type="button"
                     className="btn btn-success btn-sm"
-                    onClick={() => dialogRef.current?.showModal()}
+                    onClick={() => modalRef.current?.open()}
                 >
                     <PlusCircleIcon width={20} />
                     Add day
                 </button>
             </div>
             <ChampionshipRoundsList championshipId={championshipId} rounds={rounds} />
-            <dialog ref={dialogRef} className="modal">
-                <div className="modal-box max-w-lg p-10">
-                    <form method="dialog">
-                        <button type="submit" className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
-                            ✕
-                        </button>
-                    </form>
-                    <AddChampionshipDayForm
-                        championshipId={championshipId}
-                        organizerClub={organizerClub}
-                        onClose={closeDialog}
-                    />
-                </div>
-            </dialog>
+            <FormModal ref={modalRef}>
+                <AddChampionshipDayForm
+                    championshipId={championshipId}
+                    championshipName={championshipName}
+                    nextDayOrder={nextDayOrder}
+                    organizerClub={organizerClub}
+                    onClose={closeDialog}
+                />
+            </FormModal>
         </section>
     )
 }

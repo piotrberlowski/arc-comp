@@ -47,9 +47,16 @@ describe("createChampionship", () => {
 describe("updateChampionship", () => {
     beforeEach(() => {
         prismaMock.championship.findFirst.mockResolvedValue({ id: "champ-1" } as never)
+        prismaMock.$transaction.mockImplementation((callback) =>
+            typeof callback === "function" ? callback(prismaMock) : Promise.resolve(callback)
+        )
+        prismaMock.championshipRound.findMany.mockResolvedValue([
+            { dayOrder: 1, tournamentId: "tour-1" },
+            { dayOrder: 2, tournamentId: "tour-2" },
+        ] as never)
     })
 
-    it("updates championship name for authorized organizer", async () => {
+    it("updates championship name and renames linked day tournaments", async () => {
         prismaMock.championship.update.mockResolvedValue({ id: "champ-1", name: "Renamed" } as never)
 
         await expect(updateChampionship("champ-1", { name: "Renamed" })).resolves.toEqual({
@@ -61,17 +68,25 @@ describe("updateChampionship", () => {
             where: { id: "champ-1" },
             data: { name: "Renamed" },
         })
+        expect(prismaMock.tournament.update).toHaveBeenCalledWith({
+            where: { id: "tour-1" },
+            data: { name: "Renamed — Day 1" },
+        })
+        expect(prismaMock.tournament.update).toHaveBeenCalledWith({
+            where: { id: "tour-2" },
+            data: { name: "Renamed — Day 2" },
+        })
     })
 
     it("throws when championship is not in organizer scope", async () => {
         prismaMock.championship.findFirst.mockResolvedValue(null)
 
         await expect(updateChampionship("champ-1", { name: "Renamed" })).rejects.toThrow("Unauthorized")
-        expect(prismaMock.championship.update).not.toHaveBeenCalled()
+        expect(prismaMock.$transaction).not.toHaveBeenCalled()
     })
 
     it("throws generic message when update fails", async () => {
-        prismaMock.championship.update.mockRejectedValue(new Error("db down"))
+        prismaMock.$transaction.mockRejectedValue(new Error("db down"))
 
         await expect(updateChampionship("champ-1", { name: "Renamed" })).rejects.toThrow(
             "Unable to update championship"
@@ -100,6 +115,7 @@ describe("getChampionshipForOrganizer", () => {
                     include: {
                         tournament: {
                             include: {
+                                format: true,
                                 _count: {
                                     select: { participantScores: true },
                                 },
@@ -154,17 +170,16 @@ describe("listChampionshipDayTournaments", () => {
 describe("addChampionshipDay", () => {
     const dayInput = {
         championshipId: "champ-1",
-        name: "Day 2 Finals",
         formatId: "fmt-1",
         date: new Date("2026-06-02"),
         endCount: 28,
         groupSize: 4,
-        label: "Finals",
     }
 
     beforeEach(() => {
         prismaMock.championship.findFirst.mockResolvedValue({
             id: "champ-1",
+            name: "Spring Series",
             organizerClub: "ClubA",
             rounds: [{ dayOrder: 1 }],
         } as never)
@@ -180,7 +195,7 @@ describe("addChampionshipDay", () => {
 
         expect(prismaMock.tournament.create).toHaveBeenCalledWith({
             data: {
-                name: "Day 2 Finals",
+                name: "Spring Series — Day 2",
                 organizerClub: "ClubA",
                 formatId: "fmt-1",
                 date: dayInput.date,
@@ -193,7 +208,6 @@ describe("addChampionshipDay", () => {
                 championshipId: "champ-1",
                 dayOrder: 2,
                 tournamentId: "tour-2",
-                label: "Finals",
             },
             include: { tournament: true },
         })
@@ -202,15 +216,21 @@ describe("addChampionshipDay", () => {
     it("starts at day 1 when no rounds exist", async () => {
         prismaMock.championship.findFirst.mockResolvedValue({
             id: "champ-1",
+            name: "Spring Series",
             organizerClub: "ClubA",
             rounds: [],
         } as never)
 
-        await addChampionshipDay({ ...dayInput, label: undefined })
+        await addChampionshipDay(dayInput)
 
+        expect(prismaMock.tournament.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                name: "Spring Series — Day 1",
+            }),
+        })
         expect(prismaMock.championshipRound.create).toHaveBeenCalledWith(
             expect.objectContaining({
-                data: expect.objectContaining({ dayOrder: 1, label: undefined }),
+                data: expect.objectContaining({ dayOrder: 1 }),
             })
         )
     })

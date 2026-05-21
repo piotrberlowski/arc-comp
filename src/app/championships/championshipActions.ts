@@ -1,6 +1,7 @@
 "use server"
 
 import { Prisma } from "@/generated/prisma/client"
+import { championshipDayTournamentName } from "@/lib/championshipDayNaming"
 import { assertChampionshipOrganizerClubs, resolveChampionshipOrganizerClubs } from "@/lib/championshipOrganizerSession"
 import { prismaOrThrow } from "@/lib/prisma"
 
@@ -22,12 +23,28 @@ export interface CreateRoundTournamentInput {
 
 export interface AddChampionshipDayInput {
     championshipId: string
-    name: string
     formatId: string
     date: Date
     endCount: number
     groupSize: number
-    label?: string
+}
+
+async function syncDayTournamentNamesForChampionship(
+    tx: Prisma.TransactionClient,
+    championshipId: string,
+    championshipName: string
+) {
+    const rounds = await tx.championshipRound.findMany({
+        where: { championshipId },
+        select: { dayOrder: true, tournamentId: true },
+    })
+
+    for (const round of rounds) {
+        await tx.tournament.update({
+            where: { id: round.tournamentId },
+            data: { name: championshipDayTournamentName(championshipName, round.dayOrder) },
+        })
+    }
 }
 
 export interface RegisterChampionshipParticipantInput {
@@ -54,6 +71,7 @@ const championshipShellInclude = {
         include: {
             tournament: {
                 include: {
+                    format: true,
                     _count: {
                         select: { participantScores: true },
                     },
@@ -108,9 +126,25 @@ export async function updateChampionship(championshipId: string, input: Champion
         throw new Error("Unauthorized")
     }
 
-    return prismaOrThrow("update championship").championship.update({
-        where: { id: championshipId },
-        data: input,
+    if (input.name === undefined) {
+        return prismaOrThrow("update championship").championship.update({
+            where: { id: championshipId },
+            data: input,
+        }).catch((error) => {
+            console.error("Failed to update championship:", error)
+            throw new Error("Unable to update championship")
+        })
+    }
+
+    const trimmedName = input.name.trim()
+
+    return prismaOrThrow("update championship").$transaction(async (tx) => {
+        const championship = await tx.championship.update({
+            where: { id: championshipId },
+            data: { name: trimmedName },
+        })
+        await syncDayTournamentNamesForChampionship(tx, championshipId, trimmedName)
+        return championship
     }).catch((error) => {
         console.error("Failed to update championship:", error)
         throw new Error("Unable to update championship")
@@ -201,11 +235,12 @@ export async function addChampionshipDay(input: AddChampionshipDayInput) {
     }
 
     const dayOrder = nextChampionshipDayOrder(championship.rounds)
+    const tournamentName = championshipDayTournamentName(championship.name, dayOrder)
 
     return prismaOrThrow("add championship day").$transaction(async (tx) => {
         const tournament = await tx.tournament.create({
             data: {
-                name: input.name,
+                name: tournamentName,
                 organizerClub: championship.organizerClub,
                 formatId: input.formatId,
                 date: input.date,
@@ -219,7 +254,6 @@ export async function addChampionshipDay(input: AddChampionshipDayInput) {
                 championshipId: input.championshipId,
                 dayOrder,
                 tournamentId: tournament.id,
-                label: input.label,
             },
             include: {
                 tournament: true,

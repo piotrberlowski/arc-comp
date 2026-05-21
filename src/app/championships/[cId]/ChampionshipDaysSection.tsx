@@ -16,6 +16,10 @@ export default function ChampionshipDaysSection({
 }) {
     const dialogRef = useRef<HTMLDialogElement>(null)
 
+    function closeDialog() {
+        dialogRef.current?.close()
+    }
+
     return (
         <section className="mt-6">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -31,7 +35,7 @@ export default function ChampionshipDaysSection({
             </div>
             <ChampionshipRoundsList championshipId={championshipId} rounds={rounds} />
             <dialog ref={dialogRef} className="modal">
-                <div className="modal-box max-w-lg">
+                <div className="modal-box max-w-lg p-10">
                     <form method="dialog">
                         <button type="submit" className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
                             ✕
@@ -40,7 +44,7 @@ export default function ChampionshipDaysSection({
                     <AddChampionshipDayForm
                         championshipId={championshipId}
                         organizerClub={organizerClub}
-                        onClose={() => dialogRef.current?.close()}
+                        onClose={closeDialog}
                     />
                 </div>
             </dialog>

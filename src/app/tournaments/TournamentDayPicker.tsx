@@ -7,7 +7,12 @@ export default function TournamentDayPicker({date, onChange}:{date: Date, onChan
     const popoverRef = useRef<HTMLDivElement>(null)
     return (
         <>
-            <button popoverTarget="rdp-popover" className="input input-primary" style={{ anchorName: "--rdp" } as React.CSSProperties}>
+            <button
+                type="button"
+                popoverTarget="rdp-popover"
+                className="input input-primary"
+                style={{ anchorName: "--rdp" } as React.CSSProperties}
+            >
                 {date ? format(date, "yyyy-MM-dd") : "Select date"}
             </button>
             <div ref={popoverRef} popover="auto" id="rdp-popover" className="dropdown" style={{ positionAnchor: "--rdp" } as React.CSSProperties}>

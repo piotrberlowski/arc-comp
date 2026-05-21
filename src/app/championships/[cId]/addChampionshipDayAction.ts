@@ -4,36 +4,15 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { zu } from "zod_utilz"
 import { addChampionshipDay } from "../championshipActions"
+import type { AddChampionshipDayFormState } from "./addChampionshipDayFormState"
 
 const addChampionshipDayFormSchema = z.object({
     championshipId: z.string().min(1),
-    name: z.string().trim().min(1, "Tournament name cannot be empty"),
     formatId: z.string().min(1, "Round format must be selected"),
     date: z.coerce.date({ invalid_type_error: "Date is required" }),
     endCount: z.coerce.number().int().min(1, "End count must be at least 1"),
     groupSize: z.coerce.number().int().min(2, "Group size must be at least 2"),
-    label: z
-        .string()
-        .optional()
-        .transform((value) => (value?.trim() ? value.trim() : undefined)),
 })
-
-export interface AddChampionshipDayFormState {
-    success?: boolean
-    data?: {
-        name?: string
-        formatId?: string
-        date?: Date
-        endCount?: number
-        groupSize?: number
-        label?: string
-    }
-    errors: Record<string, string>
-}
-
-const initialAddChampionshipDayFormState: AddChampionshipDayFormState = {
-    errors: {},
-}
 
 function normalizeFieldErrors(
     fieldErrors: Record<string, string[] | undefined> | undefined
@@ -50,15 +29,12 @@ function normalizeFieldErrors(
 }
 
 function formDataToInput(formData: FormData) {
-    const labelValue = formData.get("label")
     return {
         championshipId: formData.get("championshipId"),
-        name: formData.get("name"),
         formatId: formData.get("formatId"),
         date: formData.get("date"),
         endCount: formData.get("endCount"),
         groupSize: formData.get("groupSize"),
-        label: typeof labelValue === "string" && labelValue.length > 0 ? labelValue : undefined,
     }
 }
 
@@ -92,5 +68,3 @@ export async function submitAddChampionshipDayForm(
         }
     }
 }
-
-export { initialAddChampionshipDayFormState }

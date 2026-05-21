@@ -28,9 +28,9 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
     const rounds = championship.rounds.map((round) => ({
         id: round.id,
         dayOrder: round.dayOrder,
-        label: round.label,
         tournamentId: round.tournamentId,
         tournamentName: round.tournament.name,
+        formatName: round.tournament.format.name,
         canRemove: round.tournament._count.participantScores === 0,
     }))
 

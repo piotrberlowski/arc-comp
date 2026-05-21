@@ -9,9 +9,9 @@ import { removeChampionshipDay } from "../championshipActions"
 export type ChampionshipRoundRow = {
     id: string
     dayOrder: number
-    label: string | null
     tournamentId: string
     tournamentName: string
+    formatName: string
     canRemove: boolean
 }
 
@@ -85,12 +85,11 @@ export default function ChampionshipRoundsList({
                 <li key={round.id} className="card bg-base-200 shadow-sm">
                     <div className="card-body gap-2 py-4">
                         <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div>
-                                <p className="font-medium">
-                                    Day {round.dayOrder}
-                                    {round.label ? ` — ${round.label}` : ""}
-                                </p>
-                                <p className="text-sm opacity-80">{round.tournamentName}</p>
+                            <div className="flex flex-col gap-1">
+                                <p className="font-medium">{round.tournamentName}</p>
+                                <span className="badge badge-sm badge-info badge-outline w-fit">
+                                    {round.formatName}
+                                </span>
                             </div>
                             <RemoveDayButton
                                 championshipId={championshipId}

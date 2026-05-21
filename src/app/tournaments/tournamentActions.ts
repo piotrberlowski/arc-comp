@@ -87,6 +87,35 @@ export async function getTournamentById(id: string) {
     )
 }
 
+export type ChampionshipDayLink = {
+    championshipId: string
+    championshipName: string
+    dayOrder: number
+}
+
+export async function getChampionshipDayLinkForTournament(
+    tournamentId: string
+): Promise<ChampionshipDayLink | null> {
+    const round = await prismaOrThrow("get championship day link").championshipRound.findUnique({
+        where: { tournamentId },
+        include: {
+            championship: {
+                select: { id: true, name: true },
+            },
+        },
+    }).catch(() => null)
+
+    if (!round) {
+        return null
+    }
+
+    return {
+        championshipId: round.championship.id,
+        championshipName: round.championship.name,
+        dayOrder: round.dayOrder,
+    }
+}
+
 export async function updateTournament(id: string, u: TournamentUpdate) {
     return await prismaOrThrow("update tournament").tournament.update({
         where: {

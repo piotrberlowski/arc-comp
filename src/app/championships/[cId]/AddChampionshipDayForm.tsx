@@ -5,16 +5,13 @@ import ErrorAlert from "@/components/errors/ErrorAlert"
 import { PlusCircleIcon } from "@heroicons/react/24/outline"
 import Form from "next/form"
 import { useRouter } from "next/navigation"
-import { useActionState, useEffect, useState } from "react"
+import { useActionState, useEffect, useRef, useState } from "react"
 import TournamentDayPicker from "@/app/tournaments/TournamentDayPicker"
-import {
-    initialAddChampionshipDayFormState,
-    submitAddChampionshipDayForm,
-} from "./addChampionshipDayAction"
+import { submitAddChampionshipDayForm } from "./addChampionshipDayAction"
+import { initialAddChampionshipDayFormState } from "./addChampionshipDayFormState"
 
-function inputClass(hasError: boolean, variant: "primary" | "bordered" = "bordered"): string {
-    const base = variant === "primary" ? "input input-primary w-full" : "input input-bordered w-full"
-    return hasError ? `${base} input-error` : base
+function inputClass(hasError: boolean): string {
+    return hasError ? "input input-bordered w-full input-error" : "input input-bordered w-full"
 }
 
 export default function AddChampionshipDayForm({
@@ -29,27 +26,29 @@ export default function AddChampionshipDayForm({
     const router = useRouter()
     const [formState, formAction, isPending] = useActionState(
         submitAddChampionshipDayForm,
-        initialAddChampionshipDayFormState,
-        `/championships/${championshipId}`
+        initialAddChampionshipDayFormState
     )
+    const handledSuccessRef = useRef(false)
+    const errors = formState.errors ?? {}
+    const formData = formState.data ?? {}
 
-    const [formatId, setFormatId] = useState(formState.data?.formatId ?? "")
-    const [date, setDate] = useState(formState.data?.date ?? new Date())
-    const [endCount, setEndCount] = useState(formState.data?.endCount ?? 28)
-    const [groupSize, setGroupSize] = useState(formState.data?.groupSize ?? 4)
+    const [formatId, setFormatId] = useState(formData.formatId ?? "")
+    const [date, setDate] = useState(formData.date ?? new Date())
+    const [endCount, setEndCount] = useState(formData.endCount ?? 28)
+    const [groupSize, setGroupSize] = useState(formData.groupSize ?? 4)
     const [errorBannerDismissed, setErrorBannerDismissed] = useState(false)
 
     useEffect(() => {
-        if (formState.success) {
-            onClose()
-            router.refresh()
+        if (!formState.success || handledSuccessRef.current) {
+            return
         }
+        handledSuccessRef.current = true
+        onClose()
+        router.refresh()
     }, [formState.success, onClose, router])
 
     const errorSummary =
-        Object.keys(formState.errors).length > 0
-            ? Object.values(formState.errors).join(", ")
-            : undefined
+        Object.keys(errors).length > 0 ? Object.values(errors).join(", ") : undefined
     const visibleError = errorSummary && !errorBannerDismissed ? errorSummary : undefined
 
     return (
@@ -57,7 +56,10 @@ export default function AddChampionshipDayForm({
             <Form
                 action={formAction}
                 className="card-body gap-3"
-                onSubmit={() => setErrorBannerDismissed(false)}
+                onSubmit={() => {
+                    handledSuccessRef.current = false
+                    setErrorBannerDismissed(false)
+                }}
             >
                 <input type="hidden" name="championshipId" value={championshipId} />
                 <input type="hidden" name="formatId" value={formatId} />
@@ -67,7 +69,7 @@ export default function AddChampionshipDayForm({
                 <label className="flex flex-col gap-1 w-fit">
                     <span className="text-sm">Format</span>
                     <RoundFormatSelect
-                        className={`select-sm select-accent text-primary-content ${formState.errors.formatId ? "select-error" : ""}`}
+                        className={`select-sm select-accent text-primary-content ${errors.formatId ? "select-error" : ""}`}
                         formatId={formatId}
                         onChange={(format) => {
                             if (format) {
@@ -78,21 +80,7 @@ export default function AddChampionshipDayForm({
                         }}
                     />
                 </label>
-                <input
-                    type="text"
-                    name="name"
-                    placeholder="Day tournament name"
-                    className={inputClass(!!formState.errors.name, "primary")}
-                    defaultValue={formState.data?.name ?? ""}
-                />
-                <input
-                    type="text"
-                    name="label"
-                    placeholder="Optional day label (e.g. Qualifier)"
-                    className="input input-bordered w-full"
-                    defaultValue={formState.data?.label ?? ""}
-                />
-                <div className={formState.errors.date ? "rounded-md ring-2 ring-error" : ""}>
+                <div className={errors.date ? "rounded-md ring-2 ring-error" : ""}>
                     <TournamentDayPicker date={date} onChange={setDate} />
                 </div>
                 <div className="flex gap-4">
@@ -101,7 +89,7 @@ export default function AddChampionshipDayForm({
                         <input
                             type="number"
                             name="endCount"
-                            className={inputClass(!!formState.errors.endCount)}
+                            className={inputClass(!!errors.endCount)}
                             min={1}
                             value={endCount}
                             onChange={(evt) => setEndCount(Number(evt.target.value))}
@@ -112,7 +100,7 @@ export default function AddChampionshipDayForm({
                         <input
                             type="number"
                             name="groupSize"
-                            className={inputClass(!!formState.errors.groupSize)}
+                            className={inputClass(!!errors.groupSize)}
                             min={2}
                             value={groupSize}
                             onChange={(evt) => setGroupSize(Number(evt.target.value))}

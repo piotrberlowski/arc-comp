@@ -9,9 +9,11 @@ import { updateChampionship } from "../championshipActions"
 export default function ChampionshipNameEdit({
     championshipId,
     initialName,
+    readOnly = false,
 }: {
     championshipId: string
     initialName: string
+    readOnly?: boolean
 }) {
     const router = useRouter()
     const [displayName, setDisplayName] = useState(initialName)
@@ -81,9 +83,11 @@ export default function ChampionshipNameEdit({
     return (
         <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold">{displayName}</h1>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={startEdit} aria-label="Edit championship name">
-                <PencilSquareIcon width={20} />
-            </button>
+            {!readOnly ? (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={startEdit} aria-label="Edit championship name">
+                    <PencilSquareIcon width={20} />
+                </button>
+            ) : null}
         </div>
     )
 }

@@ -1,22 +1,14 @@
 "use server"
 
+import { participantProfileSchema } from "@/lib/participantProfileSchema"
 import { prismaOrThrow } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { redirect, RedirectType } from "next/navigation"
 import { z } from "zod"
-import { zu } from 'zod_utilz'
+import { zu } from "zod_utilz"
 
-const participantSubmitSchema = z.object({
+const participantSubmitSchema = participantProfileSchema.extend({
     tournamentId: z.string().nonempty(),
-    name: z.string().min(3, "Name must be at least 3 characters long"),
-    membershipNo: z.string().nonempty("Membership number is required"),
-    genderGroup: z.union([
-        z.literal("F"),
-        z.literal("M"),
-    ]),
-    ageGroupId: z.string().nonempty("Age Division must be selected"),
-    categoryId: z.string().nonempty("Equipment Category must be selected"),
-    club: z.string(),
     checkedIn: z.boolean().default(false),
 })
 

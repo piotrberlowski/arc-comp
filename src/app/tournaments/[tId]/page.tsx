@@ -1,5 +1,5 @@
 import { ErrorContextProvider } from "@/components/errors/ErrorContext"
-import { getTournamentById } from "../tournamentActions"
+import { getTournamentById, getChampionshipDayLinkForTournament } from "../tournamentActions"
 import ParticipantsSection from "./ParticipantsSection"
 import { TournamentEditContextProvider } from "./TournamentContext"
 import TournamentEditForm from "./TournamentEditForm"
@@ -21,6 +21,7 @@ export default async function TournamentDetailsPage({ params }: { params: Promis
     }
 
     const participants = await listParticipants(tournament.id)
+    const championshipDay = await getChampionshipDayLinkForTournament(tournament.id)
 
     return (
         <div className="w-full min-h-max">
@@ -29,7 +30,11 @@ export default async function TournamentDetailsPage({ params }: { params: Promis
                     <TournamentEditForm />
                     <TournamentNavigation tournamentId={tournament.id} />
                     <div className="border border-secondary border-solid w-full min-h-max">
-                        <ParticipantsSection tId={tournament.id} participants={participants} />
+                        <ParticipantsSection
+                            tId={tournament.id}
+                            participants={participants}
+                            championshipDay={championshipDay}
+                        />
                     </div>
                 </ErrorContextProvider>
             </TournamentEditContextProvider>

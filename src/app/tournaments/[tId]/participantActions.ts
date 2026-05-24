@@ -1,5 +1,6 @@
 "use server"
 
+import { participantProfileFromFormData } from "@/lib/participantProfileFields"
 import { participantProfileSchema } from "@/lib/participantProfileSchema"
 import { prismaOrThrow } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
@@ -35,14 +36,9 @@ export async function addParticipant(initialState: AddParticipantState, fd: Form
     const checkedIn = checkedInValue === 'true'
 
     const fdConstructed = {
-        tournamentId: fd.get('tId'),
-        name: fd.get('name'),
-        membershipNo: fd.get('membershipNo'),
-        genderGroup: fd.get('genderGroup'),
-        ageGroupId: fd.get('ageGroupId'),
-        categoryId: fd.get('categoryId'),
-        club: fd.get('club'),
-        checkedIn
+        tournamentId: fd.get("tId"),
+        ...participantProfileFromFormData(fd),
+        checkedIn,
     }
 
     const participant = zu.partialSafeParse(participantSubmitSchema, fdConstructed)

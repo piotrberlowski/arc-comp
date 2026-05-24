@@ -1,17 +1,23 @@
 "use client"
 
 import { type ParticipantModel as Participant } from "@/generated/prisma/models/Participant"
+import type { ChampionshipDayLink } from "@/app/tournaments/tournamentActions"
 import { useState } from "react"
 import AddParticipantForm from "./AddParticipantForm"
+import ChampionshipDayParticipantsNotice from "./ChampionshipDayParticipantsNotice"
 import ParticipantsList from "./ParticipantsList"
 
-interface ParticipantsSectionProps {
+export default function ParticipantsSection({
+    tId,
+    participants,
+    championshipDay = null,
+}: {
     tId: string
     participants: Participant[]
-}
-
-export default function ParticipantsSection({ tId, participants }: ParticipantsSectionProps) {
+    championshipDay?: ChampionshipDayLink | null
+}) {
     const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null)
+    const isChampionshipDay = championshipDay !== null
 
     const handleEditParticipant = (participant: Participant | null) => {
         setEditingParticipant(participant)
@@ -23,18 +29,22 @@ export default function ParticipantsSection({ tId, participants }: ParticipantsS
 
     return (
         <>
-            <AddParticipantForm
-                key={editingParticipant?.id || 'new'}
-                tId={tId}
-                participant={editingParticipant}
-                onCancel={editingParticipant ? handleCancelEdit : undefined}
-            />
+            {isChampionshipDay ? (
+                <ChampionshipDayParticipantsNotice championshipDay={championshipDay} />
+            ) : (
+                <AddParticipantForm
+                    key={editingParticipant?.id || "new"}
+                    tId={tId}
+                    participant={editingParticipant}
+                    onCancel={editingParticipant ? handleCancelEdit : undefined}
+                />
+            )}
             <ParticipantsList
                 participants={participants}
-                onEditParticipant={handleEditParticipant}
+                allowImportAndEdit={!isChampionshipDay}
+                onEditParticipant={isChampionshipDay ? undefined : handleEditParticipant}
                 editingParticipantId={editingParticipant?.id || null}
             />
         </>
     )
 }
-

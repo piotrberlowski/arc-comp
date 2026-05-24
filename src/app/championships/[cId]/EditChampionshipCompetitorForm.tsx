@@ -2,20 +2,30 @@
 
 import ParticipantProfileFields from "@/components/participants/ParticipantProfileFields"
 import useErrorContext from "@/components/errors/ErrorContext"
-import { UserPlusIcon } from "@heroicons/react/24/solid"
+import { PencilIcon } from "@heroicons/react/24/solid"
 import Form from "next/form"
 import { useRouter } from "next/navigation"
 import { useActionState, useEffect, useRef } from "react"
-import { submitRegisterChampionshipCompetitorForm } from "./registerChampionshipCompetitorAction"
-import { initialRegisterChampionshipCompetitorFormState } from "./registerChampionshipCompetitorFormState"
+import { participantProfileFromParticipant } from "@/lib/participantProfileFields"
+import type { ChampionshipRegistrationRow } from "./ChampionshipRosterList"
+import { submitEditChampionshipCompetitorForm } from "./editChampionshipCompetitorAction"
+import { initialEditChampionshipCompetitorFormState } from "./editChampionshipCompetitorFormState"
 import { championshipDetailContentClass } from "./championshipDetailLayout"
 
-export default function RegisterChampionshipCompetitorForm({ championshipId }: { championshipId: string }) {
+export default function EditChampionshipCompetitorForm({
+    championshipId,
+    registration,
+    onClose,
+}: {
+    championshipId: string
+    registration: ChampionshipRegistrationRow
+    onClose: () => void
+}) {
     const router = useRouter()
     const setError = useErrorContext()
     const [formState, formAction, isPending] = useActionState(
-        submitRegisterChampionshipCompetitorForm,
-        initialRegisterChampionshipCompetitorFormState
+        submitEditChampionshipCompetitorForm,
+        initialEditChampionshipCompetitorFormState
     )
     const handledSuccessRef = useRef(false)
     const errors = formState.errors ?? {}
@@ -25,8 +35,9 @@ export default function RegisterChampionshipCompetitorForm({ championshipId }: {
             return
         }
         handledSuccessRef.current = true
+        onClose()
         router.refresh()
-    }, [formState.success, router])
+    }, [formState.success, onClose, router])
 
     useEffect(() => {
         const errorMessages = Object.values(errors)
@@ -35,6 +46,8 @@ export default function RegisterChampionshipCompetitorForm({ championshipId }: {
         }
         setError(errorMessages.join(", "))
     }, [errors, setError])
+
+    const formData = formState.data ?? participantProfileFromParticipant(registration)
 
     return (
         <div className={`card bg-base-300 card-sm shadow-sm ${championshipDetailContentClass}`}>
@@ -46,12 +59,17 @@ export default function RegisterChampionshipCompetitorForm({ championshipId }: {
                     setError(undefined)
                 }}
             >
+                <h3 className="font-medium">Edit competitor #{registration.competitorNumber}</h3>
                 <input type="hidden" name="championshipId" value={championshipId} />
-                <ParticipantProfileFields errors={errors} data={formState.data} />
-                <div className="justify-end card-actions">
-                    <button type="submit" className="btn btn-success" disabled={isPending}>
-                        <UserPlusIcon width={20} />
-                        Register competitor
+                <input type="hidden" name="registrationId" value={registration.id} />
+                <ParticipantProfileFields errors={errors} data={formData} />
+                <div className="justify-end card-actions gap-2">
+                    <button type="button" className="btn btn-ghost" onClick={onClose} disabled={isPending}>
+                        Cancel
+                    </button>
+                    <button type="submit" className="btn btn-primary" disabled={isPending}>
+                        <PencilIcon width={20} />
+                        Save changes
                     </button>
                 </div>
             </Form>

@@ -1,17 +1,10 @@
 "use client"
 
 import MedalIcon from "@/app/tournaments/[tId]/components/MedalIcon"
-import { ParticipantResult } from "@/lib/scoreUtils"
+import { formatParticipantResultDisplay } from "@/lib/scoreUtils"
 import React from "react"
 import { ParticipantResultData, TournamentResultsData } from "../resultsActions"
 import ExportButton from "./components/ExportButton"
-
-function getDisplayValue(result: ParticipantResult): string {
-    if (result.status === 'DNF') return 'DNF'
-    if (result.status === 'DNC') return 'DNC'
-    if (result.shootoff !== null) return `${result.score} (${result.shootoff})`
-    return result.score?.toString() ?? ''
-}
 
 interface TournamentResultsViewProps {
     tournamentData: TournamentResultsData
@@ -67,7 +60,7 @@ const ParticipantRow = ({ participant, place }: { participant: ParticipantResult
             </td>
             <td>
                 <span className={`font-mono text-xs font-semibold ${isSpecial ? 'text-warning' : ''}`}>
-                    {getDisplayValue(participant.result)}
+                    {formatParticipantResultDisplay(participant.result)}
                 </span>
             </td>
         </tr>

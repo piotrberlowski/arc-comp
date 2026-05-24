@@ -31,6 +31,22 @@ export function toScore(score: number, shootoff?: number): number {
     return score
 }
 
+export function formatParticipantResultDisplay(result: ParticipantResult | null): string {
+    if (!result) {
+        return "-"
+    }
+    if (result.status === "DNF") {
+        return "DNF"
+    }
+    if (result.status === "DNC") {
+        return "DNC"
+    }
+    if (result.shootoff !== null) {
+        return `${result.score} (${result.shootoff})`
+    }
+    return result.score?.toString() ?? "-"
+}
+
 export interface TiebreakerCandidate {
     participantId: string
     name: string

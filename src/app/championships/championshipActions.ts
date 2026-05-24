@@ -4,7 +4,15 @@ import { revalidatePath } from "next/cache"
 import { Prisma } from "@/generated/prisma/client"
 import { championshipDayTournamentName, nextChampionshipDayOrder } from "@/lib/championshipDayNaming"
 import { assertChampionshipOrganizerClubs, resolveChampionshipOrganizerClubs } from "@/lib/championshipOrganizerSession"
-import { participantDataFromRegistration, participantUpdateFromRegistration } from "@/lib/championshipEnrollment"
+import {
+    buildEnrollmentByMembership,
+    participantDataFromRegistration,
+    participantUpdateFromRegistration,
+} from "@/lib/championshipEnrollment"
+import {
+    calculateChampionshipCombinedStandings,
+    type ChampionshipCombinedStandings,
+} from "@/lib/championshipCombinedStandings"
 import { prismaOrThrow } from "@/lib/prisma"
 
 export interface ChampionshipCreateInput {
@@ -487,19 +495,13 @@ export async function listChampionshipEnrolledMembershipNos(
     return [...new Set(Object.values(byTournament).flat())]
 }
 
-export async function listChampionshipDayEnrollmentByTournament(
-    championshipId: string,
-    organizerClubs: string[]
+async function listChampionshipDayEnrollmentByTournamentForChampionship(
+    championship: ChampionshipShellRow
 ): Promise<Record<string, string[]> | null> {
-    const championship = await getChampionshipForOrganizer(championshipId, organizerClubs)
-    if (!championship) {
-        return null
-    }
-
     const participants = await prismaOrThrow("list championship day enrollments").participant.findMany({
         where: {
             tournament: {
-                championshipRound: { championshipId },
+                championshipRound: { championshipId: championship.id },
             },
         },
         select: { membershipNo: true, tournamentId: true },
@@ -524,6 +526,97 @@ export async function listChampionshipDayEnrollmentByTournament(
     }
 
     return byTournament
+}
+
+export async function listChampionshipDayEnrollmentByTournament(
+    championshipId: string,
+    organizerClubs: string[]
+): Promise<Record<string, string[]> | null> {
+    const championship = await getChampionshipForOrganizer(championshipId, organizerClubs)
+    if (!championship) {
+        return null
+    }
+
+    return listChampionshipDayEnrollmentByTournamentForChampionship(championship)
+}
+
+async function listChampionshipDayScoresForChampionship(
+    championship: ChampionshipShellRow
+): Promise<{ tournamentId: string; membershipNo: string; rawScore: number | null }[] | null> {
+    const tournamentIds = championship.rounds.map((round) => round.tournamentId)
+    if (tournamentIds.length === 0) {
+        return []
+    }
+
+    const participants = await prismaOrThrow("list championship day scores").participant.findMany({
+        where: { tournamentId: { in: tournamentIds } },
+        select: {
+            membershipNo: true,
+            tournamentId: true,
+            participantScore: { select: { score: true } },
+        },
+    }).catch((error) => {
+        logAndReturnNull("Failed to list championship day scores", error)
+        return null
+    })
+
+    if (!participants) {
+        return null
+    }
+
+    return participants.map((participant) => ({
+        tournamentId: participant.tournamentId,
+        membershipNo: participant.membershipNo,
+        rawScore: participant.participantScore
+            ? Number(participant.participantScore.score)
+            : null,
+    }))
+}
+
+export async function getChampionshipCombinedStandings(
+    championshipId: string,
+    organizerClubs: string[]
+): Promise<ChampionshipCombinedStandings | null> {
+    const championship = await getChampionshipForOrganizer(championshipId, organizerClubs)
+    if (!championship) {
+        return null
+    }
+
+    const [enrollmentByTournament, scores] = await Promise.all([
+        listChampionshipDayEnrollmentByTournamentForChampionship(championship),
+        listChampionshipDayScoresForChampionship(championship),
+    ])
+
+    if (!enrollmentByTournament || !scores) {
+        return null
+    }
+
+    const days = championship.rounds.map((round) => ({
+        dayOrder: round.dayOrder,
+        tournamentId: round.tournamentId,
+        label: round.tournament.name,
+    }))
+
+    const registrations = championship.registrations.map((registration) => ({
+        membershipNo: registration.membershipNo,
+        competitorNumber: registration.competitorNumber,
+        name: registration.name,
+        club: registration.club,
+        ageGroupId: registration.ageGroupId,
+        categoryId: registration.categoryId,
+        genderGroup: registration.genderGroup,
+        ageGroupName: registration.ageGroup.name,
+        categoryName: registration.category.name,
+    }))
+
+    const enrollmentByMembership = buildEnrollmentByMembership(championship.rounds, enrollmentByTournament)
+
+    return calculateChampionshipCombinedStandings(
+        registrations,
+        days,
+        scores,
+        enrollmentByMembership
+    )
 }
 
 async function getWritableChampionshipShell(championshipId: string): Promise<ChampionshipShellRow> {

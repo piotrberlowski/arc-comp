@@ -16,6 +16,7 @@ import {
     unarchiveChampionship,
     unenrollChampionshipCompetitorFromDay,
     updateChampionship,
+    updateChampionshipRegistration,
 } from "../championshipActions"
 
 jest.mock("next/cache", () => ({
@@ -575,6 +576,75 @@ describe("unenrollChampionshipCompetitorFromDay", () => {
         await expect(unenrollChampionshipCompetitorFromDay("champ-1", 1, "M-001")).rejects.toThrow(
             "Competitor is not enrolled on this day"
         )
+    })
+})
+
+describe("updateChampionshipRegistration", () => {
+    beforeEach(() => {
+        prismaMock.championship.findFirst.mockResolvedValue(writableChampionshipShell as never)
+        prismaMock.championshipRegistration.findFirst.mockResolvedValue({
+            id: "reg-1",
+            membershipNo: "M-001",
+            competitorNumber: 1,
+        } as never)
+        prismaMock.$transaction.mockImplementation((callback) =>
+            typeof callback === "function" ? callback(prismaMock) : Promise.resolve(callback)
+        )
+        prismaMock.championshipRegistration.update.mockResolvedValue({ id: "reg-1" } as never)
+        prismaMock.participant.updateMany.mockResolvedValue({ count: 2 } as never)
+    })
+
+    it("updates registration and syncs enrolled day participants", async () => {
+        await expect(
+            updateChampionshipRegistration("champ-1", "reg-1", {
+                name: "Alex Updated",
+                membershipNo: "M-001",
+                ageGroupId: "age-2",
+                categoryId: "cat-2",
+                club: "Club B",
+                genderGroup: "F",
+            })
+        ).resolves.toBeUndefined()
+
+        expect(prismaMock.championshipRegistration.update).toHaveBeenCalledWith({
+            where: { id: "reg-1" },
+            data: {
+                name: "Alex Updated",
+                membershipNo: "M-001",
+                ageGroupId: "age-2",
+                categoryId: "cat-2",
+                club: "Club B",
+                genderGroup: "F",
+            },
+        })
+        expect(prismaMock.participant.updateMany).toHaveBeenCalledWith({
+            where: {
+                membershipNo: "M-001",
+                tournament: {
+                    championshipRound: { championshipId: "champ-1" },
+                },
+            },
+            data: expect.objectContaining({
+                name: "Alex Updated",
+                membershipNo: "M-001",
+                competitorNumber: 1,
+            }),
+        })
+    })
+
+    it("throws when registration is not found", async () => {
+        prismaMock.championshipRegistration.findFirst.mockResolvedValue(null)
+
+        await expect(
+            updateChampionshipRegistration("champ-1", "reg-missing", {
+                name: "Alex Updated",
+                membershipNo: "M-001",
+                ageGroupId: "age-2",
+                categoryId: "cat-2",
+                club: "Club B",
+                genderGroup: "F",
+            })
+        ).rejects.toThrow("Registration not found")
     })
 })
 

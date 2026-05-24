@@ -34,7 +34,7 @@ exactly as today, for any tournament with no `ChampionshipRound` link.
 
 Championship features are **additive** (new routes, actions, and filters). Changes to shared tournament code (participants, groups, scores) must preserve standalone behavior; championship-only logic branches on “is this tournament a championship day?” and must not alter the standalone code path.
 
-Every milestone PR and M13 regression must explicitly verify this invariant.
+Every milestone PR and M14 regression must explicitly verify this invariant.
 
 ### Access control: Championship Organizer (TO power-up)
 Championship access is **not** a separate role table. It is a **per-club upgrade** on an existing Tournament Organizer (`Organizer`) row.
@@ -64,9 +64,10 @@ Championship access is **not** a separate role table. It is a **per-club upgrade
 - Standalone tournaments are queried through relation-null checks (`championshipRound IS NULL`) instead of scalar `championshipDayId IS NULL`.
 
 ### Behavioral rules
-- Day 1 groups are manual.
-- Day 2+ groups are auto-seeded from combined standings using adjacent blocks:
+- Day 1 groups are manual (subject to shooting range rules — M10).
+- Day 2+ groups are auto-seeded from combined standings using adjacent blocks (M11):
   - example (`groupSize=4`): `1-4`, `5-8`, `9-12`.
+  - seeding **must respect ranges** (M10): one range per division, championship cross-day range guard.
 - Tail handling:
   - rebalance tail blocks to maximize full groups,
   - if still impossible, allow a smaller final group (example: `1-4`, `5-7`).
@@ -92,7 +93,7 @@ Organizers must be able to run a multi-day event end-to-end in the app without m
 3. **Register championship competitors** — add rows to `ChampionshipRegistration` with the full participant profile (same fields as a day `Participant` except day-specific check-in) plus system-assigned `competitorNumber`.
 4. **Enroll into days** — for a selected day, create `Participant` rows on that day’s tournament by copying from `ChampionshipRegistration` (no second data-entry step).
 5. **Run each day** — from the championship detail, open the existing tournament flows for that day: participants, **groups** (`/tournaments/[tId]/groups`), **scores** (`/tournaments/[tId]/scores`). No duplicate group/score UIs under `/championships`.
-6. **Later milestones** — combined standings, day 2+ auto-seed, late join/drop, optional public results (M9–M12).
+6. **Later milestones** — combined standings, multiple shooting ranges, day 2+ auto-seed, late join/drop, optional public results (M9–M13).
 
 Day execution deliberately reuses the standalone tournament engine; the championship layer orchestrates identity, enrollment, and cross-day logic.
 
@@ -114,10 +115,28 @@ These are **different fields**; do not conflate them.
   - `Participant.name`, `ageGroupId`, `categoryId`, `club`, `genderGroup` ← registration
   - `Participant.membershipNo` ← `ChampionshipRegistration.membershipNo`
   - `Participant.competitorNumber` ← `ChampionshipRegistration.competitorNumber`
-- Profile edits at championship level update `ChampionshipRegistration`; re-enroll or sync rules for already-enrolled days are documented in the runbook (M13).
+- Profile edits at championship level update `ChampionshipRegistration`; re-enroll or sync rules for already-enrolled days are documented in the runbook (M14).
 - One `Participant` per `(tournamentId, membershipNo)` per day; re-enroll on the same day is an update, not a duplicate.
-- Enrolling on day `N` without prior day rows does not auto-create participants on earlier days (late join / DNC backfill remains M11).
+- Enrolling on day `N` without prior day rows does not auto-create participants on earlier days (late join / DNC backfill remains M12).
 - Unenroll from a day: remove `Participant` (and dependent group/score rows per existing tournament delete rules) without removing `ChampionshipRegistration`.
+
+### Shooting ranges (tournament engine — M10)
+Applies to **standalone tournaments and championship day tournaments** (same `Tournament` model).
+
+| Term | Meaning |
+|------|---------|
+| **Range** | Physical shooting range at the venue (`rangeNumber` 1…`rangeCount`). Default **1** range (today’s behavior). Optional display names are a later enhancement. |
+| **Target group** | Existing `groupNumber` 1…`endCount` — groups **per range**, each with up to `groupSize` archers. |
+
+- **`Tournament.rangeCount`** (default `1`). Set at create (My Tournaments and add championship day), same as `endCount` / `groupSize`.
+- **`GroupAssignment.rangeNumber`** (default `1`) plus existing `groupNumber`.
+- **Division cohesion:** all archers in the same division (`equipment category` + `age group` + `gender`) must be assigned on the **same range**. They may occupy multiple target groups on that range. **Multiple divisions may share one range.**
+- **Score entry — by group:** organizer selects **range**, then **target group**; only participants in that slot.
+- **Score entry — by category**, **combined standings**, **public results**, **IFAF export:** ranges are **ignored** (end-of-day scores only; export unchanged).
+- **Championship day 2+:** an archer (`membershipNo`) must not be assigned to a range they already shot on an **earlier** day of the same championship. Day 1 has no cross-day range rule.
+- **Auto-seed (M11):** must respect ranges — seed into target groups **within** the range placement rules for each division; never assign a division across ranges or violate the championship cross-day range guard.
+
+Migration: existing tournaments and assignments behave as **single range** (`rangeCount = 1`, `rangeNumber = 1`).
 
 ## Alternatives considered
 
@@ -163,9 +182,9 @@ These are **different fields**; do not conflate them.
 
 Each milestone after M4 delivers **incremental organizer-facing functionality** verifiable through the UI (no “engine-only” or read-only slices). Server actions may land in the same PR as their milestone UI or in M2 when already present.
 
-**Versioning:** bump the **patch** version in `package.json` (semver `MAJOR.MINOR.PATCH`) in the same PR that delivers each milestone (M1–M13). Example: after M5 ships, `1.4.0` → `1.4.1`.
+**Versioning:** bump the **patch** version in `package.json` (semver `MAJOR.MINOR.PATCH`) in the same PR that delivers each milestone (M1–M14). Example: after M5 ships, `1.4.0` → `1.4.1`.
 
-**Every milestone (M1–M13)** must leave the standalone tournament invariant true; championship work must not be merged if My Tournaments create/manage/regress fails.
+**Every milestone (M1–M14)** must leave the standalone tournament invariant true; championship work must not be merged if My Tournaments create/manage/regress fails.
 
 M1–M5 are delivered in code (including Championship Organizer power-up on `Organizer.canManageChampionships`).
 
@@ -181,7 +200,7 @@ M1–M5 are delivered in code (including Championship Organizer power-up on `Org
 - Championship CRUD + day attach/detach actions (`dayOrder` set at create; no reorder).
 - `registerChampionshipParticipant` (championship roster).
 - Enforce transactional integrity on `ChampionshipRound` creation/removal with linked tournament references.
-- Additional actions (day enrollment, combined standings, auto-seed, late join) ship with their UI milestone (M8, M9, M10, M11).
+- Additional actions (day enrollment, combined standings, ranges, auto-seed, late join) ship with their UI milestone (M8, M9, M10, M11, M12).
 
 ### M3 — Standalone tournament list guardrail ✓
 - Default tournament list queries use `championshipRound IS NULL` (`standaloneTournamentWhere` in `listTournamentsForClubs` and results browse).
@@ -232,25 +251,34 @@ M1–M5 are delivered in code (including Championship Organizer power-up on `Org
 - Championship detail section: combined standings table (updates as day scores are entered).
 - **UI test:** two days with enrolled competitors and scores → combined standings on championship detail match manual calculation.
 
-### M10 — Day 2+ auto-seed
+### M10 — Multiple shooting ranges (standalone + championship days)
+- Schema: `Tournament.rangeCount` (default `1`); `GroupAssignment.rangeNumber` (default `1`).
+- Create tournament (standalone and add championship day): organizer specifies **number of ranges** (default 1); existing `endCount` = target groups **per range**, `groupSize` unchanged.
+- Group assignment UI (`/tournaments/[tId]/groups`): organize by range → target groups; enforce **division cohesion** (whole division on one range; multiple divisions may share a range).
+- Score entry: **by group** requires range + group; **by category** unchanged (ranges ignored).
+- Championship **day 2+:** block assigning an archer to a range already used on a prior day (`membershipNo` across days).
+- **UI test:** create tournament with 2 ranges → assign two divisions on range 1 → score entry by group is per range → category totals unchanged → championship day 2 blocks repeat range for same archer.
+
+### M11 — Day 2+ auto-seed
 - Auto-seed from combined standings (adjacent blocks + tail rebalance).
+- **Must respect ranges (M10):** place divisions and seed blocks on a single range per division; honor championship cross-day range guard.
 - Organizer control on championship detail or day tournament: run auto-seed for a day before/at group setup.
 - Post-seed editing remains in existing `/tournaments/[tId]/groups` UI.
-- **UI test:** enter day 1 scores → run auto-seed for day 2 → open day 2 groups → groups match seed rules → manual edit persists until re-seed.
+- **UI test:** enter day 1 scores → run auto-seed for day 2 → open day 2 groups → groups match seed rules and range rules → manual edit persists until re-seed.
 
-### M11 — Late join and drop
+### M12 — Late join and drop
 - Late join: register at championship level if needed, enroll on day `N`, prior-day DNC backfill for days `< N`.
 - Drop: unenroll or mark inactive on later days; bulk DNC on remaining days (no automatic DNC on drop alone).
 - **UI test:** late join on day 2 → prior day shows DNC → drop with bulk DNC on day 3+ only when action run.
 
-### M12 — Public championship results (optional)
+### M13 — Public championship results (optional)
 - Public results route composing per-day and combined views.
 - Existing per-tournament publish/share unchanged.
 - **UI test:** publish/share championship results URL → spectator sees per-day and combined tables.
 
-### M13 — Hardening and runbook
-- Integration/regression coverage for M4–M12 paths.
-- Runbook + local dev seed (sample championship with days, roster, enrollments) so milestones are testable without manual SQL.
+### M14 — Hardening and runbook
+- Integration/regression coverage for M4–M13 paths.
+- Runbook + local dev seed (sample championship with days, roster, enrollments, multi-range day) so milestones are testable without manual SQL.
 - **Mandatory regression suite:** full standalone path (create tournament → participants → groups → scores → publish/results) with no championship involvement.
 
 ## Test and acceptance criteria
@@ -267,10 +295,11 @@ M1–M5 are delivered in code (including Championship Organizer power-up on `Org
 - **M7:** register championship roster with full profile and stable competitor numbers.
 - **M8:** enroll/unenroll on days; day `Participant` has registration `membershipNo` and registration `competitorNumber` (distinct fields).
 - **M9:** combined standings on championship detail match manual totals across days.
-- **M10:** day 2+ auto-seed produces correct groups; manual override in tournament groups UI works.
-- **M11:** late join backfills DNC; drop does not auto-DNC; bulk DNC action works.
-- **M12:** public championship results page shows per-day and combined views.
-- **M13:** runbook seed reproduces M4–M8 smoke path; documented standalone regression checklist passes.
+- **M10:** multiple ranges on create; division cohesion on assign; group scoring by range; championship day 2+ range guard.
+- **M11:** day 2+ auto-seed produces correct groups **within range rules**; manual override in tournament groups UI works.
+- **M12:** late join backfills DNC; drop does not auto-DNC; bulk DNC action works.
+- **M13:** public championship results page shows per-day and combined views.
+- **M14:** runbook seed reproduces M4–M9 smoke path; documented standalone regression checklist passes.
 
 ## Decision diagram
 ```mermaid
@@ -283,6 +312,8 @@ flowchart TD
   dayTournament --> dayScores[ParticipantScore]
   dayScores --> combinedStandings[CombinedStandings]
   combinedStandings --> seedDayN[AutoSeedDayN]
-  seedDayN --> dayGroups[GroupAssignment]
+  dayTournament --> ranges[ShootingRanges_M10]
+  ranges --> dayGroups[GroupAssignment]
+  seedDayN --> dayGroups
   dayGroups --> manualEdits[OrganizerManualEdits]
 ```

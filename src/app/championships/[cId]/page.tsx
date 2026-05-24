@@ -1,25 +1,19 @@
-import UnauthorizedChampionshipOrganizer from "@/components/UnauthorizedChampionshipOrganizer"
-import {
-    getChampionshipOrganizerClubs,
-    hasChampionshipOrganizerAccess,
-} from "@/lib/championshipOrganizerScope"
-import { auth } from "../../auth"
+import { getChampionshipOrganizerClubs } from "@/lib/championshipOrganizerScope"
 import { notFound } from "next/navigation"
+import { auth } from "../../auth"
 import {
     getChampionshipForOrganizer,
     listChampionshipDayEnrollmentByTournament,
 } from "../championshipActions"
-import { competitorsRegisteredLabel } from "../competitorsRegisteredLabel"
+import { buildEnrollmentByMembership } from "@/lib/championshipEnrollment"
 import ChampionshipDaysSection from "./ChampionshipDaysSection"
-import ChampionshipNameEdit from "./ChampionshipNameEdit"
 import ChampionshipRosterSection from "./ChampionshipRosterSection"
 import type { ChampionshipRegistrationRow } from "./ChampionshipRosterList"
 
 export default async function ChampionshipDetailPage({ params }: { params: Promise<{ cId: string }> }) {
     const session = await auth()
-
-    if (!session || !hasChampionshipOrganizerAccess(session.organizerRoles)) {
-        return <UnauthorizedChampionshipOrganizer />
+    if (!session) {
+        notFound()
     }
 
     const { cId } = await params
@@ -38,13 +32,7 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
         label: round.tournament.name,
     }))
 
-    const enrollmentByMembership: Record<string, number[]> = {}
-    for (const round of championship.rounds) {
-        for (const membershipNo of enrollmentByTournament[round.tournamentId] ?? []) {
-            enrollmentByMembership[membershipNo] ??= []
-            enrollmentByMembership[membershipNo].push(round.dayOrder)
-        }
-    }
+    const enrollmentByMembership = buildEnrollmentByMembership(championship.rounds, enrollmentByTournament)
 
     const rounds = championship.rounds.map((round) => ({
         id: round.id,
@@ -70,23 +58,7 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
     }))
 
     return (
-        <div className="w-full p-4">
-            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-6">
-                <ChampionshipNameEdit
-                    championshipId={championship.id}
-                    initialName={championship.name}
-                    readOnly={championship.isArchive}
-                />
-                <div className="flex flex-wrap gap-2">
-                    {championship.isArchive ? (
-                        <span className="badge badge-lg badge-warning">Archived</span>
-                    ) : null}
-                    <span className="badge badge-lg badge-info badge-outline">{championship.organizerClub}</span>
-                </div>
-            </div>
-            <p className="text-sm text-base-content/70 mb-2">
-                {competitorsRegisteredLabel(championship._count.registrations)}.
-            </p>
+        <div className="p-4 space-y-8">
             <ChampionshipDaysSection
                 championshipId={championship.id}
                 championshipName={championship.name}

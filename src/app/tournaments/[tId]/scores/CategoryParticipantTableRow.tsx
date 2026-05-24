@@ -2,6 +2,7 @@
 
 import MedalIcon from "../components/MedalIcon"
 import ScoreInput from "../components/ScoreInput"
+import { formatParticipantResultDisplay } from "@/lib/scoreUtils"
 import { ParticipantWithResult } from "../scoreActions"
 
 export interface ParticipantWithPlace extends ParticipantWithResult {
@@ -10,14 +11,6 @@ export interface ParticipantWithPlace extends ParticipantWithResult {
     category: string
     categoryComplete: boolean
     hasUnresolvedTie: boolean
-}
-
-function getDisplayValue(result: ParticipantWithResult["result"]): string {
-    if (!result) return "-"
-    if (result.status === "DNF") return "DNF"
-    if (result.status === "DNC") return "DNC"
-    if (result.shootoff !== null) return `${result.score} (${result.shootoff})`
-    return result.score?.toString() ?? ""
 }
 
 export default function CategoryParticipantTableRow({ participant }: { participant: ParticipantWithPlace }) {
@@ -49,7 +42,7 @@ export default function CategoryParticipantTableRow({ participant }: { participa
                 <span className="text-sm">{participant.club || "Independent"}</span>
             </td>
             <td className="hidden md:table-cell">
-                <span className="font-mono text-sm">{getDisplayValue(participant.result)}</span>
+                <span className="font-mono text-sm">{formatParticipantResultDisplay(participant.result)}</span>
             </td>
             <td>
                 <ScoreInput participantId={participant.id} currentResult={participant.result} />

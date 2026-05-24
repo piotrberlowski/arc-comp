@@ -32,3 +32,19 @@ export function participantUpdateFromRegistration(registration: ChampionshipRegi
         genderGroup: registration.genderGroup as GenderGroup,
     }
 }
+
+export function buildEnrollmentByMembership(
+    rounds: { tournamentId: string; dayOrder: number }[],
+    enrollmentByTournament: Record<string, string[]>
+): Record<string, number[]> {
+    const enrollmentByMembership: Record<string, number[]> = {}
+
+    for (const round of rounds) {
+        for (const membershipNo of enrollmentByTournament[round.tournamentId] ?? []) {
+            enrollmentByMembership[membershipNo] ??= []
+            enrollmentByMembership[membershipNo].push(round.dayOrder)
+        }
+    }
+
+    return enrollmentByMembership
+}

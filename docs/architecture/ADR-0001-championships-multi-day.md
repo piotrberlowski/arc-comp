@@ -227,7 +227,7 @@ M1–M5 are delivered in code (including Championship Organizer power-up on `Org
 - **Championship bib:** `competitorNumber` on `ChampionshipRegistration`, assigned at roster registration (`max + 1` within the championship), immutable, copied to each enrolled day’s `Participant`.
 - **Display name** in combined views: `ChampionshipRegistration.name` (source of truth at registration); enrolled day `Participant.name` is a copy at enroll time.
 
-### M9 — Combined standings (organizer view)
+### M9 — Combined standings (organizer view) ✓
 - Combined standings library and actions (sum raw scores, current tie semantics; `membershipNo` identity).
 - Championship detail section: combined standings table (updates as day scores are entered).
 - **UI test:** two days with enrolled competitors and scores → combined standings on championship detail match manual calculation.

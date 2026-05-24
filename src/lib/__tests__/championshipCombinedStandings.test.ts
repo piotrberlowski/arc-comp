@@ -1,8 +1,6 @@
 import {
-    buildCombinedStandingsRows,
-    compareCombinedStandingsRows,
-    formatCombinedTotal,
-    groupCombinedStandingsByCategory,
+    calculateChampionshipCombinedStandings,
+    championshipCategoryKey,
 } from "@/lib/championshipCombinedStandings"
 import { SCORE_DNC, toScore } from "@/lib/scoreUtils"
 
@@ -42,29 +40,31 @@ describe("championshipCombinedStandings", () => {
         "M-002": [1, 2],
     }
 
+    function calculate(
+        scores: { tournamentId: string; membershipNo: string; rawScore: number | null }[],
+        enrollment = enrollmentByMembership
+    ) {
+        return calculateChampionshipCombinedStandings(registrations, days, scores, enrollment)
+    }
+
     it("sums completed day scores across enrolled days", () => {
-        const rows = buildCombinedStandingsRows(
-            registrations,
-            days,
-            [
-                { tournamentId: "t1", membershipNo: "M-001", rawScore: 290 },
-                { tournamentId: "t2", membershipNo: "M-001", rawScore: 295 },
-                { tournamentId: "t1", membershipNo: "M-002", rawScore: 280 },
-                { tournamentId: "t2", membershipNo: "M-002", rawScore: 285 },
-            ],
-            enrollmentByMembership
-        )
+        const standings = calculate([
+            { tournamentId: "t1", membershipNo: "M-001", rawScore: 290 },
+            { tournamentId: "t2", membershipNo: "M-001", rawScore: 295 },
+            { tournamentId: "t1", membershipNo: "M-002", rawScore: 280 },
+            { tournamentId: "t2", membershipNo: "M-002", rawScore: 285 },
+        ])
 
-        const alex = rows.find((row) => row.membershipNo === "M-001")
-        const blair = rows.find((row) => row.membershipNo === "M-002")
+        const competitors = standings?.complete[0]?.competitors ?? []
+        const alex = competitors.find((entry) => entry.membershipNo === "M-001")
+        const blair = competitors.find((entry) => entry.membershipNo === "M-002")
 
-        expect(alex?.total).toBe(585)
-        expect(blair?.total).toBe(565)
-        expect(alex?.isComplete).toBe(true)
+        expect(alex?.totalLabel).toBe("585")
+        expect(blair?.totalLabel).toBe("565")
     })
 
     it("includes shootoff decimals in the total", () => {
-        const rows = buildCombinedStandingsRows(
+        const standings = calculateChampionshipCombinedStandings(
             [registrations[0]],
             days,
             [
@@ -74,11 +74,11 @@ describe("championshipCombinedStandings", () => {
             enrollmentByMembership
         )
 
-        expect(rows[0]?.total).toBeCloseTo(290.5 + 295, 5)
+        expect(standings?.complete[0]?.competitors[0]?.totalLabel).toBe("585.5")
     })
 
     it("does not add DNC to the combined total", () => {
-        const rows = buildCombinedStandingsRows(
+        const standings = calculateChampionshipCombinedStandings(
             [registrations[0]],
             days,
             [
@@ -88,55 +88,56 @@ describe("championshipCombinedStandings", () => {
             enrollmentByMembership
         )
 
-        expect(rows[0]?.total).toBe(295)
-        expect(rows[0]?.isComplete).toBe(true)
+        expect(standings?.complete[0]?.competitors[0]?.totalLabel).toBe("295")
     })
 
-    it("marks not enrolled days and pending scores", () => {
-        const rows = buildCombinedStandingsRows(
+    it("labels not enrolled and pending days", () => {
+        const standings = calculateChampionshipCombinedStandings(
             [registrations[0]],
             days,
             [{ tournamentId: "t1", membershipNo: "M-001", rawScore: 290 }],
             { "M-001": [1] }
         )
 
-        expect(rows[0]?.dayScores[1]).toEqual({
-            kind: "scored",
-            rawScore: 290,
-            result: { status: "COMPLETED", score: 290, shootoff: null },
-        })
-        expect(rows[0]?.dayScores[2]).toEqual({ kind: "not_enrolled" })
-        expect(rows[0]?.isComplete).toBe(true)
+        const labels = standings?.complete[0]?.competitors[0]?.dayScoreLabels ?? []
+        expect(labels[0]).toBe("290")
+        expect(labels[1]).toBe("")
     })
 
-    it("sorts complete rows by total then name", () => {
-        const rows = buildCombinedStandingsRows(
-            registrations,
-            days,
-            [
-                { tournamentId: "t1", membershipNo: "M-001", rawScore: 290 },
-                { tournamentId: "t2", membershipNo: "M-001", rawScore: 295 },
-                { tournamentId: "t1", membershipNo: "M-002", rawScore: 280 },
-                { tournamentId: "t2", membershipNo: "M-002", rawScore: 285 },
-            ],
-            enrollmentByMembership
-        )
+    it("sorts complete competitors by total then name", () => {
+        const standings = calculate([
+            { tournamentId: "t1", membershipNo: "M-001", rawScore: 290 },
+            { tournamentId: "t2", membershipNo: "M-001", rawScore: 295 },
+            { tournamentId: "t1", membershipNo: "M-002", rawScore: 280 },
+            { tournamentId: "t2", membershipNo: "M-002", rawScore: 285 },
+        ])
 
-        const sorted = [...rows].sort(compareCombinedStandingsRows)
-        expect(sorted.map((row) => row.membershipNo)).toEqual(["M-001", "M-002"])
+        expect(standings?.complete[0]?.competitors.map((entry) => entry.membershipNo)).toEqual([
+            "M-001",
+            "M-002",
+        ])
     })
 
-    it("groups rows by category", () => {
-        const categories = groupCombinedStandingsByCategory(
-            buildCombinedStandingsRows(registrations, days, [], enrollmentByMembership)
-        )
+    it("groups competitors by category", () => {
+        const standings = calculate([])
 
-        expect(categories).toHaveLength(1)
-        expect(categories[0]?.rows).toHaveLength(2)
+        expect(standings?.inProgress).toHaveLength(1)
+        expect(standings?.inProgress[0]?.competitors).toHaveLength(2)
     })
 
-    it("formats totals without trailing zeros", () => {
-        expect(formatCombinedTotal(585)).toBe("585")
-        expect(formatCombinedTotal(585.5)).toBe("585.5")
+    it("builds category keys", () => {
+        expect(championshipCategoryKey("age-1", "M", "cat-1")).toBe("age-1Mcat-1")
+    })
+
+    it("assigns places only when category scoring is complete", () => {
+        const standings = calculate([
+            { tournamentId: "t1", membershipNo: "M-001", rawScore: 290 },
+            { tournamentId: "t2", membershipNo: "M-001", rawScore: 295 },
+            { tournamentId: "t1", membershipNo: "M-002", rawScore: 280 },
+            { tournamentId: "t2", membershipNo: "M-002", rawScore: 285 },
+        ])
+
+        expect(standings?.complete[0]?.competitors[0]?.place).toBe(1)
+        expect(standings?.inProgress).toHaveLength(0)
     })
 })

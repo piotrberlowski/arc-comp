@@ -5,10 +5,15 @@ import {
 } from "@/lib/championshipOrganizerScope"
 import { auth } from "../../auth"
 import { notFound } from "next/navigation"
-import { getChampionshipForOrganizer } from "../championshipActions"
+import {
+    getChampionshipForOrganizer,
+    listChampionshipEnrolledMembershipNos,
+} from "../championshipActions"
 import { competitorsRegisteredLabel } from "../competitorsRegisteredLabel"
 import ChampionshipDaysSection from "./ChampionshipDaysSection"
 import ChampionshipNameEdit from "./ChampionshipNameEdit"
+import ChampionshipRosterSection from "./ChampionshipRosterSection"
+import type { ChampionshipRegistrationRow } from "./ChampionshipRosterList"
 
 export default async function ChampionshipDetailPage({ params }: { params: Promise<{ cId: string }> }) {
     const session = await auth()
@@ -25,6 +30,9 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
         notFound()
     }
 
+    const enrolledMembershipNos = await listChampionshipEnrolledMembershipNos(cId, clubs)
+    const enrolledSet = new Set(enrolledMembershipNos ?? [])
+
     const rounds = championship.rounds.map((round) => ({
         id: round.id,
         dayOrder: round.dayOrder,
@@ -34,11 +42,31 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
         canRemove: round.tournament._count.participantScores === 0,
     }))
 
+    const registrations: ChampionshipRegistrationRow[] = championship.registrations.map((registration) => ({
+        id: registration.id,
+        name: registration.name,
+        membershipNo: registration.membershipNo,
+        competitorNumber: registration.competitorNumber,
+        ageGroupName: registration.ageGroup.name,
+        categoryName: registration.category.name,
+        club: registration.club,
+        canRemove: !enrolledSet.has(registration.membershipNo),
+    }))
+
     return (
         <div className="w-full p-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2 mb-6">
-                <ChampionshipNameEdit championshipId={championship.id} initialName={championship.name} />
-                <span className="badge badge-lg badge-info badge-outline">{championship.organizerClub}</span>
+                <ChampionshipNameEdit
+                    championshipId={championship.id}
+                    initialName={championship.name}
+                    readOnly={championship.isArchive}
+                />
+                <div className="flex flex-wrap gap-2">
+                    {championship.isArchive ? (
+                        <span className="badge badge-lg badge-warning">Archived</span>
+                    ) : null}
+                    <span className="badge badge-lg badge-info badge-outline">{championship.organizerClub}</span>
+                </div>
             </div>
             <p className="text-sm text-base-content/70 mb-2">
                 {competitorsRegisteredLabel(championship._count.registrations)}.
@@ -48,6 +76,12 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
                 championshipName={championship.name}
                 organizerClub={championship.organizerClub}
                 rounds={rounds}
+                readOnly={championship.isArchive}
+            />
+            <ChampionshipRosterSection
+                championshipId={championship.id}
+                registrations={registrations}
+                readOnly={championship.isArchive}
             />
         </div>
     )

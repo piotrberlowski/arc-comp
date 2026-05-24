@@ -61,7 +61,7 @@ export default function AddParticipantForm({ tId, participant, onCancel }: AddPa
                 <div className="flex-1 flex gap-1 flex-wrap items-stretch">
                     <input type="text" name="name" className={`sm:w-2/5 input input-xs md:input-sm flex-grow ${formState.errors?.name ? 'input-error' : 'input-secondary'}`} placeholder="Archer's Name" defaultValue={defaultName} />
                     <input type="text" name="membershipNo" className={`w-fit input input-xs md:input-sm flex-grow ${formState.errors?.membershipNo ? 'input-error' : 'input-secondary'}`} placeholder="Membership No." defaultValue={defaultMembershipNo} />
-                    <input type="text" name="club" className="sm:w-2/5 input input-xs md:input-sm input-secondary flex-grow" placeholder="Archer's Club" defaultValue={defaultClub} />
+                    <input type="text" name="club" className={`sm:w-2/5 input input-xs md:input-sm flex-grow ${formState.errors?.club ? 'input-error' : 'input-secondary'}`} placeholder="Archer's Club" defaultValue={defaultClub} required />
                     <AgeDivisionSelect name="ageGroupId" className="min-w-fit select select-xs md:select-sm select-secondary w-2/5 md:w-1/3 flex-1" defaultValue={defaultAgeGroupId} />
                     <GenderSelect name="genderGroup" className="min-w-fit select select-xs md:select-sm select-secondary w-2/5 md:w-1/3 flex-1" defaultValue={defaultGenderGroup} />
                     <EquipmentCategorySelect name="categoryId" className="min-w-fit select select-xs md:select-sm select-secondary md:w-1/3 flex-1 " defaultValue={defaultCategoryId} />

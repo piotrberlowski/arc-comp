@@ -1,5 +1,6 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { Prisma } from "@/generated/prisma/client"
 import { championshipDayTournamentName, nextChampionshipDayOrder } from "@/lib/championshipDayNaming"
 import { assertChampionshipOrganizerClubs, resolveChampionshipOrganizerClubs } from "@/lib/championshipOrganizerSession"
@@ -50,7 +51,12 @@ async function syncDayTournamentNamesForChampionship(
 
 export interface RegisterChampionshipParticipantInput {
     championshipId: string
+    name: string
     membershipNo: string
+    ageGroupId: string
+    categoryId: string
+    club: string
+    genderGroup: "F" | "M"
 }
 
 function isUniqueError(error: unknown): boolean {
@@ -80,6 +86,13 @@ const championshipShellInclude = {
             },
         },
         orderBy: { dayOrder: "asc" as const },
+    },
+    registrations: {
+        orderBy: { competitorNumber: "asc" as const },
+        include: {
+            ageGroup: true,
+            category: true,
+        },
     },
     _count: {
         select: { registrations: true },
@@ -127,6 +140,10 @@ export async function updateChampionship(championshipId: string, input: Champion
         throw new Error("Unauthorized")
     }
 
+    if (existing.isArchive) {
+        throw new Error("Championship is archived")
+    }
+
     if (input.name === undefined) {
         return prismaOrThrow("update championship").championship.update({
             where: { id: championshipId },
@@ -152,21 +169,27 @@ export async function updateChampionship(championshipId: string, input: Champion
     })
 }
 
-export async function listMyChampionships(): Promise<ChampionshipShellRow[] | null> {
+export async function listMyChampionships(includeArchive = false): Promise<ChampionshipShellRow[] | null> {
     const clubs = await resolveChampionshipOrganizerClubs()
     if (!clubs) {
         return null
     }
 
-    return listMyChampionshipsForClubs(clubs)
+    return listMyChampionshipsForClubs(clubs, includeArchive)
 }
 
-export async function listMyChampionshipsForClubs(clubs: string[]): Promise<ChampionshipShellRow[] | null> {
+export async function listMyChampionshipsForClubs(
+    clubs: string[],
+    includeArchive: boolean
+): Promise<ChampionshipShellRow[] | null> {
+    const isArchive: boolean | undefined = includeArchive ? undefined : false
+
     return prismaOrThrow("list championships").championship.findMany({
         where: {
             organizerClub: {
                 in: clubs,
             },
+            isArchive,
         },
         include: championshipShellInclude,
         orderBy: {
@@ -221,11 +244,26 @@ async function assertChampionshipAccessForId(championshipId: string): Promise<vo
     }
 }
 
+export async function assertChampionshipWritable(championshipId: string): Promise<void> {
+    await assertChampionshipAccessForId(championshipId)
+    const championship = await prismaOrThrow("get championship archive state").championship.findFirst({
+        where: { id: championshipId },
+        select: { isArchive: true },
+    })
+    if (championship?.isArchive) {
+        throw new Error("Championship is archived")
+    }
+}
+
 export async function addChampionshipDay(input: AddChampionshipDayInput) {
     const clubs = await assertChampionshipOrganizerClubs()
     const championship = await getChampionshipForOrganizer(input.championshipId, clubs)
     if (!championship) {
         throw new Error("Unauthorized")
+    }
+
+    if (championship.isArchive) {
+        throw new Error("Championship is archived")
     }
 
     const dayOrder = nextChampionshipDayOrder(championship.rounds)
@@ -303,6 +341,10 @@ export async function removeChampionshipDay(championshipId: string, dayOrder: nu
         throw new Error("Unauthorized")
     }
 
+    if (championship.isArchive) {
+        throw new Error("Championship is archived")
+    }
+
     const round = championship.rounds.find((item) => item.dayOrder === dayOrder)
     if (!round) {
         throw new Error("Championship day not found")
@@ -377,7 +419,7 @@ export async function reorderRounds(championshipId: string, orderedRoundIds: str
 }
 
 export async function registerChampionshipParticipant(input: RegisterChampionshipParticipantInput) {
-    await assertChampionshipAccessForId(input.championshipId)
+    await assertChampionshipWritable(input.championshipId)
 
     const maxRetries = 5
     let attempt = 0
@@ -395,12 +437,20 @@ export async function registerChampionshipParticipant(input: RegisterChampionshi
                 return tx.championshipRegistration.create({
                     data: {
                         championshipId: input.championshipId,
-                        membershipNo: input.membershipNo,
+                        membershipNo: input.membershipNo.trim(),
                         competitorNumber: nextCompetitorNumber,
+                        name: input.name.trim(),
+                        ageGroupId: input.ageGroupId,
+                        categoryId: input.categoryId,
+                        club: input.club.trim(),
+                        genderGroup: input.genderGroup,
                     },
                 })
             }, {
                 isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+            }).then((registration) => {
+                revalidatePath(`/championships/${input.championshipId}`)
+                return registration
             })
         } catch (error) {
             if (!isUniqueError(error)) {
@@ -422,4 +472,89 @@ export async function registerChampionshipParticipant(input: RegisterChampionshi
     }
 
     throw new Error("Unable to register championship participant")
+}
+
+export async function listChampionshipEnrolledMembershipNos(
+    championshipId: string,
+    organizerClubs: string[]
+): Promise<string[] | null> {
+    const championship = await getChampionshipForOrganizer(championshipId, organizerClubs)
+    if (!championship) {
+        return null
+    }
+
+    const participants = await prismaOrThrow("list championship enrolled membership numbers")
+        .participant.findMany({
+            where: {
+                tournament: {
+                    championshipRound: { championshipId },
+                },
+            },
+            select: { membershipNo: true },
+            distinct: ["membershipNo"],
+        })
+        .catch((error) => {
+            logAndReturnNull("Failed to list enrolled competitors", error)
+            return null
+        })
+
+    if (!participants) {
+        return null
+    }
+
+    return participants.map((row) => row.membershipNo)
+}
+
+export async function removeChampionshipRegistration(championshipId: string, registrationId: string) {
+    await assertChampionshipWritable(championshipId)
+
+    const registration = await prismaOrThrow("find championship registration").championshipRegistration.findFirst({
+        where: { id: registrationId, championshipId },
+    })
+
+    if (!registration) {
+        throw new Error("Registration not found")
+    }
+
+    const enrolled = await prismaOrThrow("check championship enrollment").participant.findFirst({
+        where: {
+            membershipNo: registration.membershipNo,
+            tournament: {
+                championshipRound: { championshipId },
+            },
+        },
+        select: { id: true },
+    })
+
+    if (enrolled) {
+        throw new Error("Cannot remove a competitor enrolled on a championship day")
+    }
+
+    await prismaOrThrow("remove championship registration").championshipRegistration.delete({
+        where: { id: registrationId },
+    })
+
+    revalidatePath(`/championships/${championshipId}`)
+}
+
+async function setChampionshipArchiveState(championshipId: string, isArchive: boolean) {
+    await assertChampionshipAccessForId(championshipId)
+
+    const championship = await prismaOrThrow("set championship archive state").championship.update({
+        where: { id: championshipId },
+        data: { isArchive },
+        include: championshipShellInclude,
+    })
+
+    revalidatePath("/championships")
+    revalidatePath(`/championships/${championshipId}`)
+    return championship
+}
+
+export async function archiveChampionship(championshipId: string) {
+    return setChampionshipArchiveState(championshipId, true)
+}
+
+export async function unarchiveChampionship(championshipId: string) {
+    return setChampionshipArchiveState(championshipId, false)
 }

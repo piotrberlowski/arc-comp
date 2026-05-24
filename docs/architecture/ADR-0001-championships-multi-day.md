@@ -56,8 +56,8 @@ Championship access is **not** a separate role table. It is a **per-club upgrade
 - Add `Championship`.
 - Add `ChampionshipRound` with ordered links to `Tournament` (`dayOrder`, `tournamentId`).
 - Use a single canonical relation (`ChampionshipRound.tournamentId -> Tournament.id`) and do not store a backward FK on `Tournament`.
-- Add `ChampionshipRegistration` per competitor in a championship: association `membershipNo` plus system-assigned championship `competitorNumber` (see identity rules below).
-- On each day enroll, copy both onto that day’s `Participant` row (`unique(tournamentId, membershipNo)` and `unique(tournamentId, competitorNumber)`).
+- Add `ChampionshipRegistration` per competitor in a championship: full participant profile (name, age division, equipment category, gender, club, `membershipNo`) plus system-assigned championship `competitorNumber` (see identity rules below).
+- On each day enroll, copy the registration profile onto that day’s `Participant` row (`unique(tournamentId, membershipNo)` and `unique(tournamentId, competitorNumber)`).
 
 ### Modeling note
 - The previous back-reference approach (`Tournament.championshipDayId`) was dropped to avoid dual-source-of-truth synchronization.
@@ -89,8 +89,8 @@ Organizers must be able to run a multi-day event end-to-end in the app without m
 
 1. **Create championship** — name + organizer club (from session roles).
 2. **Configure days** — append championship days in order; each day creates a new `Tournament` and `ChampionshipRound` link; remove a day only when appropriate (detach).
-3. **Register championship competitors** — add rows to `ChampionshipRegistration` (stable `membershipNo`, system-assigned `competitorNumber`).
-4. **Enroll into days** — for a selected day, create `Participant` rows on that day’s tournament for registered competitors (profile fields: entered at enroll or copied from the competitor’s latest participant row in this championship).
+3. **Register championship competitors** — add rows to `ChampionshipRegistration` with the full participant profile (same fields as a day `Participant` except day-specific check-in) plus system-assigned `competitorNumber`.
+4. **Enroll into days** — for a selected day, create `Participant` rows on that day’s tournament by copying from `ChampionshipRegistration` (no second data-entry step).
 5. **Run each day** — from the championship detail, open the existing tournament flows for that day: participants, **groups** (`/tournaments/[tId]/groups`), **scores** (`/tournaments/[tId]/scores`). No duplicate group/score UIs under `/championships`.
 6. **Later milestones** — combined standings, day 2+ auto-seed, late join/drop, optional public results (M9–M12).
 
@@ -110,9 +110,11 @@ These are **different fields**; do not conflate them.
 
 ### Enrollment rules
 - A competitor must be in `ChampionshipRegistration` before enrollment into any day.
-- On enroll, copy from registration to day `Participant`:
+- On enroll, copy from registration to day `Participant` (profile + identity):
+  - `Participant.name`, `ageGroupId`, `categoryId`, `club`, `genderGroup` ← registration
   - `Participant.membershipNo` ← `ChampionshipRegistration.membershipNo`
   - `Participant.competitorNumber` ← `ChampionshipRegistration.competitorNumber`
+- Profile edits at championship level update `ChampionshipRegistration`; re-enroll or sync rules for already-enrolled days are documented in the runbook (M13).
 - One `Participant` per `(tournamentId, membershipNo)` per day; re-enroll on the same day is an update, not a duplicate.
 - Enrolling on day `N` without prior day rows does not auto-create participants on earlier days (late join / DNC backfill remains M11).
 - Unenroll from a day: remove `Participant` (and dependent group/score rows per existing tournament delete rules) without removing `ChampionshipRegistration`.
@@ -135,6 +137,10 @@ These are **different fields**; do not conflate them.
 ## Follow-up PR (championship cleanup)
 - **Remove `reorderRounds`** from `src/app/championships/championshipActions.ts` (shipped in M2, never used by UI or tests).
 - Confirm `addRoundTournament` / day-create flow only assigns the next sequential `dayOrder`.
+
+## Follow-up PR (championship days UX)
+- **Add-day default date:** when opening Add day, pre-fill the date picker with the day after the latest existing day’s `Tournament.date` (not `new Date()` / today). First day may still default to today or another agreed rule.
+- **Day card shows date:** on championship detail, each day card in `ChampionshipRoundsList` should display the linked tournament date (format consistently with `TournamentDayPicker` / elsewhere).
 
 ## Consequences
 
@@ -205,21 +211,21 @@ M1–M5 are delivered in code (including Championship Organizer power-up on `Org
 - Day list shows fixed order, label, tournament name, and links to overview, **groups**, and **scores** for each day.
 - **UI test:** add two days in sequence → day numbers are 1 then 2 → open groups/scores from championship detail → remove a day link (per rules).
 
-### M7 — Championship competitor roster
-- Register competitors (`membershipNo` → system `competitorNumber`); list roster on championship detail.
+### M7 — Championship competitor roster ✓
+- Register competitors with full participant profile (`membershipNo`, name, division, category, gender, club) → system `competitorNumber`; list roster on championship detail.
 - Remove registration only when not enrolled on any day (document cascade in runbook).
-- **UI test:** register two competitors → see assigned competitor numbers → remove one not enrolled on any day.
+- **UI test:** register two competitors with full profiles → see names, numbers, and divisions → remove one not enrolled on any day.
 
 ### M8 — Enroll competitors into days
-- Day enrollment actions: create/update `Participant` on the day tournament from `ChampionshipRegistration` (copy `membershipNo` and `competitorNumber` separately — see identity rules).
-- Per day: show enrolled vs registered-not-enrolled; single/bulk enroll; profile form at enroll or copy from latest in-championship `Participant` for that `membershipNo`.
+- Day enrollment actions: create/update `Participant` on the day tournament by copying all fields from `ChampionshipRegistration` (see enrollment rules).
+- Per day: show enrolled vs registered-not-enrolled; single/bulk enroll (no profile form at enroll unless registration is edited separately).
 - Unenroll from a day without removing championship registration.
 - **UI test:** enroll roster members on day 1 → they appear on that day’s tournament participants → unenroll one → championship registration unchanged.
 
 ### Participant naming policy
 - **Cross-day person key:** `membershipNo` (association ID) — used to aggregate combined standings and find the same archer across championship days.
 - **Championship bib:** `competitorNumber` on `ChampionshipRegistration`, assigned at roster registration (`max + 1` within the championship), immutable, copied to each enrolled day’s `Participant`.
-- **Display name** in combined views: most recent `Participant.name` for that `membershipNo` on any day of this championship (not a snapshot on `ChampionshipRegistration`).
+- **Display name** in combined views: `ChampionshipRegistration.name` (source of truth at registration); enrolled day `Participant.name` is a copy at enroll time.
 
 ### M9 — Combined standings (organizer view)
 - Combined standings library and actions (sum raw scores, current tie semantics; `membershipNo` identity).
@@ -258,7 +264,7 @@ M1–M5 are delivered in code (including Championship Organizer power-up on `Org
 - **M4:** CO power-up enforced on `Organizer`; TO without `canManageChampionships` cannot access `/championships`; TO+CO can browse and open linked day tournaments.
 - **M5:** create and rename championships in UI.
 - **M6:** append days in fixed order, remove day when allowed; jump to groups/scores from championship detail.
-- **M7:** register championship roster with stable competitor numbers.
+- **M7:** register championship roster with full profile and stable competitor numbers.
 - **M8:** enroll/unenroll on days; day `Participant` has registration `membershipNo` and registration `competitorNumber` (distinct fields).
 - **M9:** combined standings on championship detail match manual totals across days.
 - **M10:** day 2+ auto-seed produces correct groups; manual override in tournament groups UI works.

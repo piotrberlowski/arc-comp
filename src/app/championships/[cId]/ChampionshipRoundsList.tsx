@@ -36,13 +36,18 @@ function RemoveDayButton({
     championshipId,
     dayOrder,
     canRemove,
+    readOnly,
 }: {
     championshipId: string
     dayOrder: number
     canRemove: boolean
+    readOnly: boolean
 }) {
     const router = useRouter()
 
+    if (readOnly) {
+        return null
+    }
     if (!canRemove) {
         return <span className="text-xs text-base-content/50">Scores entered — cannot remove</span>
     }
@@ -71,9 +76,11 @@ function RemoveDayButton({
 export default function ChampionshipRoundsList({
     championshipId,
     rounds,
+    readOnly = false,
 }: {
     championshipId: string
     rounds: ChampionshipRoundRow[]
+    readOnly?: boolean
 }) {
     if (rounds.length === 0) {
         return <p className="text-base-content/70">No tournament days linked yet. Add the first day to begin.</p>
@@ -95,6 +102,7 @@ export default function ChampionshipRoundsList({
                                 championshipId={championshipId}
                                 dayOrder={round.dayOrder}
                                 canRemove={round.canRemove}
+                                readOnly={readOnly}
                             />
                         </div>
                         <DayTournamentLinks tournamentId={round.tournamentId} />

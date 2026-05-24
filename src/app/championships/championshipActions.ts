@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { Prisma } from "@/generated/prisma/client"
 import { championshipDayTournamentName, nextChampionshipDayOrder } from "@/lib/championshipDayNaming"
 import { assertChampionshipOrganizerClubs, resolveChampionshipOrganizerClubs } from "@/lib/championshipOrganizerSession"
+import { participantDataFromRegistration, participantUpdateFromRegistration } from "@/lib/championshipEnrollment"
 import { prismaOrThrow } from "@/lib/prisma"
 
 export interface ChampionshipCreateInput {
@@ -245,12 +246,12 @@ async function assertChampionshipAccessForId(championshipId: string): Promise<vo
 }
 
 export async function assertChampionshipWritable(championshipId: string): Promise<void> {
-    await assertChampionshipAccessForId(championshipId)
-    const championship = await prismaOrThrow("get championship archive state").championship.findFirst({
-        where: { id: championshipId },
-        select: { isArchive: true },
-    })
-    if (championship?.isArchive) {
+    const clubs = await assertChampionshipOrganizerClubs()
+    const championship = await getChampionshipForOrganizer(championshipId, clubs)
+    if (!championship) {
+        throw new Error("Unauthorized")
+    }
+    if (championship.isArchive) {
         throw new Error("Championship is archived")
     }
 }
@@ -478,31 +479,209 @@ export async function listChampionshipEnrolledMembershipNos(
     championshipId: string,
     organizerClubs: string[]
 ): Promise<string[] | null> {
+    const byTournament = await listChampionshipDayEnrollmentByTournament(championshipId, organizerClubs)
+    if (!byTournament) {
+        return null
+    }
+
+    return [...new Set(Object.values(byTournament).flat())]
+}
+
+export async function listChampionshipDayEnrollmentByTournament(
+    championshipId: string,
+    organizerClubs: string[]
+): Promise<Record<string, string[]> | null> {
     const championship = await getChampionshipForOrganizer(championshipId, organizerClubs)
     if (!championship) {
         return null
     }
 
-    const participants = await prismaOrThrow("list championship enrolled membership numbers")
-        .participant.findMany({
-            where: {
-                tournament: {
-                    championshipRound: { championshipId },
-                },
+    const participants = await prismaOrThrow("list championship day enrollments").participant.findMany({
+        where: {
+            tournament: {
+                championshipRound: { championshipId },
             },
-            select: { membershipNo: true },
-            distinct: ["membershipNo"],
-        })
-        .catch((error) => {
-            logAndReturnNull("Failed to list enrolled competitors", error)
-            return null
-        })
+        },
+        select: { membershipNo: true, tournamentId: true },
+    }).catch((error) => {
+        logAndReturnNull("Failed to list day enrollments", error)
+        return null
+    })
 
     if (!participants) {
         return null
     }
 
-    return participants.map((row) => row.membershipNo)
+    const byTournament = Object.fromEntries(
+        championship.rounds.map((round) => [round.tournamentId, [] as string[]])
+    )
+
+    for (const participant of participants) {
+        const membershipNos = byTournament[participant.tournamentId]
+        if (membershipNos) {
+            membershipNos.push(participant.membershipNo)
+        }
+    }
+
+    return byTournament
+}
+
+async function getWritableChampionshipShell(championshipId: string): Promise<ChampionshipShellRow> {
+    const clubs = await assertChampionshipOrganizerClubs()
+    const championship = await getChampionshipForOrganizer(championshipId, clubs)
+    if (!championship) {
+        throw new Error("Unauthorized")
+    }
+    if (championship.isArchive) {
+        throw new Error("Championship is archived")
+    }
+    return championship
+}
+
+function getChampionshipRoundByDayOrder(championship: ChampionshipShellRow, dayOrder: number) {
+    const round = championship.rounds.find((item) => item.dayOrder === dayOrder)
+    if (!round) {
+        throw new Error("Championship day not found")
+    }
+    return round
+}
+
+export async function enrollChampionshipCompetitorsOnDay(
+    championshipId: string,
+    dayOrder: number,
+    membershipNos: string[]
+) {
+    const uniqueMembershipNos = [...new Set(membershipNos.map((membershipNo) => membershipNo.trim()).filter(Boolean))]
+    if (uniqueMembershipNos.length === 0) {
+        return { enrolledCount: 0 }
+    }
+
+    const championship = await getWritableChampionshipShell(championshipId)
+    const round = getChampionshipRoundByDayOrder(championship, dayOrder)
+    const registrationByMembership = new Map(
+        championship.registrations.map((registration) => [registration.membershipNo, registration])
+    )
+
+    const missingMembershipNos = uniqueMembershipNos.filter((membershipNo) => !registrationByMembership.has(membershipNo))
+    if (missingMembershipNos.length > 0) {
+        throw new Error(`Not registered in championship: ${missingMembershipNos.join(", ")}`)
+    }
+
+    await prismaOrThrow("enroll championship competitors on day").$transaction(async (tx) => {
+        for (const membershipNo of uniqueMembershipNos) {
+            const registration = registrationByMembership.get(membershipNo)!
+            await tx.participant.upsert({
+                where: {
+                    tournamentId_membershipNo: {
+                        tournamentId: round.tournamentId,
+                        membershipNo,
+                    },
+                },
+                create: participantDataFromRegistration(registration, round.tournamentId),
+                update: participantUpdateFromRegistration(registration),
+            })
+        }
+    })
+
+    revalidatePath(`/championships/${championshipId}`)
+    revalidatePath(`/tournaments/${round.tournamentId}`)
+    return { enrolledCount: uniqueMembershipNos.length }
+}
+
+export async function unenrollChampionshipCompetitorFromDay(
+    championshipId: string,
+    dayOrder: number,
+    membershipNo: string
+) {
+    const trimmedMembershipNo = membershipNo.trim()
+    if (!trimmedMembershipNo) {
+        throw new Error("Membership number is required")
+    }
+
+    const championship = await getWritableChampionshipShell(championshipId)
+    const round = getChampionshipRoundByDayOrder(championship, dayOrder)
+
+    const participant = await prismaOrThrow("find day participant for unenroll").participant.findFirst({
+        where: {
+            tournamentId: round.tournamentId,
+            membershipNo: trimmedMembershipNo,
+        },
+        select: { id: true },
+    })
+
+    if (!participant) {
+        throw new Error("Competitor is not enrolled on this day")
+    }
+
+    await prismaOrThrow("unenroll championship competitor from day").participant.delete({
+        where: { id: participant.id },
+    })
+
+    revalidatePath(`/championships/${championshipId}`)
+    revalidatePath(`/tournaments/${round.tournamentId}`)
+}
+
+export async function updateChampionshipRegistration(
+    championshipId: string,
+    registrationId: string,
+    input: Omit<RegisterChampionshipParticipantInput, "championshipId">
+) {
+    await assertChampionshipWritable(championshipId)
+
+    const registration = await prismaOrThrow("find championship registration for update")
+        .championshipRegistration.findFirst({
+            where: { id: registrationId, championshipId },
+        })
+
+    if (!registration) {
+        throw new Error("Registration not found")
+    }
+
+    const championship = await getWritableChampionshipShell(championshipId)
+    const oldMembershipNo = registration.membershipNo
+    const trimmedProfile = {
+        name: input.name.trim(),
+        membershipNo: input.membershipNo.trim(),
+        ageGroupId: input.ageGroupId,
+        categoryId: input.categoryId,
+        club: input.club.trim(),
+        genderGroup: input.genderGroup,
+    }
+
+    try {
+        await prismaOrThrow("update championship registration").$transaction(async (tx) => {
+            await tx.championshipRegistration.update({
+                where: { id: registrationId },
+                data: trimmedProfile,
+            })
+
+            await tx.participant.updateMany({
+                where: {
+                    membershipNo: oldMembershipNo,
+                    tournament: {
+                        championshipRound: { championshipId },
+                    },
+                },
+                data: {
+                    ...participantUpdateFromRegistration({
+                        ...trimmedProfile,
+                        competitorNumber: registration.competitorNumber,
+                    }),
+                    membershipNo: trimmedProfile.membershipNo,
+                },
+            })
+        })
+    } catch (error) {
+        if (isUniqueError(error) && getUniqueConstraintFields(error).includes("membershipNo")) {
+            throw new Error("This membership number is already registered in this championship")
+        }
+        throw error
+    }
+
+    revalidatePath(`/championships/${championshipId}`)
+    for (const round of championship.rounds) {
+        revalidatePath(`/tournaments/${round.tournamentId}`)
+    }
 }
 
 export async function removeChampionshipRegistration(championshipId: string, registrationId: string) {

@@ -216,7 +216,7 @@ M1–M5 are delivered in code (including Championship Organizer power-up on `Org
 - Remove registration only when not enrolled on any day (document cascade in runbook).
 - **UI test:** register two competitors with full profiles → see names, numbers, and divisions → remove one not enrolled on any day.
 
-### M8 — Enroll competitors into days
+### M8 — Enroll competitors into days ✓
 - Day enrollment actions: create/update `Participant` on the day tournament by copying all fields from `ChampionshipRegistration` (see enrollment rules).
 - Per day: show enrolled vs registered-not-enrolled; single/bulk enroll (no profile form at enroll unless registration is edited separately).
 - Unenroll from a day without removing championship registration.

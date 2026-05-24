@@ -5,6 +5,7 @@ import { TrashIcon } from "@heroicons/react/24/outline"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { removeChampionshipDay } from "../championshipActions"
+import { championshipDayCardClass, championshipDetailContentClass } from "./championshipDetailLayout"
 
 export type ChampionshipRoundRow = {
     id: string
@@ -83,13 +84,13 @@ export default function ChampionshipRoundsList({
     readOnly?: boolean
 }) {
     if (rounds.length === 0) {
-        return <p className="text-base-content/70">No tournament days linked yet. Add the first day to begin.</p>
+        return <p className={`text-base-content/70 ${championshipDetailContentClass}`}>No tournament days linked yet. Add the first day to begin.</p>
     }
 
     return (
-        <ul className="flex flex-col gap-3 w-full max-w-2xl">
+        <ul className={`flex flex-wrap gap-3 ${championshipDetailContentClass}`}>
             {rounds.map((round) => (
-                <li key={round.id} className="card bg-base-200 shadow-sm">
+                <li key={round.id} className={`card bg-base-200 shadow-sm ${championshipDayCardClass}`}>
                     <div className="card-body gap-2 py-4">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="flex flex-col gap-1">

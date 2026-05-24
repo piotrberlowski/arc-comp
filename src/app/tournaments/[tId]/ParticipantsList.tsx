@@ -11,11 +11,17 @@ import ParticipantsListRow from "./ParticipantsListRow"
 
 interface ParticipantsListProps {
     participants: Participant[]
+    allowImportAndEdit?: boolean
     onEditParticipant?: (participant: Participant | null) => void
     editingParticipantId?: string | null
 }
 
-export default function ParticipantsList({ participants, onEditParticipant, editingParticipantId }: ParticipantsListProps) {
+export default function ParticipantsList({
+    participants,
+    allowImportAndEdit = true,
+    onEditParticipant,
+    editingParticipantId,
+}: ParticipantsListProps) {
     const [importFeedback, setImportFeedback] = useState<string | null>(null)
     const [displayP, setDisplayP] = useState(participants)
     const [filteredParticipants, setFilteredParticipants] = useState(participants)
@@ -104,7 +110,7 @@ export default function ParticipantsList({ participants, onEditParticipant, edit
                     />
                 </div>
                 <div className="hidden md:block md:w-32">
-                    <CSVImport onImportComplete={handleImportComplete} />
+                    {allowImportAndEdit ? <CSVImport onImportComplete={handleImportComplete} /> : null}
                 </div>
             </div>
 

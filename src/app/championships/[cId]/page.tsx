@@ -7,7 +7,7 @@ import { auth } from "../../auth"
 import { notFound } from "next/navigation"
 import {
     getChampionshipForOrganizer,
-    listChampionshipEnrolledMembershipNos,
+    listChampionshipDayEnrollmentByTournament,
 } from "../championshipActions"
 import { competitorsRegisteredLabel } from "../competitorsRegisteredLabel"
 import ChampionshipDaysSection from "./ChampionshipDaysSection"
@@ -30,8 +30,21 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
         notFound()
     }
 
-    const enrolledMembershipNos = await listChampionshipEnrolledMembershipNos(cId, clubs)
-    const enrolledSet = new Set(enrolledMembershipNos ?? [])
+    const enrollmentByTournament = (await listChampionshipDayEnrollmentByTournament(cId, clubs)) ?? {}
+    const enrolledSet = new Set(Object.values(enrollmentByTournament).flat())
+
+    const rosterDays = championship.rounds.map((round) => ({
+        dayOrder: round.dayOrder,
+        label: round.tournament.name,
+    }))
+
+    const enrollmentByMembership: Record<string, number[]> = {}
+    for (const round of championship.rounds) {
+        for (const membershipNo of enrollmentByTournament[round.tournamentId] ?? []) {
+            enrollmentByMembership[membershipNo] ??= []
+            enrollmentByMembership[membershipNo].push(round.dayOrder)
+        }
+    }
 
     const rounds = championship.rounds.map((round) => ({
         id: round.id,
@@ -47,6 +60,9 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
         name: registration.name,
         membershipNo: registration.membershipNo,
         competitorNumber: registration.competitorNumber,
+        ageGroupId: registration.ageGroupId,
+        categoryId: registration.categoryId,
+        genderGroup: registration.genderGroup,
         ageGroupName: registration.ageGroup.name,
         categoryName: registration.category.name,
         club: registration.club,
@@ -81,6 +97,8 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
             <ChampionshipRosterSection
                 championshipId={championship.id}
                 registrations={registrations}
+                days={rosterDays}
+                enrollmentByMembership={enrollmentByMembership}
                 readOnly={championship.isArchive}
             />
         </div>

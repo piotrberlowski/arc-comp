@@ -5,26 +5,28 @@ import { participantProfileFromFormData } from "@/lib/participantProfileFields"
 import { participantProfileSchema } from "@/lib/participantProfileSchema"
 import { z } from "zod"
 import { zu } from "zod_utilz"
-import { registerChampionshipParticipant } from "../championshipActions"
-import type { RegisterChampionshipCompetitorFormState } from "./registerChampionshipCompetitorFormState"
+import { updateChampionshipRegistration } from "../championshipActions"
+import type { EditChampionshipCompetitorFormState } from "./editChampionshipCompetitorFormState"
 
-const registerChampionshipCompetitorFormSchema = participantProfileSchema.extend({
+const editChampionshipCompetitorFormSchema = participantProfileSchema.extend({
     championshipId: z.string().min(1),
+    registrationId: z.string().min(1),
 })
 
 function formDataToInput(formData: FormData) {
     return {
         championshipId: formData.get("championshipId"),
+        registrationId: formData.get("registrationId"),
         ...participantProfileFromFormData(formData),
     }
 }
 
-export async function submitRegisterChampionshipCompetitorForm(
-    _initialState: RegisterChampionshipCompetitorFormState,
+export async function submitEditChampionshipCompetitorForm(
+    _initialState: EditChampionshipCompetitorFormState,
     formData: FormData
-): Promise<RegisterChampionshipCompetitorFormState> {
+): Promise<EditChampionshipCompetitorFormState> {
     const formInput = formDataToInput(formData)
-    const parsed = zu.partialSafeParse(registerChampionshipCompetitorFormSchema, formInput)
+    const parsed = zu.partialSafeParse(editChampionshipCompetitorFormSchema, formInput)
 
     if (!parsed.success || parsed.successType !== "full") {
         return {
@@ -34,13 +36,13 @@ export async function submitRegisterChampionshipCompetitorForm(
         }
     }
 
-    const input = registerChampionshipCompetitorFormSchema.parse(formInput)
+    const input = editChampionshipCompetitorFormSchema.parse(formInput)
 
     try {
-        await registerChampionshipParticipant(input)
+        await updateChampionshipRegistration(input.championshipId, input.registrationId, input)
         return { errors: {}, success: true }
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to register competitor"
+        const message = error instanceof Error ? error.message : "Unable to update competitor"
         return {
             data: input,
             errors: { _form: message },

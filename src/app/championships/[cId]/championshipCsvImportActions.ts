@@ -1,6 +1,5 @@
 "use server"
 
-import { Prisma } from "@/generated/prisma/client"
 import type { ParticipantProfileInput } from "@/lib/participantProfileSchema"
 import {
     CSVImportState,
@@ -30,38 +29,51 @@ function validateChampionshipClubRows(profiles: ParticipantProfileInput[]): CSVI
     }
 }
 
+function registrationRowsFromProfiles(
+    championshipId: string,
+    profiles: ParticipantProfileInput[],
+    firstCompetitorNumber: number
+) {
+    let nextCompetitorNumber = firstCompetitorNumber
+
+    return profiles.map((profile) => {
+        const row = {
+            championshipId,
+            name: profile.name.trim(),
+            membershipNo: profile.membershipNo.trim(),
+            ageGroupId: profile.ageGroupId,
+            categoryId: profile.categoryId,
+            club: profile.club.trim(),
+            genderGroup: profile.genderGroup,
+            competitorNumber: nextCompetitorNumber,
+        }
+        nextCompetitorNumber += 1
+        return row
+    })
+}
+
 async function insertChampionshipRegistrations(
     championshipId: string,
     profiles: ParticipantProfileInput[]
 ): Promise<number> {
     await assertChampionshipWritable(championshipId)
 
-    await prismaOrThrow("import championship registrations").$transaction(async (tx) => {
-        const currentMax = await tx.championshipRegistration.aggregate({
-            where: { championshipId },
-            _max: { competitorNumber: true },
-        })
+    const prisma = prismaOrThrow("import championship registrations")
 
-        let nextCompetitorNumber = (currentMax._max.competitorNumber ?? 0) + 1
-
-        for (const profile of profiles) {
-            await tx.championshipRegistration.create({
-                data: {
-                    championshipId,
-                    name: profile.name.trim(),
-                    membershipNo: profile.membershipNo.trim(),
-                    ageGroupId: profile.ageGroupId,
-                    categoryId: profile.categoryId,
-                    club: profile.club.trim(),
-                    genderGroup: profile.genderGroup,
-                    competitorNumber: nextCompetitorNumber,
-                },
+    await prisma.$transaction(
+        async (tx) => {
+            const currentMax = await tx.championshipRegistration.aggregate({
+                where: { championshipId },
+                _max: { competitorNumber: true },
             })
-            nextCompetitorNumber += 1
-        }
-    }, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    })
+
+            const firstCompetitorNumber = (currentMax._max.competitorNumber ?? 0) + 1
+            const data = registrationRowsFromProfiles(championshipId, profiles, firstCompetitorNumber)
+
+            await tx.championshipRegistration.createMany({ data })
+        },
+        { timeout: 60_000, maxWait: 10_000 }
+    )
 
     return profiles.length
 }

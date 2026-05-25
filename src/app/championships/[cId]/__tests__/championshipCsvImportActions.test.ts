@@ -44,7 +44,7 @@ describe("importChampionshipRegistrationsCSV", () => {
         prismaMock.championshipRegistration.aggregate.mockResolvedValue({
             _max: { competitorNumber: 2 },
         } as never)
-        prismaMock.championshipRegistration.create.mockResolvedValue({ id: "reg-new" } as never)
+        prismaMock.championshipRegistration.createMany.mockResolvedValue({ count: 2 } as never)
     })
 
     it("returns error when championship id is missing", async () => {
@@ -95,23 +95,29 @@ Jane Smith,67890,F,A,FSR,Independent`)
             importedCount: 2,
             errors: [],
         })
-        expect(prismaMock.championshipRegistration.create).toHaveBeenNthCalledWith(1, {
-            data: {
-                championshipId: "champ-1",
-                name: "John Doe",
-                membershipNo: "12345",
-                ageGroupId: "S",
-                categoryId: "BBC",
-                club: "Archery Club",
-                genderGroup: GenderGroup.M,
-                competitorNumber: 3,
-            },
-        })
-        expect(prismaMock.championshipRegistration.create).toHaveBeenNthCalledWith(2, {
-            data: expect.objectContaining({
-                membershipNo: "67890",
-                competitorNumber: 4,
-            }),
+        expect(prismaMock.championshipRegistration.createMany).toHaveBeenCalledWith({
+            data: [
+                {
+                    championshipId: "champ-1",
+                    name: "John Doe",
+                    membershipNo: "12345",
+                    ageGroupId: "S",
+                    categoryId: "BBC",
+                    club: "Archery Club",
+                    genderGroup: GenderGroup.M,
+                    competitorNumber: 3,
+                },
+                {
+                    championshipId: "champ-1",
+                    name: "Jane Smith",
+                    membershipNo: "67890",
+                    ageGroupId: "A",
+                    categoryId: "FSR",
+                    club: "Independent",
+                    genderGroup: GenderGroup.F,
+                    competitorNumber: 4,
+                },
+            ],
         })
     })
 

@@ -2,18 +2,40 @@
 
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { zu } from "zod_utilz"
 import { addChampionshipDay } from "../championshipActions"
 import type { AddChampionshipDayFormState } from "./addChampionshipDayFormState"
 
-const addChampionshipDayFormSchema = z.object({
-    championshipId: z.string().min(1),
-    name: z.string().trim().min(1, "Tournament name cannot be empty"),
-    formatId: z.string().min(1, "Round format must be selected"),
-    date: z.coerce.date({ invalid_type_error: "Date is required" }),
-    endCount: z.coerce.number().int().min(1, "End count must be at least 1"),
-    groupSize: z.coerce.number().int().min(2, "Group size must be at least 2"),
-})
+function emptyToUndefined(value: FormDataEntryValue | null): string | undefined {
+    if (value === null || value === "") {
+        return undefined
+    }
+    return String(value)
+}
+
+const addChampionshipDayFormSchema = z
+    .object({
+        championshipId: z.string().min(1),
+        name: z.string().trim().min(1, "Tournament name cannot be empty"),
+        date: z.coerce.date({ invalid_type_error: "Date is required" }),
+        usesRangeFormats: z.string().optional(),
+        formatId: z.string().optional(),
+        endCount: z.coerce.number().int().min(1, "End count must be at least 1").optional(),
+        groupSize: z.coerce.number().int().min(2, "Group size must be at least 2").optional(),
+    })
+    .superRefine((data, ctx) => {
+        if (data.usesRangeFormats === "true") {
+            return
+        }
+        if (!data.formatId?.trim()) {
+            ctx.addIssue({ code: "custom", path: ["formatId"], message: "Round format must be selected" })
+        }
+        if (data.endCount === undefined) {
+            ctx.addIssue({ code: "custom", path: ["endCount"], message: "End count must be at least 1" })
+        }
+        if (data.groupSize === undefined) {
+            ctx.addIssue({ code: "custom", path: ["groupSize"], message: "Group size must be at least 2" })
+        }
+    })
 
 function normalizeFieldErrors(
     fieldErrors: Record<string, string[] | undefined> | undefined
@@ -33,10 +55,11 @@ function formDataToInput(formData: FormData) {
     return {
         championshipId: formData.get("championshipId"),
         name: formData.get("name"),
-        formatId: formData.get("formatId"),
         date: formData.get("date"),
-        endCount: formData.get("endCount"),
-        groupSize: formData.get("groupSize"),
+        usesRangeFormats: emptyToUndefined(formData.get("usesRangeFormats")),
+        formatId: emptyToUndefined(formData.get("formatId")),
+        endCount: emptyToUndefined(formData.get("endCount")),
+        groupSize: emptyToUndefined(formData.get("groupSize")),
     }
 }
 
@@ -44,18 +67,24 @@ export async function submitAddChampionshipDayForm(
     _initialState: AddChampionshipDayFormState,
     formData: FormData
 ): Promise<AddChampionshipDayFormState> {
-    const formInput = formDataToInput(formData)
-    const parsed = zu.partialSafeParse(addChampionshipDayFormSchema, formInput)
+    const parseResult = addChampionshipDayFormSchema.safeParse(formDataToInput(formData))
 
-    if (!parsed.success || parsed.successType !== "full") {
+    if (!parseResult.success) {
         return {
-            data: parsed.validData,
-            errors: normalizeFieldErrors(parsed.error?.flatten().fieldErrors),
+            errors: normalizeFieldErrors(parseResult.error.flatten().fieldErrors),
             success: false,
         }
     }
 
-    const input = addChampionshipDayFormSchema.parse(formInput)
+    const parsedInput = parseResult.data
+    const input = {
+        championshipId: parsedInput.championshipId,
+        name: parsedInput.name,
+        date: parsedInput.date,
+        formatId: parsedInput.usesRangeFormats === "true" ? undefined : parsedInput.formatId,
+        endCount: parsedInput.usesRangeFormats === "true" ? undefined : parsedInput.endCount,
+        groupSize: parsedInput.usesRangeFormats === "true" ? undefined : parsedInput.groupSize,
+    }
 
     try {
         await addChampionshipDay(input)
@@ -64,7 +93,6 @@ export async function submitAddChampionshipDayForm(
     } catch (error) {
         const message = error instanceof Error ? error.message : "Unable to add championship day"
         return {
-            data: input,
             errors: { _form: message },
             success: false,
         }

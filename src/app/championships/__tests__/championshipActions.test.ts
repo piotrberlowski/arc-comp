@@ -32,27 +32,51 @@ describe("createChampionship", () => {
     it("creates championship for authorized club", async () => {
         prismaMock.championship.create.mockResolvedValue({ id: "champ-new" } as never)
 
+        prismaMock.$transaction.mockImplementation((callback) =>
+            typeof callback === "function" ? callback(prismaMock) : Promise.resolve(callback)
+        )
+        prismaMock.championshipRange.create.mockResolvedValue({ id: "range-1" } as never)
+
         await expect(
-            createChampionship({ name: "Spring Series", organizerClub: "ClubA" })
+            createChampionship({
+                name: "Spring Series",
+                organizerClub: "ClubA",
+                rangeFormats: [{ rangeNumber: 1, formatId: "fmt-1" }],
+            })
         ).resolves.toEqual({ id: "champ-new" })
 
         expect(prismaMock.championship.create).toHaveBeenCalledWith({
-            data: { name: "Spring Series", organizerClub: "ClubA" },
+            data: { name: "Spring Series", organizerClub: "ClubA", rangeCount: 1 },
+        })
+        expect(prismaMock.championshipRange.create).toHaveBeenCalledWith({
+            data: {
+                championshipId: "champ-new",
+                rangeNumber: 1,
+                formatId: "fmt-1",
+            },
         })
     })
 
     it("throws when club is not in CO scope", async () => {
         await expect(
-            createChampionship({ name: "Spring Series", organizerClub: "ClubB" })
+            createChampionship({
+                name: "Spring Series",
+                organizerClub: "ClubB",
+                rangeFormats: [{ rangeNumber: 1, formatId: "fmt-1" }],
+            })
         ).rejects.toThrow("Unauthorized")
         expect(prismaMock.championship.create).not.toHaveBeenCalled()
     })
 
     it("throws generic message when create fails", async () => {
-        prismaMock.championship.create.mockRejectedValue(new Error("db down"))
+        prismaMock.$transaction.mockRejectedValue(new Error("db down"))
 
         await expect(
-            createChampionship({ name: "Spring Series", organizerClub: "ClubA" })
+            createChampionship({
+                name: "Spring Series",
+                organizerClub: "ClubA",
+                rangeFormats: [{ rangeNumber: 1, formatId: "fmt-1" }],
+            })
         ).rejects.toThrow("Unable to create championship")
     })
 })
@@ -64,9 +88,10 @@ describe("updateChampionship", () => {
             typeof callback === "function" ? callback(prismaMock) : Promise.resolve(callback)
         )
         prismaMock.championshipRound.findMany.mockResolvedValue([
-            { dayOrder: 1, tournamentId: "tour-1" },
-            { dayOrder: 2, tournamentId: "tour-2" },
+            { dayOrder: 1, rangeNumber: 1, tournamentId: "tour-1" },
+            { dayOrder: 2, rangeNumber: 1, tournamentId: "tour-2" },
         ] as never)
+        prismaMock.championship.findUnique.mockResolvedValue({ rangeCount: 1 } as never)
     })
 
     it("updates championship name and renames linked day tournaments", async () => {
@@ -135,7 +160,7 @@ describe("getChampionshipForOrganizer", () => {
                             },
                         },
                     },
-                    orderBy: { dayOrder: "asc" },
+                    orderBy: [{ dayOrder: "asc" }, { rangeNumber: "asc" }],
                 },
                 _count: {
                     select: { registrations: true },
@@ -195,7 +220,15 @@ describe("addChampionshipDay", () => {
             id: "champ-1",
             name: "Spring Series",
             organizerClub: "ClubA",
-            rounds: [{ dayOrder: 1 }],
+            rangeCount: 1,
+            rangeConfigs: [
+                {
+                    rangeNumber: 1,
+                    formatId: "fmt-1",
+                    format: { endCount: 28, groupSize: 4 },
+                },
+            ],
+            rounds: [{ dayOrder: 1, rangeNumber: 1 }],
         } as never)
         prismaMock.$transaction.mockImplementation((callback) =>
             typeof callback === "function" ? callback(prismaMock) : Promise.resolve(callback)
@@ -208,19 +241,20 @@ describe("addChampionshipDay", () => {
         await expect(addChampionshipDay(dayInput)).resolves.toEqual({ id: "round-2", dayOrder: 2 })
 
         expect(prismaMock.tournament.create).toHaveBeenCalledWith({
-            data: {
+            data: expect.objectContaining({
                 name: "Spring Series — Day 2",
                 organizerClub: "ClubA",
                 formatId: "fmt-1",
                 date: dayInput.date,
                 endCount: 28,
                 groupSize: 4,
-            },
+            }),
         })
         expect(prismaMock.championshipRound.create).toHaveBeenCalledWith({
             data: {
                 championshipId: "champ-1",
                 dayOrder: 2,
+                rangeNumber: 1,
                 tournamentId: "tour-2",
             },
             include: { tournament: true },
@@ -232,6 +266,8 @@ describe("addChampionshipDay", () => {
             id: "champ-1",
             name: "Spring Series",
             organizerClub: "ClubA",
+            rangeCount: 1,
+            rangeConfigs: [],
             rounds: [],
         } as never)
 
@@ -267,6 +303,7 @@ describe("removeChampionshipDay", () => {
             rounds: [
                 {
                     dayOrder: 1,
+                    rangeNumber: 1,
                     tournamentId: "tour-1",
                     tournament: { _count: { participantScores: 0 } },
                 },
@@ -281,18 +318,16 @@ describe("removeChampionshipDay", () => {
         await expect(removeChampionshipDay("champ-1", 1)).resolves.toBeUndefined()
 
         expect(prismaMock.participant.deleteMany).toHaveBeenCalledWith({
-            where: { tournamentId: "tour-1" },
+            where: { tournamentId: { in: ["tour-1"] } },
         })
-        expect(prismaMock.championshipRound.delete).toHaveBeenCalledWith({
-            where: {
-                championshipId_dayOrder: {
-                    championshipId: "champ-1",
-                    dayOrder: 1,
-                },
-            },
+        expect(prismaMock.championshipRound.deleteMany).toHaveBeenCalledWith({
+            where: { championshipId: "champ-1", dayOrder: 1 },
         })
-        expect(prismaMock.tournament.delete).toHaveBeenCalledWith({
-            where: { id: "tour-1" },
+        expect(prismaMock.championshipDivisionRange.deleteMany).toHaveBeenCalledWith({
+            where: { championshipId: "champ-1", dayOrder: 1 },
+        })
+        expect(prismaMock.tournament.deleteMany).toHaveBeenCalledWith({
+            where: { id: { in: ["tour-1"] } },
         })
     })
 
@@ -487,7 +522,16 @@ describe("listChampionshipEnrolledMembershipNos", () => {
 const writableChampionshipShell = {
     id: "champ-1",
     isArchive: false,
-    rounds: [{ dayOrder: 1, tournamentId: "tour-1" }],
+    rangeCount: 1,
+    rangeConfigs: [
+        {
+            rangeNumber: 1,
+            formatId: "fmt-1",
+            format: { endCount: 28, groupSize: 4 },
+        },
+    ],
+    rounds: [{ dayOrder: 1, rangeNumber: 1, tournamentId: "tour-1" }],
+    divisionRanges: [],
     registrations: [
         {
             membershipNo: "M-001",
@@ -522,7 +566,7 @@ describe("enrollChampionshipCompetitorsOnDay", () => {
     it("upserts participants copied from registrations", async () => {
         await expect(
             enrollChampionshipCompetitorsOnDay("champ-1", 1, ["M-001", "M-002"])
-        ).resolves.toEqual({ enrolledCount: 2 })
+        ).resolves.toEqual({ enrolledCount: 2, skippedCount: 0 })
 
         expect(prismaMock.participant.upsert).toHaveBeenNthCalledWith(1, {
             where: {
@@ -553,8 +597,93 @@ describe("enrollChampionshipCompetitorsOnDay", () => {
     })
 
     it("returns zero when no membership numbers are provided", async () => {
-        await expect(enrollChampionshipCompetitorsOnDay("champ-1", 1, [])).resolves.toEqual({ enrolledCount: 0 })
+        await expect(enrollChampionshipCompetitorsOnDay("champ-1", 1, [])).resolves.toEqual({
+            enrolledCount: 0,
+            skippedCount: 0,
+        })
         expect(prismaMock.$transaction).not.toHaveBeenCalled()
+    })
+
+    it("rejects enrollment when the division has no range assignment on a multi-range day", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            ...writableChampionshipShell,
+            rangeCount: 2,
+            divisionRanges: [],
+        } as never)
+
+        await expect(enrollChampionshipCompetitorsOnDay("champ-1", 1, ["M-001"])).rejects.toThrow(
+            "No competitors have a range assignment for this day"
+        )
+        expect(prismaMock.$transaction).not.toHaveBeenCalled()
+    })
+
+    it("loads prior range enrollments in one query when enrolling on day 2", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            ...writableChampionshipShell,
+            rangeCount: 2,
+            divisionRanges: [
+                {
+                    dayOrder: 2,
+                    ageGroupId: "age-1",
+                    categoryId: "cat-1",
+                    genderGroup: "M",
+                    rangeNumber: 2,
+                },
+                {
+                    dayOrder: 2,
+                    ageGroupId: "age-1",
+                    categoryId: "cat-1",
+                    genderGroup: "F",
+                    rangeNumber: 2,
+                },
+            ],
+            rounds: [
+                { dayOrder: 1, rangeNumber: 1, tournamentId: "tour-1" },
+                { dayOrder: 2, rangeNumber: 2, tournamentId: "tour-2" },
+            ],
+        } as never)
+        prismaMock.participant.findMany.mockResolvedValue([] as never)
+
+        await expect(enrollChampionshipCompetitorsOnDay("champ-1", 2, ["M-001", "M-002"])).resolves.toEqual({
+            enrolledCount: 2,
+            skippedCount: 0,
+        })
+
+        expect(prismaMock.participant.findMany).toHaveBeenCalledTimes(1)
+        expect(prismaMock.participant.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: expect.objectContaining({
+                    membershipNo: { in: ["M-001", "M-002"] },
+                }),
+            })
+        )
+    })
+
+    it("enrolls assigned competitors and reports how many were skipped", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            ...writableChampionshipShell,
+            rangeCount: 2,
+            divisionRanges: [
+                {
+                    dayOrder: 1,
+                    ageGroupId: "age-1",
+                    categoryId: "cat-1",
+                    genderGroup: "M",
+                    rangeNumber: 1,
+                },
+            ],
+            rounds: [
+                { dayOrder: 1, rangeNumber: 1, tournamentId: "tour-1" },
+                { dayOrder: 1, rangeNumber: 2, tournamentId: "tour-1b" },
+            ],
+        } as never)
+
+        await expect(enrollChampionshipCompetitorsOnDay("champ-1", 1, ["M-001", "M-002"])).resolves.toEqual({
+            enrolledCount: 1,
+            skippedCount: 1,
+        })
+
+        expect(prismaMock.participant.upsert).toHaveBeenCalledTimes(1)
     })
 })
 

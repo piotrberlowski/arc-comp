@@ -39,6 +39,7 @@ type TournamentSetupFormProps = {
     submitLabel: ReactNode
     onCancel?: () => void
     pending?: boolean
+    defaultDate?: Date
 } & (
         | { club: string; clubs: string[]; onClubChange: (club: string) => void }
         | { club: string }
@@ -58,10 +59,11 @@ export default function TournamentSetupForm({
     submitLabel,
     onCancel,
     pending = false,
+    defaultDate,
     ...clubProps
 }: TournamentSetupFormProps) {
     const [formatId, setFormatId] = useState("")
-    const [date, setDate] = useState(new Date())
+    const [date, setDate] = useState(() => new Date(defaultDate ?? Date.now()))
     const [endCount, setEndCount] = useState(28)
     const [groupSize, setGroupSize] = useState(4)
     const [internalName, setInternalName] = useState("")

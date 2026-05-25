@@ -35,6 +35,18 @@ export function getParticipantProfileFieldDefinition(key: ParticipantProfileFiel
     return fieldDefinitionByKey[key]
 }
 
+export function participantDivisionAbbrev({
+    ageGroupId,
+    genderGroup,
+    categoryId,
+}: {
+    ageGroupId: string
+    genderGroup: string
+    categoryId: string
+}): string {
+    return `${ageGroupId}${genderGroup}${categoryId}`
+}
+
 export function participantProfileFromFormData(formData: FormData): Record<ParticipantProfileFieldKey, FormDataEntryValue | null> {
     return Object.fromEntries(
         participantProfileFieldKeys.map((key) => [key, formData.get(key)])

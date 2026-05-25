@@ -104,27 +104,30 @@ model Organizer {
 }
 
 model EquipmentCategory {
-  id                       String                      @id
-  name                     String                      @unique
-  participants             Participant[]
+  id                        String                     @id
+  name                      String                     @unique
+  participants              Participant[]
   championshipRegistrations ChampionshipRegistration[]
-  ifafBowStyleMapping      IFAFBowStyleMapping?
+  championshipDivisionRanges ChampionshipDivisionRange[]
+  ifafBowStyleMapping       IFAFBowStyleMapping?
 }
 
 model AgeGroup {
-  id                        String                      @id
-  name                      String                      @unique
-  participants              Participant[]
-  championshipRegistrations ChampionshipRegistration[]
-  ifafAgeGenderMappings     IFAFAgeGenderMapping[]
+  id                         String                     @id
+  name                       String                     @unique
+  participants               Participant[]
+  championshipRegistrations  ChampionshipRegistration[]
+  championshipDivisionRanges   ChampionshipDivisionRange[]
+  ifafAgeGenderMappings      IFAFAgeGenderMapping[]
 }
 
 model RoundFormat {
-  id          String       @id @default(cuid())
-  name        String       @unique
-  tournaments Tournament[]
-  endCount    Int          @default(28)
-  groupSize   Int          @default(4)
+  id                 String              @id @default(cuid())
+  name               String              @unique
+  tournaments        Tournament[]
+  championshipRanges ChampionshipRange[]
+  endCount           Int                 @default(28)
+  groupSize          Int                 @default(4)
 }
 
 model Tournament {
@@ -207,29 +210,61 @@ model IFAFBowStyleMapping {
 }
 
 model Championship {
-  id            String                   @id @default(cuid())
+  id            String                     @id @default(cuid())
   name          String
   organizerClub String
-  isArchive     Boolean                  @default(false)
-  createdAt     DateTime                 @default(now())
-  updatedAt     DateTime                 @updatedAt
-  rounds        ChampionshipRound[]
-  registrations ChampionshipRegistration[]
+  rangeCount    Int                        @default(1)
+  isArchive     Boolean                    @default(false)
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+  rounds         ChampionshipRound[]
+  registrations  ChampionshipRegistration[]
+  divisionRanges ChampionshipDivisionRange[]
+  rangeConfigs   ChampionshipRange[]
 
   @@index([organizerClub])
+}
+
+model ChampionshipRange {
+  id             String       @id @default(cuid())
+  championshipId String
+  rangeNumber    Int
+  formatId       String
+  championship   Championship @relation(fields: [championshipId], references: [id], onDelete: Cascade)
+  format         RoundFormat  @relation(fields: [formatId], references: [id], onDelete: Restrict)
+
+  @@unique([championshipId, rangeNumber])
+  @@index([championshipId])
 }
 
 model ChampionshipRound {
   id             String       @id @default(cuid())
   championshipId String
   dayOrder       Int
+  rangeNumber    Int          @default(1)
   label          String?
   tournamentId   String       @unique
   championship   Championship @relation(fields: [championshipId], references: [id], onDelete: Cascade)
   tournament     Tournament   @relation("ChampionshipRoundTournament", fields: [tournamentId], references: [id], onDelete: Restrict)
 
-  @@unique([championshipId, dayOrder])
+  @@unique([championshipId, dayOrder, rangeNumber])
   @@index([championshipId])
+}
+
+model ChampionshipDivisionRange {
+  id             String       @id @default(cuid())
+  championshipId String
+  dayOrder       Int
+  ageGroupId     String
+  categoryId     String
+  genderGroup    GenderGroup
+  rangeNumber    Int
+  championship   Championship @relation(fields: [championshipId], references: [id], onDelete: Cascade)
+  ageGroup       AgeGroup     @relation(fields: [ageGroupId], references: [id], onDelete: Restrict)
+  category       EquipmentCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@unique([championshipId, dayOrder, ageGroupId, categoryId, genderGroup])
+  @@index([championshipId, dayOrder])
 }
 
 model ChampionshipRegistration {

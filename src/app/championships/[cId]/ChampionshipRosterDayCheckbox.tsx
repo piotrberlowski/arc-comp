@@ -13,17 +13,20 @@ export default function ChampionshipRosterDayCheckbox({
     dayOrder,
     membershipNo,
     isEnrolled,
+    canEnroll,
     readOnly,
 }: {
     championshipId: string
     dayOrder: number
     membershipNo: string
     isEnrolled: boolean
+    canEnroll: boolean
     readOnly: boolean
 }) {
     const router = useRouter()
     const setError = useErrorContext()
     const [isPending, startTransition] = useTransition()
+    const disabled = readOnly || isPending || (!isEnrolled && !canEnroll)
 
     const handleToggle = (checked: boolean) => {
         startTransition(() => {
@@ -44,9 +47,13 @@ export default function ChampionshipRosterDayCheckbox({
             type="checkbox"
             className="checkbox checkbox-xs"
             checked={isEnrolled}
-            disabled={readOnly || isPending}
-            aria-label={`Day ${dayOrder}`}
-            title={`Day ${dayOrder}`}
+            disabled={disabled}
+            aria-label={`Day ${dayOrder} enrollment`}
+            title={
+                !canEnroll && !isEnrolled
+                    ? `Day ${dayOrder}: division not assigned to a range`
+                    : `Day ${dayOrder}`
+            }
             onChange={(event) => handleToggle(event.target.checked)}
         />
     )

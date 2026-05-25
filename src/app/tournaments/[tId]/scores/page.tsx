@@ -1,4 +1,4 @@
-import { ErrorContextProvider } from "@/components/errors/ErrorContext"
+import { ErrorContextBanner, ErrorContextProvider } from "@/components/errors/ErrorContext"
 import { Suspense } from "react"
 import { getTournamentById } from "../../tournamentActions"
 import { TournamentEditContextProvider } from "../TournamentContext"
@@ -22,6 +22,7 @@ export default async function ScoreEntryPage({ params }: ScoreEntryPageProps) {
         <div className="w-full min-h-max">
             <TournamentEditContextProvider tournament={tournament}>
                 <ErrorContextProvider>
+                    <ErrorContextBanner placement="sticky-top" />
                     <TournamentEditForm />
                     <TournamentNavigation tournamentId={tId} />
                     <div className="border border-secondary border-solid w-full min-h-max">

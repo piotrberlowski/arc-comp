@@ -1,6 +1,6 @@
 "use client"
 
-import { ErrorContextProvider } from "@/components/errors/ErrorContext"
+import { ErrorContextBanner, ErrorContextProvider } from "@/components/errors/ErrorContext"
 import { forwardRef, useImperativeHandle, useRef, type ReactNode } from "react"
 
 export type FormModalHandle = {
@@ -27,7 +27,10 @@ const FormModal = forwardRef<FormModalHandle, { children: ReactNode }>(function 
                         ✕
                     </button>
                 </form>
-                <ErrorContextProvider>{children}</ErrorContextProvider>
+                <ErrorContextProvider>
+                    <ErrorContextBanner placement="top" />
+                    {children}
+                </ErrorContextProvider>
             </div>
         </dialog>
     )

@@ -1,6 +1,7 @@
 "use client"
 
-import useErrorContext from "@/components/errors/ErrorContext"
+import useErrorContext, { useInfoContext } from "@/components/errors/ErrorContext"
+import { formatDayEnrollAllMessage } from "@/lib/championshipEnrollmentMessages"
 import { useRouter } from "next/navigation"
 import { useTransition } from "react"
 import { enrollChampionshipCompetitorsOnDay } from "../championshipActions"
@@ -18,6 +19,7 @@ export default function ChampionshipRosterDayEnrollAllButton({
 }) {
     const router = useRouter()
     const setError = useErrorContext()
+    const setInfo = useInfoContext()
     const [isPending, startTransition] = useTransition()
 
     if (readOnly || membershipNos.length === 0) {
@@ -27,8 +29,13 @@ export default function ChampionshipRosterDayEnrollAllButton({
     const handleEnrollAll = () => {
         startTransition(() => {
             enrollChampionshipCompetitorsOnDay(championshipId, dayOrder, membershipNos)
-                .then(() => router.refresh())
+                .then((result) => {
+                    setError(undefined)
+                    setInfo(formatDayEnrollAllMessage(result, dayOrder))
+                    router.refresh()
+                })
                 .catch((error) => {
+                    setInfo(undefined)
                     setError(error instanceof Error ? error.message : "Unable to enroll all competitors")
                 })
         })
@@ -39,7 +46,7 @@ export default function ChampionshipRosterDayEnrollAllButton({
             type="button"
             className="btn btn-primary btn-xs px-1 min-h-0 h-auto font-normal"
             disabled={isPending}
-            title={`Enroll all competitors on day ${dayOrder}`}
+            title={`Enroll assigned competitors on day ${dayOrder}`}
             onClick={handleEnrollAll}
         >
             All

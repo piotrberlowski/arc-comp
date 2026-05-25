@@ -13,6 +13,9 @@ import {
     type DivisionRangeMatrixData,
     type DivisionRangeMatrixRow,
 } from "../championshipActions"
+import CategoryDivisionsParticipantsModal, {
+    type CategoryDivisionGroup,
+} from "./CategoryDivisionsParticipantsModal"
 import DivisionParticipantsModal, { type DivisionParticipantEntry } from "./DivisionParticipantsModal"
 
 export type ChampionshipMatrixRegistration = DivisionParticipantEntry & {
@@ -24,6 +27,60 @@ type MatrixBowStyleGroup = {
     categoryName: string
     participantCount: number
     rows: DivisionRangeMatrixRow[]
+}
+
+type MatrixModalView =
+    | { kind: "division"; abbrev: string; divisionKey: string }
+    | { kind: "rangeDay"; dayOrder: number; rangeNumber: number }
+    | { kind: "bowStyle"; categoryName: string; rows: DivisionRangeMatrixRow[] }
+
+function buildCategoryDivisionGroups(
+    rows: DivisionRangeMatrixRow[],
+    participantsByDivision: Map<string, DivisionParticipantEntry[]>
+): CategoryDivisionGroup[] {
+    const byCategory = new Map<string, CategoryDivisionGroup>()
+    const sortedRows = [...rows].sort((a, b) =>
+        compareDivisionsForMatrix(matrixRowAsDivision(a), matrixRowAsDivision(b))
+    )
+
+    for (const row of sortedRows) {
+        const existing = byCategory.get(row.categoryId)
+        if (existing) {
+            existing.divisions.push({
+                abbrev: row.abbrev,
+                participants: participantsByDivision.get(row.divisionKey) ?? [],
+            })
+            continue
+        }
+        byCategory.set(row.categoryId, {
+            categoryName: row.categoryName,
+            divisions: [
+                {
+                    abbrev: row.abbrev,
+                    participants: participantsByDivision.get(row.divisionKey) ?? [],
+                },
+            ],
+        })
+    }
+
+    return [...byCategory.values()].sort((a, b) => a.categoryName.localeCompare(b.categoryName))
+}
+
+function RegistrationCountButton({ count, onClick }: { count: number; onClick: () => void }) {
+    if (count === 0) {
+        return <span className="text-xs text-base-content/50">0</span>
+    }
+
+    return (
+        <button
+            type="button"
+            className="text-xs link link-hover tabular-nums"
+            title="View registered competitors"
+            onClick={onClick}
+        >
+            {count}
+        </button>
+    )
 }
 
 function RangeSelect({
@@ -70,7 +127,15 @@ function RangeSelect({
     )
 }
 
-function DayRangeTotals({ totals }: { totals: Record<number, number> }) {
+function DayRangeTotals({
+    dayOrder,
+    totals,
+    onRangeDayClick,
+}: {
+    dayOrder: number
+    totals: Record<number, number>
+    onRangeDayClick: (dayOrder: number, rangeNumber: number) => void
+}) {
     const entries = Object.entries(totals).filter(([, count]) => count > 0)
     if (entries.length === 0) {
         return <span className="text-base-content/50">—</span>
@@ -79,9 +144,15 @@ function DayRangeTotals({ totals }: { totals: Record<number, number> }) {
     return (
         <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5 text-xs">
             {entries.map(([rangeNumber, count]) => (
-                <span key={rangeNumber}>
+                <button
+                    key={rangeNumber}
+                    type="button"
+                    className="link link-hover tabular-nums"
+                    title={`View divisions on day ${dayOrder}, range ${rangeNumber}`}
+                    onClick={() => onRangeDayClick(dayOrder, Number(rangeNumber))}
+                >
                     R{rangeNumber}: {count}
-                </span>
+                </button>
             ))}
         </div>
     )
@@ -90,9 +161,11 @@ function DayRangeTotals({ totals }: { totals: Record<number, number> }) {
 function DivisionRangeTotalsHeader({
     dayOrders,
     totalsByDay,
+    onRangeDayClick,
 }: {
     dayOrders: number[]
     totalsByDay: DivisionRangeMatrixData["totalsByDay"]
+    onRangeDayClick: (dayOrder: number, rangeNumber: number) => void
 }) {
     return (
         <div className="overflow-x-auto">
@@ -121,7 +194,11 @@ function DivisionRangeTotalsHeader({
                         <td />
                         {dayOrders.map((dayOrder) => (
                             <td key={dayOrder} className="text-center px-1">
-                                <DayRangeTotals totals={totalsByDay[dayOrder] ?? {}} />
+                                <DayRangeTotals
+                                    dayOrder={dayOrder}
+                                    totals={totalsByDay[dayOrder] ?? {}}
+                                    onRangeDayClick={onRangeDayClick}
+                                />
                             </td>
                         ))}
                     </tr>
@@ -202,7 +279,12 @@ function DivisionRangeMatrixTable({
                                     onShowParticipants={() => onShowParticipants(row.abbrev, row.divisionKey)}
                                 />
                             </td>
-                            <td className="text-right text-xs">{row.registrationCount}</td>
+                            <td className="text-right text-xs">
+                                <RegistrationCountButton
+                                    count={row.registrationCount}
+                                    onClick={() => onShowParticipants(row.abbrev, row.divisionKey)}
+                                />
+                            </td>
                             {dayOrders.map((dayOrder) => (
                                 <td key={dayOrder} className="text-center px-1">
                                     <RangeSelect
@@ -266,6 +348,7 @@ function BowStyleAccordion({
     isPending,
     onRangeChange,
     onShowParticipants,
+    onShowBowStyleParticipants,
 }: {
     groups: MatrixBowStyleGroup[]
     accordionName: string
@@ -276,6 +359,7 @@ function BowStyleAccordion({
     isPending: boolean
     onRangeChange: (divisionKey: string, dayOrder: number, rangeNumber: number | null) => void
     onShowParticipants: (abbrev: string, divisionKey: string) => void
+    onShowBowStyleParticipants: (categoryName: string, rows: DivisionRangeMatrixRow[]) => void
 }) {
     return (
         <div className="flex flex-col gap-2">
@@ -292,9 +376,17 @@ function BowStyleAccordion({
                     />
                     <div className="collapse-title flex flex-wrap items-center gap-2 pr-8 font-medium">
                         <span>{group.categoryName}</span>
-                        <span className="badge badge-neutral badge-sm font-normal">
+                        <button
+                            type="button"
+                            className="badge badge-neutral badge-sm font-normal hover:badge-neutral-focus"
+                            title={`View ${group.participantCount} registered competitors`}
+                            onClick={(event) => {
+                                event.preventDefault()
+                                onShowBowStyleParticipants(group.categoryName, group.rows)
+                            }}
+                        >
                             {group.participantCount} registered
-                        </span>
+                        </button>
                     </div>
                     <div className="collapse-content pt-1">
                         <DivisionRangeMatrixTable
@@ -339,9 +431,7 @@ export default function ChampionshipDivisionRangeMatrix({
     const setError = useErrorContext()
     const participantsModalRef = useRef<FormModalHandle>(null)
     const [matrix, setMatrix] = useState<DivisionRangeMatrixData | null>(initialMatrix)
-    const [selectedDivision, setSelectedDivision] = useState<{ abbrev: string; divisionKey: string } | null>(
-        null
-    )
+    const [modalView, setModalView] = useState<MatrixModalView | null>(null)
     const [isPending, startTransition] = useTransition()
 
     useEffect(() => {
@@ -368,14 +458,53 @@ export default function ChampionshipDivisionRangeMatrix({
         return grouped
     }, [registrations])
 
-    const selectedParticipants = selectedDivision
-        ? (participantsByDivision.get(selectedDivision.divisionKey) ?? [])
-        : []
-
-    const openDivisionParticipants = (abbrev: string, divisionKey: string) => {
-        setSelectedDivision({ abbrev, divisionKey })
+    const openModal = (view: MatrixModalView) => {
+        setModalView(view)
         participantsModalRef.current?.open()
     }
+
+    const openDivisionParticipants = (abbrev: string, divisionKey: string) => {
+        openModal({ kind: "division", abbrev, divisionKey })
+    }
+
+    const openRangeDayParticipants = (dayOrder: number, rangeNumber: number) => {
+        openModal({ kind: "rangeDay", dayOrder, rangeNumber })
+    }
+
+    const openBowStyleParticipants = (categoryName: string, rows: DivisionRangeMatrixRow[]) => {
+        openModal({ kind: "bowStyle", categoryName, rows })
+    }
+
+    const modalContent = useMemo(() => {
+        if (!modalView) {
+            return null
+        }
+        if (modalView.kind === "division") {
+            return (
+                <DivisionParticipantsModal
+                    abbrev={modalView.abbrev}
+                    participants={participantsByDivision.get(modalView.divisionKey) ?? []}
+                />
+            )
+        }
+        if (modalView.kind === "rangeDay") {
+            const rows = (matrix?.rows ?? []).filter(
+                (row) => row.rangeByDay[modalView.dayOrder] === modalView.rangeNumber
+            )
+            return (
+                <CategoryDivisionsParticipantsModal
+                    title={`Day ${modalView.dayOrder} · Range ${modalView.rangeNumber}`}
+                    groups={buildCategoryDivisionGroups(rows, participantsByDivision)}
+                />
+            )
+        }
+        return (
+            <CategoryDivisionsParticipantsModal
+                title={modalView.categoryName}
+                groups={buildCategoryDivisionGroups(modalView.rows, participantsByDivision)}
+            />
+        )
+    }, [modalView, matrix?.rows, participantsByDivision])
 
     const reloadMatrix = useCallback(() => {
         return getChampionshipDivisionRangeMatrix(championshipId).then((data) => {
@@ -412,7 +541,11 @@ export default function ChampionshipDivisionRangeMatrix({
             ) : null}
             <div className="card bg-base-200 shadow-sm">
                 <div className="card-body py-4 gap-3">
-                    <DivisionRangeTotalsHeader dayOrders={matrix.dayOrders} totalsByDay={matrix.totalsByDay} />
+                    <DivisionRangeTotalsHeader
+                        dayOrders={matrix.dayOrders}
+                        totalsByDay={matrix.totalsByDay}
+                        onRangeDayClick={openRangeDayParticipants}
+                    />
                 </div>
             </div>
             <BowStyleAccordion
@@ -425,20 +558,14 @@ export default function ChampionshipDivisionRangeMatrix({
                 isPending={isPending}
                 onRangeChange={handleRangeChange}
                 onShowParticipants={openDivisionParticipants}
+                onShowBowStyleParticipants={openBowStyleParticipants}
             />
             <p className="text-sm text-base-content/70">
                 Assign every division to a range on each day before enrolling competitors on multi-range championships.
                 A division cannot use the same range on more than one day. Unassigning a division unenrolls affected
                 competitors from that range.
             </p>
-            <FormModal ref={participantsModalRef}>
-                {selectedDivision ? (
-                    <DivisionParticipantsModal
-                        abbrev={selectedDivision.abbrev}
-                        participants={selectedParticipants}
-                    />
-                ) : null}
-            </FormModal>
+            <FormModal ref={participantsModalRef}>{modalContent}</FormModal>
         </div>
     )
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import { Participant } from "@/generated/prisma/browser"
+import { participantDivisionAbbrev } from "@/lib/participantProfileFields"
 import { PencilIcon, XCircleIcon } from "@heroicons/react/24/outline"
 import CheckInButton from "./components/CheckInButton"
 
@@ -23,11 +24,7 @@ export default function ParticipantsListRow({
         <tr>
             <td>{participant.name}</td>
             <td className="hidden sm:table-cell">{participant.membershipNo || "-"}</td>
-            <td>
-                {participant.ageGroupId}
-                {participant.genderGroup}
-                {participant.categoryId}
-            </td>
+            <td className="font-mono text-sm">{participantDivisionAbbrev(participant)}</td>
             <td className="hidden md:table-cell">{participant.club || "Independent"}</td>
             <td className="flex gap-2">
                 <CheckInButton

@@ -1,6 +1,9 @@
 "use client"
 
 import ConfirmingButton from "@/components/ConfirmingButton"
+import { championshipDivisionKey, enrollmentDayKey, isEnrolledOnChampionshipDay } from "@/lib/championshipDivision"
+import type { ChampionshipEnrollmentEligibility, ChampionshipEnrollmentSlot } from "@/lib/championshipEnrollment"
+import type { ChampionshipRosterDayColumn } from "@/lib/championshipEnrollment"
 import { InformationCircleIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline"
 import { useRouter } from "next/navigation"
 import { removeChampionshipRegistration } from "../championshipActions"
@@ -21,11 +24,6 @@ export type ChampionshipRegistrationRow = {
     categoryName: string
     club: string
     canRemove: boolean
-}
-
-export type ChampionshipRosterDayColumn = {
-    dayOrder: number
-    label: string
 }
 
 function EditRegistrationButton({
@@ -119,22 +117,22 @@ function RemoveRegistrationButton({
 
 function RosterEnrollmentHeader({
     championshipId,
-    days,
+    rosterDays,
     membershipNos,
     readOnly,
 }: {
     championshipId: string
-    days: ChampionshipRosterDayColumn[]
+    rosterDays: ChampionshipRosterDayColumn[]
     membershipNos: string[]
     readOnly: boolean
 }) {
     return (
         <tr className="text-xs text-base-content/70">
             <th className="font-normal">Competitor</th>
-            {days.map((day) => (
-                <th key={day.dayOrder} className="font-normal text-center min-w-12" title={day.label}>
+            {rosterDays.map((day) => (
+                <th key={enrollmentDayKey(day.dayOrder)} className="font-normal text-center min-w-12">
                     <div className="flex flex-col items-center gap-0.5">
-                        <span>D{day.dayOrder}</span>
+                        <span>{day.label}</span>
                         <ChampionshipRosterDayEnrollAllButton
                             championshipId={championshipId}
                             dayOrder={day.dayOrder}
@@ -152,18 +150,27 @@ function RosterEnrollmentHeader({
 function RosterEnrollmentRow({
     championshipId,
     registration,
-    days,
-    enrolledDayOrders,
+    rosterDays,
+    enrolledSlots,
+    enrollmentEligibility,
     readOnly,
     onEditRegistration,
 }: {
     championshipId: string
     registration: ChampionshipRegistrationRow
-    days: ChampionshipRosterDayColumn[]
-    enrolledDayOrders: Set<number>
+    rosterDays: ChampionshipRosterDayColumn[]
+    enrolledSlots: ChampionshipEnrollmentSlot[]
+    enrollmentEligibility: ChampionshipEnrollmentEligibility
     readOnly: boolean
     onEditRegistration: (registration: ChampionshipRegistrationRow) => void
 }) {
+    const divisionKey = championshipDivisionKey(
+        registration.ageGroupId,
+        registration.genderGroup,
+        registration.categoryId
+    )
+    const divisionEligibility = enrollmentEligibility[divisionKey] ?? {}
+
     return (
         <tr className="align-top">
             <td>
@@ -180,13 +187,14 @@ function RosterEnrollmentRow({
                     </p>
                 </div>
             </td>
-            {days.map((day) => (
-                <td key={day.dayOrder} className="text-center">
+            {rosterDays.map((day) => (
+                <td key={enrollmentDayKey(day.dayOrder)} className="text-center">
                     <ChampionshipRosterDayCheckbox
                         championshipId={championshipId}
                         dayOrder={day.dayOrder}
                         membershipNo={registration.membershipNo}
-                        isEnrolled={enrolledDayOrders.has(day.dayOrder)}
+                        isEnrolled={isEnrolledOnChampionshipDay(enrolledSlots, day.dayOrder)}
+                        canEnroll={divisionEligibility[day.dayOrder] ?? false}
                         readOnly={readOnly}
                     />
                 </td>
@@ -207,15 +215,21 @@ function RosterEnrollmentRow({
 export default function ChampionshipRosterList({
     championshipId,
     registrations,
-    days,
+    rosterDays,
     enrollmentByMembership,
+    enrollmentEligibility,
+    assignmentsComplete,
+    rangeCount,
     readOnly = false,
     onEditRegistration,
 }: {
     championshipId: string
     registrations: ChampionshipRegistrationRow[]
-    days: ChampionshipRosterDayColumn[]
-    enrollmentByMembership: Record<string, number[]>
+    rosterDays: ChampionshipRosterDayColumn[]
+    enrollmentByMembership: Record<string, ChampionshipEnrollmentSlot[]>
+    enrollmentEligibility: ChampionshipEnrollmentEligibility
+    assignmentsComplete: boolean
+    rangeCount: number
     readOnly?: boolean
     onEditRegistration?: (registration: ChampionshipRegistrationRow) => void
 }) {
@@ -223,7 +237,7 @@ export default function ChampionshipRosterList({
         return <p className="text-base-content/70">No competitors registered yet.</p>
     }
 
-    if (days.length === 0) {
+    if (rosterDays.length === 0) {
         return (
             <ul className={`flex flex-col gap-2 ${championshipDetailContentClass}`}>
                 {registrations.map((registration) => (
@@ -258,6 +272,7 @@ export default function ChampionshipRosterList({
     }
 
     const membershipNos = registrations.map((registration) => registration.membershipNo)
+    const needsAssignments = rangeCount > 1
 
     return (
         <div className={`overflow-x-auto ${championshipDetailContentClass}`}>
@@ -266,13 +281,15 @@ export default function ChampionshipRosterList({
                     <div role="note" className="alert alert-info alert-soft py-2 flex-1 min-w-0">
                         <InformationCircleIcon className="w-5 h-5 shrink-0" />
                         <span className="text-sm">
-                            Use All under a day column to enroll the full roster on that day, or use the checkboxes per competitor.
+                            {needsAssignments
+                                ? "Enrollment uses the division–range matrix. Checkboxes are enabled only when that division is assigned for the day."
+                                : "Use All under a day column to enroll the full roster, or use the checkboxes per competitor."}
                         </span>
                     </div>
                     <ChampionshipRosterEnrollAllDaysButton
                         championshipId={championshipId}
-                        days={days}
                         membershipNos={membershipNos}
+                        assignmentsComplete={assignmentsComplete}
                         readOnly={readOnly}
                     />
                 </div>
@@ -281,7 +298,7 @@ export default function ChampionshipRosterList({
                 <thead>
                     <RosterEnrollmentHeader
                         championshipId={championshipId}
-                        days={days}
+                        rosterDays={rosterDays}
                         membershipNos={membershipNos}
                         readOnly={readOnly}
                     />
@@ -292,8 +309,9 @@ export default function ChampionshipRosterList({
                             key={registration.id}
                             championshipId={championshipId}
                             registration={registration}
-                            days={days}
-                            enrolledDayOrders={new Set(enrollmentByMembership[registration.membershipNo] ?? [])}
+                            rosterDays={rosterDays}
+                            enrolledSlots={enrollmentByMembership[registration.membershipNo] ?? []}
+                            enrollmentEligibility={enrollmentEligibility}
                             readOnly={readOnly}
                             onEditRegistration={onEditRegistration ?? (() => undefined)}
                         />

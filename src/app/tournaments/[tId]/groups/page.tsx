@@ -1,4 +1,4 @@
-import { ErrorContextProvider } from "@/components/errors/ErrorContext"
+import { ErrorContextBanner, ErrorContextProvider } from "@/components/errors/ErrorContext"
 import { getTournamentGroups } from "../groupActions"
 import { TournamentEditContextProvider } from "../TournamentContext"
 import TournamentEditForm from "../TournamentEditForm"
@@ -17,6 +17,7 @@ export default async function TournamentGroupsPage({
         <div className="w-full min-h-max">
             <TournamentEditContextProvider tournament={groupsData.tournament}>
                 <ErrorContextProvider>
+                    <ErrorContextBanner placement="sticky-top" />
                     <TournamentEditForm />
                     <TournamentNavigation tournamentId={tId} />
                     <div className="border border-secondary border-solid w-full min-h-max">

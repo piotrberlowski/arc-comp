@@ -2,22 +2,46 @@
 
 import { revalidatePath } from "next/cache"
 import { Prisma } from "@/generated/prisma/client"
-import { championshipDayTournamentName, nextChampionshipDayOrder } from "@/lib/championshipDayNaming"
-import { assertChampionshipOrganizerClubs, resolveChampionshipOrganizerClubs } from "@/lib/championshipOrganizerSession"
 import {
+    compareDivisionsForMatrix,
+    championshipDivisionKey,
+    type ChampionshipDivision,
+} from "@/lib/championshipDivision"
+import { participantDivisionAbbrev } from "@/lib/participantProfileFields"
+import { championshipDayTournamentName, nextChampionshipDayOrder } from "@/lib/championshipDayNaming"
+import {
+    areChampionshipRangeAssignmentsComplete,
     buildEnrollmentByMembership,
+    filterMembershipNosEligibleOnDay,
     participantDataFromRegistration,
     participantUpdateFromRegistration,
 } from "@/lib/championshipEnrollment"
+import type { EnrollChampionshipDayResult } from "@/lib/championshipEnrollmentMessages"
+import {
+    findDivisionRangeAssignment,
+    findDivisionRangeOnOtherDay,
+    mapDivisionRangeAssignments,
+    resolveDivisionRangeForDay,
+    isDayOneRangeAssignmentFrozen,
+    type ChampionshipDivisionRangeRow,
+} from "@/lib/championshipRangeRules"
+import { assertChampionshipOrganizerClubs, resolveChampionshipOrganizerClubs } from "@/lib/championshipOrganizerSession"
 import {
     calculateChampionshipCombinedStandings,
     type ChampionshipCombinedStandings,
 } from "@/lib/championshipCombinedStandings"
 import { prismaOrThrow } from "@/lib/prisma"
 
+export interface ChampionshipRangeFormatInput {
+    rangeNumber: number
+    formatId: string
+}
+
 export interface ChampionshipCreateInput {
     name: string
     organizerClub: string
+    rangeCount?: number
+    rangeFormats: ChampionshipRangeFormatInput[]
 }
 
 export interface ChampionshipUpdateInput {
@@ -34,10 +58,45 @@ export interface CreateRoundTournamentInput {
 export interface AddChampionshipDayInput {
     championshipId: string
     name: string
-    formatId: string
     date: Date
+    formatId?: string
+    endCount?: number
+    groupSize?: number
+}
+
+type RangeTournamentConfig = {
+    rangeNumber: number
+    formatId: string
     endCount: number
     groupSize: number
+}
+
+function resolveRangeTournamentConfigs(
+    championship: ChampionshipShellRow,
+    legacy?: { formatId: string; endCount: number; groupSize: number }
+): RangeTournamentConfig[] {
+    const rangeConfigs = championship.rangeConfigs ?? []
+    if (rangeConfigs.length > 0) {
+        return [...rangeConfigs]
+            .sort((a, b) => a.rangeNumber - b.rangeNumber)
+            .map((rangeConfig) => ({
+                rangeNumber: rangeConfig.rangeNumber,
+                formatId: rangeConfig.formatId,
+                endCount: rangeConfig.format.endCount,
+                groupSize: rangeConfig.format.groupSize,
+            }))
+    }
+
+    if (!legacy?.formatId) {
+        throw new Error("Round type must be configured for each range before adding a day")
+    }
+
+    return Array.from({ length: championship.rangeCount }, (_, index) => ({
+        rangeNumber: index + 1,
+        formatId: legacy.formatId,
+        endCount: legacy.endCount,
+        groupSize: legacy.groupSize,
+    }))
 }
 
 async function syncDayTournamentNamesForChampionship(
@@ -45,15 +104,28 @@ async function syncDayTournamentNamesForChampionship(
     championshipId: string,
     championshipName: string
 ) {
-    const rounds = await tx.championshipRound.findMany({
+    const championship = await tx.championship.findUnique({
+        where: { id: championshipId },
+        select: { rangeCount: true },
+    })
+    const rangeCount = championship?.rangeCount ?? 1
+
+    const roundRows = await tx.championshipRound.findMany({
         where: { championshipId },
-        select: { dayOrder: true, tournamentId: true },
+        select: { dayOrder: true, rangeNumber: true, tournamentId: true },
     })
 
-    for (const round of rounds) {
+    for (const round of roundRows) {
         await tx.tournament.update({
             where: { id: round.tournamentId },
-            data: { name: championshipDayTournamentName(championshipName, round.dayOrder) },
+            data: {
+                name: championshipDayTournamentName(
+                    championshipName,
+                    round.dayOrder,
+                    round.rangeNumber,
+                    rangeCount
+                ),
+            },
         })
     }
 }
@@ -94,7 +166,12 @@ const championshipShellInclude = {
                 },
             },
         },
-        orderBy: { dayOrder: "asc" as const },
+        orderBy: [{ dayOrder: "asc" as const }, { rangeNumber: "asc" as const }],
+    },
+    divisionRanges: true,
+    rangeConfigs: {
+        include: { format: true },
+        orderBy: { rangeNumber: "asc" as const },
     },
     registrations: {
         orderBy: { competitorNumber: "asc" as const },
@@ -131,11 +208,37 @@ export async function createChampionship(input: ChampionshipCreateInput) {
         throw new Error("Unauthorized")
     }
 
-    return prismaOrThrow("create championship").championship.create({
-        data: {
-            name: input.name,
-            organizerClub: input.organizerClub,
-        },
+    const rangeCount = Math.max(1, input.rangeCount ?? 1)
+
+    if (input.rangeFormats.length !== rangeCount) {
+        throw new Error("Each range must have a round type selected")
+    }
+
+    const missingFormat = input.rangeFormats.find((row) => !row.formatId.trim())
+    if (missingFormat) {
+        throw new Error(`Range ${missingFormat.rangeNumber} must have a round type selected`)
+    }
+
+    return prismaOrThrow("create championship").$transaction(async (tx) => {
+        const championship = await tx.championship.create({
+            data: {
+                name: input.name,
+                organizerClub: input.organizerClub,
+                rangeCount,
+            },
+        })
+
+        for (const row of input.rangeFormats) {
+            await tx.championshipRange.create({
+                data: {
+                    championshipId: championship.id,
+                    rangeNumber: row.rangeNumber,
+                    formatId: row.formatId,
+                },
+            })
+        }
+
+        return championship
     }).catch((error) => {
         console.error("Failed to create championship:", error)
         throw new Error("Unable to create championship")
@@ -276,29 +379,33 @@ export async function addChampionshipDay(input: AddChampionshipDayInput) {
     }
 
     const dayOrder = nextChampionshipDayOrder(championship.rounds)
+    const rangeTournaments = resolveRangeTournamentConfigs(
+        championship,
+        input.formatId && input.endCount !== undefined && input.groupSize !== undefined
+            ? {
+                  formatId: input.formatId,
+                  endCount: input.endCount,
+                  groupSize: input.groupSize,
+              }
+            : undefined
+    )
+
+    if (rangeTournaments.length !== championship.rangeCount) {
+        throw new Error("Round type must be configured for each range before adding a day")
+    }
 
     return prismaOrThrow("add championship day").$transaction(async (tx) => {
-        const tournament = await tx.tournament.create({
-            data: {
-                name: input.name.trim(),
-                organizerClub: championship.organizerClub,
-                formatId: input.formatId,
-                date: input.date,
-                endCount: input.endCount,
-                groupSize: input.groupSize,
-            },
+        const firstRound = await createChampionshipDayRangeTournaments(tx, {
+            championshipId: input.championshipId,
+            championshipName: championship.name,
+            organizerClub: championship.organizerClub,
+            rangeCount: championship.rangeCount,
+            dayOrder,
+            date: input.date,
+            rangeTournaments,
         })
 
-        return tx.championshipRound.create({
-            data: {
-                championshipId: input.championshipId,
-                dayOrder,
-                tournamentId: tournament.id,
-            },
-            include: {
-                tournament: true,
-            },
-        })
+        return firstRound
     }).catch((error) => {
         if (isUniqueError(error)) {
             const fields = getUniqueConstraintFields(error)
@@ -354,30 +461,29 @@ export async function removeChampionshipDay(championshipId: string, dayOrder: nu
         throw new Error("Championship is archived")
     }
 
-    const round = championship.rounds.find((item) => item.dayOrder === dayOrder)
-    if (!round) {
+    const dayRounds = championship.rounds.filter((item) => item.dayOrder === dayOrder)
+    if (dayRounds.length === 0) {
         throw new Error("Championship day not found")
     }
 
-    const scoreCount = round.tournament._count.participantScores
-    if (scoreCount > 0) {
+    const hasScores = dayRounds.some((round) => round.tournament._count.participantScores > 0)
+    if (hasScores) {
         throw new Error("Cannot remove a day after scores have been entered")
     }
 
     return prismaOrThrow("remove championship day").$transaction(async (tx) => {
+        const tournamentIds = dayRounds.map((round) => round.tournamentId)
         await tx.participant.deleteMany({
-            where: { tournamentId: round.tournamentId },
+            where: { tournamentId: { in: tournamentIds } },
         })
-        await tx.championshipRound.delete({
-            where: {
-                championshipId_dayOrder: {
-                    championshipId,
-                    dayOrder,
-                },
-            },
+        await tx.championshipRound.deleteMany({
+            where: { championshipId, dayOrder },
         })
-        await tx.tournament.delete({
-            where: { id: round.tournamentId },
+        await tx.championshipDivisionRange.deleteMany({
+            where: { championshipId, dayOrder },
+        })
+        await tx.tournament.deleteMany({
+            where: { id: { in: tournamentIds } },
         })
     }).catch((error) => {
         console.error("Failed to remove championship day:", error)
@@ -591,10 +697,19 @@ export async function getChampionshipCombinedStandings(
         return null
     }
 
-    const days = championship.rounds.map((round) => ({
+    const dayOrders = [...new Set(championship.rounds.map((round) => round.dayOrder))].sort(
+        (a, b) => a - b
+    )
+    const days = dayOrders.map((dayOrder) => ({
+        dayOrder,
+        tournamentId:
+            championship.rounds.find((round) => round.dayOrder === dayOrder)?.tournamentId ?? "",
+        label: `Day ${dayOrder}`,
+    }))
+    const rounds = championship.rounds.map((round) => ({
         dayOrder: round.dayOrder,
+        rangeNumber: round.rangeNumber,
         tournamentId: round.tournamentId,
-        label: round.tournament.name,
     }))
 
     const registrations = championship.registrations.map((registration) => ({
@@ -605,8 +720,6 @@ export async function getChampionshipCombinedStandings(
         ageGroupId: registration.ageGroupId,
         categoryId: registration.categoryId,
         genderGroup: registration.genderGroup,
-        ageGroupName: registration.ageGroup.name,
-        categoryName: registration.category.name,
     }))
 
     const enrollmentByMembership = buildEnrollmentByMembership(championship.rounds, enrollmentByTournament)
@@ -614,9 +727,338 @@ export async function getChampionshipCombinedStandings(
     return calculateChampionshipCombinedStandings(
         registrations,
         days,
+        rounds,
         scores,
         enrollmentByMembership
     )
+}
+
+export type DivisionRangeMatrixRow = {
+    divisionKey: string
+    ageGroupId: string
+    categoryId: string
+    categoryName: string
+    ageGroupName: string
+    genderGroup: string
+    abbrev: string
+    registrationCount: number
+    rangeByDay: Record<number, number | null>
+    isCub: boolean
+}
+
+export type DivisionRangeMatrixData = {
+    dayOrders: number[]
+    rangeCount: number
+    dayOneFrozen: boolean
+    rows: DivisionRangeMatrixRow[]
+    totalsByDay: Record<number, Record<number, number>>
+}
+
+function buildDivisionRowsFromRegistrations(
+    registrations: ChampionshipShellRow["registrations"]
+): ChampionshipDivision[] {
+    const byKey = new Map<string, ChampionshipDivision & { count: number }>()
+
+    for (const registration of registrations) {
+        const key = championshipDivisionKey(
+            registration.ageGroupId,
+            registration.genderGroup,
+            registration.categoryId
+        )
+        const existing = byKey.get(key)
+        if (existing) {
+            existing.count += 1
+            continue
+        }
+        byKey.set(key, {
+            ageGroupId: registration.ageGroupId,
+            categoryId: registration.categoryId,
+            genderGroup: registration.genderGroup,
+            ageGroupName: registration.ageGroup.name,
+            categoryName: registration.category.name,
+            count: 1,
+        })
+    }
+
+    return [...byKey.values()]
+        .sort(compareDivisionsForMatrix)
+        .map(({ count: _count, ...division }) => division)
+}
+
+function countRegistrationsPerDivision(
+    registrations: ChampionshipShellRow["registrations"]
+): Map<string, number> {
+    const counts = new Map<string, number>()
+    for (const registration of registrations) {
+        const key = championshipDivisionKey(
+            registration.ageGroupId,
+            registration.genderGroup,
+            registration.categoryId
+        )
+        counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    return counts
+}
+
+export async function getChampionshipDivisionRangeMatrix(
+    championshipId: string
+): Promise<DivisionRangeMatrixData | null> {
+    const clubs = await assertChampionshipOrganizerClubs()
+    const championship = await getChampionshipForOrganizer(championshipId, clubs)
+    if (!championship) {
+        return null
+    }
+
+    if (championship.rangeCount <= 1) {
+        return null
+    }
+
+    const dayOrders = [...new Set(championship.rounds.map((round) => round.dayOrder))].sort((a, b) => a - b)
+    if (dayOrders.length === 0) {
+        return null
+    }
+
+    const registrationCounts = countRegistrationsPerDivision(championship.registrations)
+    const divisions = buildDivisionRowsFromRegistrations(championship.registrations)
+    const assignments = mapDivisionRangeAssignments(championship.divisionRanges)
+
+    const emptyRangeTotals = () =>
+        Object.fromEntries(
+            Array.from({ length: championship.rangeCount }, (_, index) => [index + 1, 0])
+        ) as Record<number, number>
+
+    const totalsByDay = Object.fromEntries(dayOrders.map((dayOrder) => [dayOrder, emptyRangeTotals()])) as Record<
+        number,
+        Record<number, number>
+    >
+
+    const rows: DivisionRangeMatrixRow[] = divisions.map((division) => {
+        const divisionKey = championshipDivisionKey(
+            division.ageGroupId,
+            division.genderGroup,
+            division.categoryId
+        )
+        const registrationCount = registrationCounts.get(divisionKey) ?? 0
+        const rangeByDay = Object.fromEntries(
+            dayOrders.map((dayOrder) => [
+                dayOrder,
+                findDivisionRangeAssignment(
+                    assignments,
+                    dayOrder,
+                    division.ageGroupId,
+                    division.categoryId,
+                    division.genderGroup
+                ),
+            ])
+        ) as Record<number, number | null>
+
+        for (const dayOrder of dayOrders) {
+            const rangeNumber = rangeByDay[dayOrder]
+            if (rangeNumber !== null) {
+                totalsByDay[dayOrder][rangeNumber] =
+                    (totalsByDay[dayOrder][rangeNumber] ?? 0) + registrationCount
+            }
+        }
+
+        return {
+            divisionKey,
+            ageGroupId: division.ageGroupId,
+            categoryId: division.categoryId,
+            categoryName: division.categoryName,
+            ageGroupName: division.ageGroupName,
+            genderGroup: division.genderGroup,
+            abbrev: participantDivisionAbbrev(division),
+            registrationCount,
+            rangeByDay,
+            isCub: /\bcub\b/i.test(division.ageGroupName),
+        }
+    })
+
+    return {
+        dayOrders,
+        rangeCount: championship.rangeCount,
+        dayOneFrozen: isDayOneRangeAssignmentFrozen(championship.rounds),
+        rows,
+        totalsByDay,
+    }
+}
+
+async function unenrollDivisionFromRangeTournaments(
+    tx: Prisma.TransactionClient,
+    championshipId: string,
+    dayOrder: number,
+    rangeNumber: number,
+    ageGroupId: string,
+    categoryId: string,
+    genderGroup: string
+) {
+    const round = await tx.championshipRound.findFirst({
+        where: { championshipId, dayOrder, rangeNumber },
+        select: { tournamentId: true },
+    })
+    if (!round) {
+        return
+    }
+
+    await tx.participant.deleteMany({
+        where: {
+            tournamentId: round.tournamentId,
+            ageGroupId,
+            categoryId,
+            genderGroup: genderGroup as "F" | "M",
+        },
+    })
+}
+
+export async function setChampionshipDivisionRangeAssignment(
+    championshipId: string,
+    dayOrder: number,
+    divisionKey: string,
+    rangeNumber: number | null
+) {
+    const championship = await getWritableChampionshipShell(championshipId)
+    const [ageGroupId, genderGroup, categoryId] = divisionKey.split(":") as [string, "F" | "M", string]
+
+    if (dayOrder === 1 && isDayOneRangeAssignmentFrozen(championship.rounds)) {
+        throw new Error("Day 1 category–range assignments are frozen after scores are entered")
+    }
+
+    if (rangeNumber !== null) {
+        if (rangeNumber < 1 || rangeNumber > championship.rangeCount) {
+            throw new Error("Invalid range number")
+        }
+
+        const assignments = mapDivisionRangeAssignments(championship.divisionRanges)
+        const conflictDayOrder = findDivisionRangeOnOtherDay(
+            assignments,
+            dayOrder,
+            ageGroupId,
+            categoryId,
+            genderGroup,
+            rangeNumber
+        )
+        if (conflictDayOrder !== null) {
+            throw new Error(
+                `This division is already assigned to range ${rangeNumber} on day ${conflictDayOrder}`
+            )
+        }
+    }
+
+    await prismaOrThrow("set championship division range").$transaction(async (tx) => {
+        const existing = await tx.championshipDivisionRange.findFirst({
+            where: {
+                championshipId,
+                dayOrder,
+                ageGroupId,
+                categoryId,
+                genderGroup,
+            },
+        })
+
+        if (rangeNumber === null) {
+            if (existing) {
+                await unenrollDivisionFromRangeTournaments(
+                    tx,
+                    championshipId,
+                    dayOrder,
+                    existing.rangeNumber,
+                    ageGroupId,
+                    categoryId,
+                    genderGroup
+                )
+                await tx.championshipDivisionRange.delete({ where: { id: existing.id } })
+            }
+            return
+        }
+
+        if (existing && existing.rangeNumber !== rangeNumber) {
+            await unenrollDivisionFromRangeTournaments(
+                tx,
+                championshipId,
+                dayOrder,
+                existing.rangeNumber,
+                ageGroupId,
+                categoryId,
+                genderGroup
+            )
+        }
+
+        await tx.championshipDivisionRange.upsert({
+            where: {
+                championshipId_dayOrder_ageGroupId_categoryId_genderGroup: {
+                    championshipId,
+                    dayOrder,
+                    ageGroupId,
+                    categoryId,
+                    genderGroup,
+                },
+            },
+            create: {
+                championshipId,
+                dayOrder,
+                ageGroupId,
+                categoryId,
+                genderGroup,
+                rangeNumber,
+            },
+            update: { rangeNumber },
+        })
+    })
+
+    revalidatePath(`/championships/${championshipId}`)
+}
+
+async function createChampionshipDayRangeTournaments(
+    tx: Prisma.TransactionClient,
+    input: {
+        championshipId: string
+        championshipName: string
+        organizerClub: string
+        rangeCount: number
+        dayOrder: number
+        date: Date
+        rangeTournaments: RangeTournamentConfig[]
+    }
+) {
+    let firstRound: Awaited<ReturnType<typeof tx.championshipRound.create>> | null = null
+
+    for (const rangeConfig of input.rangeTournaments) {
+        const tournament = await tx.tournament.create({
+            data: {
+                name: championshipDayTournamentName(
+                    input.championshipName,
+                    input.dayOrder,
+                    rangeConfig.rangeNumber,
+                    input.rangeCount
+                ),
+                organizerClub: input.organizerClub,
+                formatId: rangeConfig.formatId,
+                date: input.date,
+                endCount: rangeConfig.endCount,
+                groupSize: rangeConfig.groupSize,
+            },
+        })
+
+        const round = await tx.championshipRound.create({
+            data: {
+                championshipId: input.championshipId,
+                dayOrder: input.dayOrder,
+                rangeNumber: rangeConfig.rangeNumber,
+                tournamentId: tournament.id,
+            },
+            include: { tournament: true },
+        })
+
+        if (!firstRound) {
+            firstRound = round
+        }
+    }
+
+    if (!firstRound) {
+        throw new Error("Unable to create championship day tournaments")
+    }
+
+    return firstRound
 }
 
 async function getWritableChampionshipShell(championshipId: string): Promise<ChampionshipShellRow> {
@@ -631,26 +1073,146 @@ async function getWritableChampionshipShell(championshipId: string): Promise<Cha
     return championship
 }
 
-function getChampionshipRoundByDayOrder(championship: ChampionshipShellRow, dayOrder: number) {
-    const round = championship.rounds.find((item) => item.dayOrder === dayOrder)
+function getChampionshipRoundByDayAndRange(
+    championship: ChampionshipShellRow,
+    dayOrder: number,
+    rangeNumber: number
+) {
+    const round = championship.rounds.find(
+        (item) => item.dayOrder === dayOrder && item.rangeNumber === rangeNumber
+    )
     if (!round) {
-        throw new Error("Championship day not found")
+        throw new Error("Championship day range not found")
     }
     return round
+}
+
+async function listPriorRangeNumbersByMembership(
+    championshipId: string,
+    dayOrder: number,
+    membershipNos: string[]
+): Promise<Map<string, Set<number>>> {
+    const priorRangesByMembership = new Map<string, Set<number>>()
+    if (dayOrder <= 1 || membershipNos.length === 0) {
+        return priorRangesByMembership
+    }
+
+    const priorEnrollments = await prismaOrThrow("list prior range enrollments").participant.findMany({
+        where: {
+            membershipNo: { in: membershipNos },
+            tournament: {
+                championshipRound: {
+                    championshipId,
+                    dayOrder: { lt: dayOrder },
+                },
+            },
+        },
+        select: {
+            membershipNo: true,
+            tournament: {
+                select: { championshipRound: { select: { rangeNumber: true } } },
+            },
+        },
+    })
+
+    for (const row of priorEnrollments) {
+        const rangeNumber = row.tournament.championshipRound?.rangeNumber
+        if (rangeNumber === undefined) {
+            continue
+        }
+        const usedRangeNumbers = priorRangesByMembership.get(row.membershipNo) ?? new Set<number>()
+        usedRangeNumbers.add(rangeNumber)
+        priorRangesByMembership.set(row.membershipNo, usedRangeNumbers)
+    }
+
+    return priorRangesByMembership
+}
+
+function assertRegistrationCanEnrollOnRange(
+    championship: ChampionshipShellRow,
+    dayOrder: number,
+    rangeNumber: number,
+    registration: ChampionshipShellRow["registrations"][number],
+    assignments: ChampionshipDivisionRangeRow[],
+    priorRangesByMembership: Map<string, Set<number>>
+) {
+    let assignedRange = findDivisionRangeAssignment(
+        assignments,
+        dayOrder,
+        registration.ageGroupId,
+        registration.categoryId,
+        registration.genderGroup
+    )
+
+    if (assignedRange === null && championship.rangeCount === 1) {
+        assignedRange = 1
+    }
+
+    if (assignedRange === null) {
+        throw new Error("This division is not assigned to a range for this day")
+    }
+
+    if (assignedRange !== rangeNumber) {
+        throw new Error("This division is assigned to a different range for this day")
+    }
+
+    if (priorRangesByMembership.get(registration.membershipNo)?.has(rangeNumber)) {
+        throw new Error("Competitor already shot on this range on an earlier day")
+    }
+}
+
+async function assertCanEnrollOnRange(
+    championship: ChampionshipShellRow,
+    dayOrder: number,
+    rangeNumber: number,
+    registration: ChampionshipShellRow["registrations"][number]
+) {
+    const assignments = mapDivisionRangeAssignments(championship.divisionRanges)
+    const priorRangesByMembership = await listPriorRangeNumbersByMembership(
+        championship.id,
+        dayOrder,
+        [registration.membershipNo]
+    )
+    assertRegistrationCanEnrollOnRange(
+        championship,
+        dayOrder,
+        rangeNumber,
+        registration,
+        assignments,
+        priorRangesByMembership
+    )
+}
+
+function resolveEnrollmentRangeForRegistration(
+    championship: ChampionshipShellRow,
+    dayOrder: number,
+    registration: ChampionshipShellRow["registrations"][number]
+): number {
+    const rangeNumber = resolveDivisionRangeForDay(
+        mapDivisionRangeAssignments(championship.divisionRanges),
+        championship.rangeCount,
+        dayOrder,
+        registration.ageGroupId,
+        registration.categoryId,
+        registration.genderGroup
+    )
+    if (rangeNumber === null) {
+        throw new Error("This division is not assigned to a range for this day")
+    }
+    return rangeNumber
 }
 
 export async function enrollChampionshipCompetitorsOnDay(
     championshipId: string,
     dayOrder: number,
     membershipNos: string[]
-) {
+): Promise<EnrollChampionshipDayResult> {
     const uniqueMembershipNos = [...new Set(membershipNos.map((membershipNo) => membershipNo.trim()).filter(Boolean))]
     if (uniqueMembershipNos.length === 0) {
-        return { enrolledCount: 0 }
+        return { enrolledCount: 0, skippedCount: 0 }
     }
 
     const championship = await getWritableChampionshipShell(championshipId)
-    const round = getChampionshipRoundByDayOrder(championship, dayOrder)
     const registrationByMembership = new Map(
         championship.registrations.map((registration) => [registration.membershipNo, registration])
     )
@@ -660,7 +1222,128 @@ export async function enrollChampionshipCompetitorsOnDay(
         throw new Error(`Not registered in championship: ${missingMembershipNos.join(", ")}`)
     }
 
-    await prismaOrThrow("enroll championship competitors on day").$transaction(async (tx) => {
+    const assignments = mapDivisionRangeAssignments(championship.divisionRanges)
+    const eligibleMembershipNos = filterMembershipNosEligibleOnDay(
+        assignments,
+        championship.rangeCount,
+        dayOrder,
+        uniqueMembershipNos,
+        registrationByMembership
+    )
+
+    if (eligibleMembershipNos.length === 0) {
+        throw new Error("No competitors have a range assignment for this day")
+    }
+
+    const byRange = new Map<number, string[]>()
+    for (const membershipNo of eligibleMembershipNos) {
+        const registration = registrationByMembership.get(membershipNo)!
+        const rangeNumber = resolveEnrollmentRangeForRegistration(championship, dayOrder, registration)
+        const rangeMembershipNos = byRange.get(rangeNumber) ?? []
+        rangeMembershipNos.push(membershipNo)
+        byRange.set(rangeNumber, rangeMembershipNos)
+    }
+
+    let enrolledCount = 0
+    for (const [rangeNumber, rangeMembershipNos] of byRange) {
+        const result = await enrollChampionshipCompetitorsOnDayRange(
+            championshipId,
+            dayOrder,
+            rangeNumber,
+            rangeMembershipNos
+        )
+        enrolledCount += result.enrolledCount
+    }
+
+    return {
+        enrolledCount,
+        skippedCount: uniqueMembershipNos.length - eligibleMembershipNos.length,
+    }
+}
+
+export async function enrollAllChampionshipCompetitorsOnAssignedDays(
+    championshipId: string,
+    membershipNos: string[]
+): Promise<EnrollChampionshipDayResult> {
+    const championship = await getWritableChampionshipShell(championshipId)
+    const dayOrders = [...new Set(championship.rounds.map((round) => round.dayOrder))].sort((a, b) => a - b)
+    const assignments = mapDivisionRangeAssignments(championship.divisionRanges)
+
+    if (
+        !areChampionshipRangeAssignmentsComplete(
+            championship.registrations,
+            dayOrders,
+            assignments,
+            championship.rangeCount
+        )
+    ) {
+        throw new Error("Assign every division to a range on each day before enrolling all competitors")
+    }
+
+    let enrolledCount = 0
+    let skippedCount = 0
+    for (const dayOrder of dayOrders) {
+        const result = await enrollChampionshipCompetitorsOnDay(championshipId, dayOrder, membershipNos)
+        enrolledCount += result.enrolledCount
+        skippedCount += result.skippedCount
+    }
+
+    return { enrolledCount, skippedCount }
+}
+
+export async function enrollChampionshipCompetitorsOnDayRange(
+    championshipId: string,
+    dayOrder: number,
+    rangeNumber: number,
+    membershipNos: string[]
+) {
+    const uniqueMembershipNos = [...new Set(membershipNos.map((membershipNo) => membershipNo.trim()).filter(Boolean))]
+    if (uniqueMembershipNos.length === 0) {
+        return { enrolledCount: 0 }
+    }
+
+    const championship = await getWritableChampionshipShell(championshipId)
+    const round = getChampionshipRoundByDayAndRange(championship, dayOrder, rangeNumber)
+    const registrationByMembership = new Map(
+        championship.registrations.map((registration) => [registration.membershipNo, registration])
+    )
+
+    const missingMembershipNos = uniqueMembershipNos.filter((membershipNo) => !registrationByMembership.has(membershipNo))
+    if (missingMembershipNos.length > 0) {
+        throw new Error(`Not registered in championship: ${missingMembershipNos.join(", ")}`)
+    }
+
+    const assignments = mapDivisionRangeAssignments(championship.divisionRanges)
+    const priorRangesByMembership = await listPriorRangeNumbersByMembership(
+        championship.id,
+        dayOrder,
+        uniqueMembershipNos
+    )
+
+    for (const membershipNo of uniqueMembershipNos) {
+        const registration = registrationByMembership.get(membershipNo)!
+        const assignedRange = resolveDivisionRangeForDay(
+            assignments,
+            championship.rangeCount,
+            dayOrder,
+            registration.ageGroupId,
+            registration.categoryId,
+            registration.genderGroup
+        )
+        if (assignedRange === null) {
+            throw new Error("This division is not assigned to a range for this day")
+        }
+        assertRegistrationCanEnrollOnRange(
+            championship,
+            dayOrder,
+            assignedRange,
+            registration,
+            assignments,
+            priorRangesByMembership
+        )
+    }
+
+    await prismaOrThrow("enroll championship competitors on day range").$transaction(async (tx) => {
         for (const membershipNo of uniqueMembershipNos) {
             const registration = registrationByMembership.get(membershipNo)!
             await tx.participant.upsert({
@@ -692,7 +1375,43 @@ export async function unenrollChampionshipCompetitorFromDay(
     }
 
     const championship = await getWritableChampionshipShell(championshipId)
-    const round = getChampionshipRoundByDayOrder(championship, dayOrder)
+    const tournamentIds = championship.rounds
+        .filter((round) => round.dayOrder === dayOrder)
+        .map((round) => round.tournamentId)
+
+    const participant = await prismaOrThrow("find day participant for unenroll").participant.findFirst({
+        where: {
+            tournamentId: { in: tournamentIds },
+            membershipNo: trimmedMembershipNo,
+        },
+        select: { id: true, tournamentId: true },
+    })
+
+    if (!participant) {
+        throw new Error("Competitor is not enrolled on this day")
+    }
+
+    await prismaOrThrow("unenroll championship competitor from day").participant.delete({
+        where: { id: participant.id },
+    })
+
+    revalidatePath(`/championships/${championshipId}`)
+    revalidatePath(`/tournaments/${participant.tournamentId}`)
+}
+
+export async function unenrollChampionshipCompetitorFromDayRange(
+    championshipId: string,
+    dayOrder: number,
+    rangeNumber: number,
+    membershipNo: string
+) {
+    const trimmedMembershipNo = membershipNo.trim()
+    if (!trimmedMembershipNo) {
+        throw new Error("Membership number is required")
+    }
+
+    const championship = await getWritableChampionshipShell(championshipId)
+    const round = getChampionshipRoundByDayAndRange(championship, dayOrder, rangeNumber)
 
     const participant = await prismaOrThrow("find day participant for unenroll").participant.findFirst({
         where: {
@@ -703,10 +1422,10 @@ export async function unenrollChampionshipCompetitorFromDay(
     })
 
     if (!participant) {
-        throw new Error("Competitor is not enrolled on this day")
+        throw new Error("Competitor is not enrolled on this day range")
     }
 
-    await prismaOrThrow("unenroll championship competitor from day").participant.delete({
+    await prismaOrThrow("unenroll championship competitor from day range").participant.delete({
         where: { id: participant.id },
     })
 

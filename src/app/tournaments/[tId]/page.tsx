@@ -1,4 +1,4 @@
-import { ErrorContextProvider } from "@/components/errors/ErrorContext"
+import { ErrorContextBanner, ErrorContextProvider } from "@/components/errors/ErrorContext"
 import { getTournamentById, getChampionshipDayLinkForTournament } from "../tournamentActions"
 import ParticipantsSection from "./ParticipantsSection"
 import { TournamentEditContextProvider } from "./TournamentContext"
@@ -27,6 +27,7 @@ export default async function TournamentDetailsPage({ params }: { params: Promis
         <div className="w-full min-h-max">
             <TournamentEditContextProvider tournament={tournament}>
                 <ErrorContextProvider>
+                    <ErrorContextBanner placement="sticky-top" />
                     <TournamentEditForm />
                     <TournamentNavigation tournamentId={tournament.id} />
                     <div className="border border-secondary border-solid w-full min-h-max">

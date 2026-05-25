@@ -1,4 +1,5 @@
 import {
+    participantDivisionAbbrev,
     participantProfileFieldKeys,
     participantProfileFields,
     participantProfileFromFormData,
@@ -16,6 +17,12 @@ describe("participantProfileFields", () => {
         expect(participantProfileFields.map((field) => field.key).sort()).toEqual(
             participantProfileFieldKeys.sort()
         )
+    })
+
+    it("abbreviates division like the participant list", () => {
+        expect(
+            participantDivisionAbbrev({ ageGroupId: "A", genderGroup: "M", categoryId: "BBC" })
+        ).toBe("AMBBC")
     })
 
     it("reads profile values from form data", () => {

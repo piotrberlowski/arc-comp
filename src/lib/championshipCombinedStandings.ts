@@ -1,8 +1,16 @@
+import type { ChampionshipEnrollmentSlot } from "@/lib/championshipEnrollment"
+import { participantDivisionAbbrev } from "@/lib/participantProfileFields"
 import {
     formatParticipantResultDisplay,
     toResult,
     type ParticipantResult,
 } from "@/lib/scoreUtils"
+
+export type ChampionshipRoundRef = {
+    tournamentId: string
+    dayOrder: number
+    rangeNumber: number
+}
 
 export type ChampionshipDay = {
     dayOrder: number
@@ -18,8 +26,6 @@ export type RegisteredCompetitor = {
     ageGroupId: string
     categoryId: string
     genderGroup: string
-    ageGroupName: string
-    categoryName: string
 }
 
 export type DayScoreInput = {
@@ -122,13 +128,22 @@ function sumCompletedDayTotals(scoresByDay: Record<number, DayScoreStatus>): num
 }
 
 function resolveDayScoreStatus(
-    enrolledDayOrders: number[],
+    enrolledSlots: ChampionshipEnrollmentSlot[],
+    rounds: ChampionshipRoundRef[],
     dayOrder: number,
-    rawScore: number | undefined
+    scoresByTournament: Map<string, number>
 ): DayScoreStatus {
-    if (!enrolledDayOrders.includes(dayOrder)) {
+    const enrolledSlot = enrolledSlots.find((slot) => slot.dayOrder === dayOrder)
+    if (!enrolledSlot) {
         return { kind: "not_enrolled" }
     }
+    const round = rounds.find(
+        (item) => item.dayOrder === dayOrder && item.rangeNumber === enrolledSlot.rangeNumber
+    )
+    if (!round) {
+        return { kind: "not_enrolled" }
+    }
+    const rawScore = scoresByTournament.get(round.tournamentId)
     if (rawScore === undefined) {
         return { kind: "pending" }
     }
@@ -138,38 +153,46 @@ function resolveDayScoreStatus(
 function calculateCompetitorStandings(
     registrations: RegisteredCompetitor[],
     days: ChampionshipDay[],
+    rounds: ChampionshipRoundRef[],
     scores: DayScoreInput[],
-    enrollmentByMembership: Record<string, number[]>
+    enrollmentByMembership: Record<string, ChampionshipEnrollmentSlot[]>
 ): CompetitorStanding[] {
-    const tournamentDayOrder = new Map(days.map((day) => [day.tournamentId, day.dayOrder]))
-    const scoresByMembershipDay = new Map<string, Map<number, number>>()
+    const scoresByMembershipTournament = new Map<string, Map<string, number>>()
 
     for (const score of scores) {
-        const dayOrder = tournamentDayOrder.get(score.tournamentId)
-        if (dayOrder === undefined || score.rawScore === null) {
+        if (score.rawScore === null) {
             continue
         }
-        const byDay = scoresByMembershipDay.get(score.membershipNo) ?? new Map()
-        byDay.set(dayOrder, score.rawScore)
-        scoresByMembershipDay.set(score.membershipNo, byDay)
+        const byTournament = scoresByMembershipTournament.get(score.membershipNo) ?? new Map()
+        byTournament.set(score.tournamentId, score.rawScore)
+        scoresByMembershipTournament.set(score.membershipNo, byTournament)
     }
 
     return registrations.map((registration) => {
-        const enrolledDayOrders = enrollmentByMembership[registration.membershipNo] ?? []
-        const scoresForMember = scoresByMembershipDay.get(registration.membershipNo)
+        const enrolledSlots = enrollmentByMembership[registration.membershipNo] ?? []
+        const scoresForMember = scoresByMembershipTournament.get(registration.membershipNo) ?? new Map()
         const scoresByDay: Record<number, DayScoreStatus> = {}
 
         for (const day of days) {
             scoresByDay[day.dayOrder] = resolveDayScoreStatus(
-                enrolledDayOrders,
+                enrolledSlots,
+                rounds,
                 day.dayOrder,
-                scoresForMember?.get(day.dayOrder)
+                scoresForMember
             )
         }
 
         const scoringComplete =
-            enrolledDayOrders.length > 0 &&
-            enrolledDayOrders.every((dayOrder) => scoresByDay[dayOrder]?.kind === "scored")
+            enrolledSlots.length > 0 &&
+            enrolledSlots.every((slot) => {
+                const round = rounds.find(
+                    (item) => item.dayOrder === slot.dayOrder && item.rangeNumber === slot.rangeNumber
+                )
+                if (!round) {
+                    return false
+                }
+                return scoresForMember.has(round.tournamentId)
+            })
 
         return {
             membershipNo: registration.membershipNo,
@@ -184,7 +207,7 @@ function calculateCompetitorStandings(
                 registration.genderGroup,
                 registration.categoryId
             ),
-            categoryLabel: `${registration.ageGroupName} ${registration.genderGroup} ${registration.categoryName}`,
+            categoryLabel: participantDivisionAbbrev(registration),
             scoresByDay,
             combinedTotal: sumCompletedDayTotals(scoresByDay),
             scoringComplete,
@@ -262,15 +285,16 @@ function formatCategoryStandingsGroup(
 export function calculateChampionshipCombinedStandings(
     registrations: RegisteredCompetitor[],
     days: ChampionshipDay[],
+    rounds: ChampionshipRoundRef[],
     scores: DayScoreInput[],
-    enrollmentByMembership: Record<string, number[]>
+    enrollmentByMembership: Record<string, ChampionshipEnrollmentSlot[]>
 ): ChampionshipCombinedStandings | null {
     if (days.length === 0) {
         return null
     }
 
     const categories = groupStandingsByCategory(
-        calculateCompetitorStandings(registrations, days, scores, enrollmentByMembership)
+        calculateCompetitorStandings(registrations, days, rounds, scores, enrollmentByMembership)
     )
 
     return {

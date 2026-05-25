@@ -10,6 +10,11 @@ describe("championshipCombinedStandings", () => {
         { dayOrder: 2, tournamentId: "t2", label: "Day 2" },
     ]
 
+    const rounds = [
+        { dayOrder: 1, rangeNumber: 1, tournamentId: "t1" },
+        { dayOrder: 2, rangeNumber: 1, tournamentId: "t2" },
+    ]
+
     const registrations = [
         {
             membershipNo: "M-001",
@@ -19,8 +24,6 @@ describe("championshipCombinedStandings", () => {
             ageGroupId: "age-1",
             categoryId: "cat-1",
             genderGroup: "M",
-            ageGroupName: "Adult",
-            categoryName: "Barebow",
         },
         {
             membershipNo: "M-002",
@@ -30,21 +33,25 @@ describe("championshipCombinedStandings", () => {
             ageGroupId: "age-1",
             categoryId: "cat-1",
             genderGroup: "M",
-            ageGroupName: "Adult",
-            categoryName: "Barebow",
         },
     ]
 
     const enrollmentByMembership = {
-        "M-001": [1, 2],
-        "M-002": [1, 2],
+        "M-001": [
+            { dayOrder: 1, rangeNumber: 1 },
+            { dayOrder: 2, rangeNumber: 1 },
+        ],
+        "M-002": [
+            { dayOrder: 1, rangeNumber: 1 },
+            { dayOrder: 2, rangeNumber: 1 },
+        ],
     }
 
     function calculate(
         scores: { tournamentId: string; membershipNo: string; rawScore: number | null }[],
         enrollment = enrollmentByMembership
     ) {
-        return calculateChampionshipCombinedStandings(registrations, days, scores, enrollment)
+        return calculateChampionshipCombinedStandings(registrations, days, rounds, scores, enrollment)
     }
 
     it("sums completed day scores across enrolled days", () => {
@@ -67,6 +74,7 @@ describe("championshipCombinedStandings", () => {
         const standings = calculateChampionshipCombinedStandings(
             [registrations[0]],
             days,
+            rounds,
             [
                 { tournamentId: "t1", membershipNo: "M-001", rawScore: toScore(290, 500) },
                 { tournamentId: "t2", membershipNo: "M-001", rawScore: 295 },
@@ -81,6 +89,7 @@ describe("championshipCombinedStandings", () => {
         const standings = calculateChampionshipCombinedStandings(
             [registrations[0]],
             days,
+            rounds,
             [
                 { tournamentId: "t1", membershipNo: "M-001", rawScore: SCORE_DNC },
                 { tournamentId: "t2", membershipNo: "M-001", rawScore: 295 },
@@ -95,8 +104,9 @@ describe("championshipCombinedStandings", () => {
         const standings = calculateChampionshipCombinedStandings(
             [registrations[0]],
             days,
+            rounds,
             [{ tournamentId: "t1", membershipNo: "M-001", rawScore: 290 }],
-            { "M-001": [1] }
+            { "M-001": [{ dayOrder: 1, rangeNumber: 1 }] }
         )
 
         const labels = standings?.complete[0]?.competitors[0]?.dayScoreLabels ?? []

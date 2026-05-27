@@ -66,7 +66,7 @@ Championship access is **not** a separate role table. It is a **per-club upgrade
 
 ### Behavioral rules
 - Day 1 groups are manual within each range’s day-tournament (M10).
-- Day 2+ groups are auto-seeded from combined standings using adjacent blocks (M11):
+- Day 2+ groups are auto-seeded from combined standings using adjacent blocks (M12):
   - example (`groupSize=4`): `1-4`, `5-8`, `9-12`.
   - seeding **must respect ranges (M10):** seed only into the day-tournament for the range where that division is assigned for that day; never split a division across range tournaments.
 - Tail handling:
@@ -95,7 +95,7 @@ Organizers must be able to run a multi-day event end-to-end in the app without m
 4. **Assign divisions to ranges (M10)** — before the first day-1 enrollment, configure the category–range matrix (see shooting ranges). Required gate for enrollment.
 5. **Enroll into days** — per day and range: create `Participant` rows only on the day-tournament for that range when the competitor’s division is assigned to that range for that day.
 6. **Run each day** — from the championship detail, open tournament flows per range: participants, **groups**, **scores** (existing `/tournaments/[tId]` UI; one tournament per range).
-7. **Later milestones** — combined standings (M9 ✓), shooting ranges (M10), day 2+ auto-seed (M11), late join/drop (M12), optional public results (M13).
+7. **Later milestones** — combined standings (M9 ✓), shooting ranges (M10 ✓), public championship results (M11), day 2+ auto-seed (M12), late join/drop (M13).
 
 Day execution deliberately reuses the standalone tournament engine; the championship layer orchestrates identity, enrollment, and cross-day logic.
 
@@ -120,7 +120,7 @@ These are **different fields**; do not conflate them.
   - `Participant.competitorNumber` ← `ChampionshipRegistration.competitorNumber`
 - Profile edits at championship level update `ChampionshipRegistration`; re-enroll or sync rules for already-enrolled days are documented in the runbook (M14).
 - One `Participant` per `(tournamentId, membershipNo)` per range day-tournament; re-enroll on the same day/range is an update, not a duplicate.
-- Enrolling on day `N` without prior day rows does not auto-create participants on earlier days (late join / DNC backfill remains M12).
+- Enrolling on day `N` without prior day rows does not auto-create participants on earlier days (late join / DNC backfill remains M13).
 - Unenroll from a day/range: remove `Participant` (and dependent group/score rows) without removing `ChampionshipRegistration`.
 - **Unassign division from a range (M10):** automatically unenroll all roster members in that division from every day-tournament for that range (and from other ranges if the unassignment removes their only valid range for that day — product rule: unassigning a division from a range unenrolls all affected participants from day enrollments tied to that assignment).
 
@@ -153,7 +153,7 @@ These are **different fields**; do not conflate them.
 - **Groups / score by group:** unchanged within each range’s tournament (`/tournaments/[tId]`).
 - **Score by category**, **combined standings (M9)**, **public results**, **IFAF export:** aggregate across range tournaments for the day/championship; ranges are not surfaced (end-of-day scores only; IFAF export unchanged).
 
-**Auto-seed (M11):** must respect per-day division↔range assignments — seed into the correct range’s day-tournament only.
+**Auto-seed (M12):** must respect per-day division↔range assignments — seed into the correct range’s day-tournament only.
 
 **Migration:** existing championships behave as `rangeCount = 1`; each historical day gains a single round row with `rangeNumber = 1`. Update unique constraint on `ChampionshipRound` from `(championshipId, dayOrder)` to `(championshipId, dayOrder, rangeNumber)`.
 
@@ -223,7 +223,7 @@ M1–M5 are delivered in code (including Championship Organizer power-up on `Org
 - Championship CRUD + day attach/detach actions (`dayOrder` set at create; no reorder).
 - `registerChampionshipParticipant` (championship roster).
 - Enforce transactional integrity on `ChampionshipRound` creation/removal with linked tournament references.
-- Additional actions (day enrollment, combined standings, ranges, auto-seed, late join) ship with their UI milestone (M8, M9, M10, M11, M12).
+- Additional actions (day enrollment, combined standings, ranges, public results, auto-seed, late join) ship with their UI milestone (M8, M9, M10, M11, M12, M13).
 
 ### M3 — Standalone tournament list guardrail ✓
 - Default tournament list queries use `championshipRound IS NULL` (`standaloneTournamentWhere` in `listTournamentsForClubs` and results browse).
@@ -277,7 +277,7 @@ M1–M5 are delivered in code (including Championship Organizer power-up on `Org
 - Championship detail section: combined standings table (updates as day scores are entered).
 - **UI test:** two days with enrolled competitors and scores → combined standings on championship detail match manual calculation.
 
-### M10 — Championship shooting ranges (championship-only)
+### M10 — Championship shooting ranges (championship-only) ✓
 - Schema: `Championship.rangeCount`; `ChampionshipRound.rangeNumber`; `ChampionshipDivisionRange` (`championshipId`, `dayOrder`, division key, `rangeNumber`).
 - Create/edit championship: **number of ranges** (default 1). Standalone tournament create unchanged.
 - Add day: create **`rangeCount` day-tournaments** per day; hub lists day → range → tournament links.
@@ -287,22 +287,22 @@ M1–M5 are delivered in code (including Championship Organizer power-up on `Org
 - Combined standings / category scoring / IFAF: unchanged aggregation across range tournaments.
 - **UI test:** championship with 2 ranges and 2 divisions → matrix assign → enroll only on matching range day-tournament → day-1 score freezes matrix → day-2 move whole division to other range tournament → category standings still aggregate.
 
-### M11 — Day 2+ auto-seed
+### M11 — Public championship results (optional)
+- Public results route composing per-day and combined views.
+- Existing per-tournament publish/share unchanged.
+- **UI test:** publish/share championship results URL → spectator sees per-day and combined tables.
+
+### M12 — Day 2+ auto-seed
 - Auto-seed from combined standings (adjacent blocks + tail rebalance).
 - **Must respect ranges (M10):** seed into the day-tournament for each division’s assigned range for that `dayOrder`; never split a division across range tournaments.
 - Organizer control on championship detail or day tournament: run auto-seed for a day before/at group setup.
 - Post-seed editing remains in existing `/tournaments/[tId]/groups` UI.
 - **UI test:** enter day 1 scores → run auto-seed for day 2 → open day 2 groups → groups match seed rules and range rules → manual edit persists until re-seed.
 
-### M12 — Late join and drop
+### M13 — Late join and drop
 - Late join: register at championship level if needed, enroll on day `N`, prior-day DNC backfill for days `< N`.
 - Drop: unenroll or mark inactive on later days; bulk DNC on remaining days (no automatic DNC on drop alone).
 - **UI test:** late join on day 2 → prior day shows DNC → drop with bulk DNC on day 3+ only when action run.
-
-### M13 — Public championship results (optional)
-- Public results route composing per-day and combined views.
-- Existing per-tournament publish/share unchanged.
-- **UI test:** publish/share championship results URL → spectator sees per-day and combined tables.
 
 ### M14 — Hardening and runbook
 - Integration/regression coverage for M4–M13 paths.
@@ -324,9 +324,9 @@ M1–M5 are delivered in code (including Championship Organizer power-up on `Org
 - **M8:** enroll/unenroll on days; day `Participant` has registration `membershipNo` and registration `competitorNumber` (distinct fields).
 - **M9:** combined standings on championship detail match manual totals across days.
 - **M10:** championship `rangeCount`; one tournament per `(day, range)`; category–range matrix; enrollment gates; day-1 freeze; day-2+ whole-division range moves; standalone tournaments unchanged.
-- **M11:** day 2+ auto-seed produces correct groups in the correct range day-tournament; manual override in tournament groups UI works.
-- **M12:** late join backfills DNC; drop does not auto-DNC; bulk DNC action works.
-- **M13:** public championship results page shows per-day and combined views.
+- **M11:** public championship results page shows per-day and combined views.
+- **M12:** day 2+ auto-seed produces correct groups in the correct range day-tournament; manual override in tournament groups UI works.
+- **M13:** late join backfills DNC; drop does not auto-DNC; bulk DNC action works.
 - **M14:** runbook seed reproduces M4–M9 smoke path; documented standalone regression checklist passes.
 
 ## Decision diagram
@@ -341,7 +341,8 @@ flowchart TD
   dayTournament --> tournamentUI[ExistingTournamentUI_GroupsScores]
   dayTournament --> dayScores[ParticipantScore]
   dayScores --> combinedStandings[CombinedStandings]
-  combinedStandings --> seedDayN[AutoSeedDayN_respectsRange]
+  combinedStandings --> publicResults[PublicChampionshipResults_M11]
+  combinedStandings --> seedDayN[AutoSeedDayN_respectsRange_M12]
   seedDayN --> dayGroups[GroupAssignment]
   dayGroups --> manualEdits[OrganizerManualEdits]
 ```

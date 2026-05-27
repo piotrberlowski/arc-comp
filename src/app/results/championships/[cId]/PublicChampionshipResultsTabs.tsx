@@ -4,6 +4,8 @@ import ChampionshipCombinedStandingsView from "@/app/championships/[cId]/Champio
 import type { ChampionshipCombinedStandings } from "@/lib/championshipCombinedStandings"
 import { useState } from "react"
 import type { PublicChampionshipTournamentRef, PublicTournamentGroupsData } from "../championshipResultsActions"
+import PublicGroupCard from "./PublicGroupCard"
+import PublicUnassignedParticipants from "./PublicUnassignedParticipants"
 
 const activeTabClass =
     "tab-active bg-primary text-primary-content border-secondary border-solid border-1 border-b-0"
@@ -11,6 +13,12 @@ const activeTabClass =
 const resultsPanelClass = "rounded-lg border border-base-300 bg-base-100 overflow-hidden"
 
 type ResultsTabId = number | "standings"
+
+function getGroupGridCols(groupCount: number) {
+    if (groupCount <= 4) return "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+    if (groupCount <= 9) return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+    return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+}
 
 function DayGroupCard({
     heading,
@@ -21,71 +29,22 @@ function DayGroupCard({
     groups: PublicTournamentGroupsData["groups"]
     unassigned: PublicTournamentGroupsData["unassigned"]
 }) {
+    const assignedGroups = groups.filter((group) => group.participants.length > 0)
+
     return (
         <div className="card bg-base-100 border border-base-300">
             <div className="card-body gap-4">
                 <h3 className="card-title text-base">{heading}</h3>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {groups.map((group) => (
-                        <div key={group.groupNumber} className="rounded-lg border border-base-300 p-3">
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="font-semibold">Group {group.groupNumber}</p>
-                                <p className="text-xs text-base-content/70">{group.participants.length}</p>
-                            </div>
-                            {group.participants.length === 0 ? (
-                                <p className="text-sm text-base-content/60">No assignments yet.</p>
-                            ) : (
-                                <ul className="space-y-1">
-                                    {group.participants.map((participant) => (
-                                        <li
-                                            key={participant.id}
-                                            className="flex items-baseline justify-between gap-3 text-sm"
-                                        >
-                                            <div className="min-w-0">
-                                                <p className="truncate font-medium">
-                                                    {participant.competitorNumber ? (
-                                                        <span className="font-mono text-xs mr-2">
-                                                            #{participant.competitorNumber}
-                                                        </span>
-                                                    ) : null}
-                                                    {participant.name}
-                                                    {participant.isCaptain ? (
-                                                        <span className="ml-2 badge badge-xs badge-outline">
-                                                            Captain
-                                                        </span>
-                                                    ) : null}
-                                                </p>
-                                                <p className="truncate text-xs text-base-content/70">
-                                                    {participant.club ?? "Independent"}
-                                                </p>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-                    ))}
-                </div>
-
-                {unassigned.length > 0 ? (
-                    <div className="rounded-lg bg-base-200 p-3">
-                        <p className="font-semibold mb-2">Unassigned ({unassigned.length})</p>
-                        <ul className="columns-1 md:columns-2 gap-6 space-y-1">
-                            {unassigned.map((participant) => (
-                                <li key={participant.id} className="text-sm break-inside-avoid">
-                                    <span className="font-mono text-xs mr-2">
-                                        {participant.competitorNumber ? `#${participant.competitorNumber}` : "—"}
-                                    </span>
-                                    <span className="font-medium">{participant.name}</span>
-                                    <span className="text-xs text-base-content/70">
-                                        {" "}
-                                        · {participant.club ?? "Independent"}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
+                <PublicUnassignedParticipants participants={unassigned} />
+                {assignedGroups.length > 0 ? (
+                    <div className={`grid ${getGroupGridCols(assignedGroups.length)} gap-4`}>
+                        {assignedGroups.map((group) => (
+                            <PublicGroupCard key={group.groupNumber} group={group} />
+                        ))}
                     </div>
-                ) : null}
+                ) : (
+                    <p className="text-sm text-base-content/60">No group assignments yet.</p>
+                )}
             </div>
         </div>
     )

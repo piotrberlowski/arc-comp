@@ -2,6 +2,10 @@
 
 import { GroupAssignment, Participant } from "@/generated/prisma/client"
 import { prismaOrThrow } from "@/lib/prisma"
+import {
+    isTournamentResultsComplete,
+    validateCheckedInParticipantsHaveScores,
+} from "@/lib/tournamentSharingValidation"
 import { ParticipantResult, SCORE_DNC, SCORE_DNF, toResult, toScore } from "@/lib/scoreUtils"
 import { revalidatePath } from "next/cache"
 
@@ -54,7 +58,8 @@ export async function getTournamentWithResultsStatus(tournamentId: string): Prom
         throw new Error("Tournament not found")
     }
 
-    const allResultsComplete = tournament.participants.length > 0 && tournament.participants.every(p => !!p.participantScore)
+    const allResultsComplete =
+        tournament.participants.length > 0 && tournament.participants.every((p) => !!p.participantScore)
 
     return {
         tournament: {
@@ -121,37 +126,6 @@ export async function updateShootoffScore(
     })
 
     revalidatePath(`/tournaments/${tournamentId}/scores`)
-}
-
-async function validateCheckedInParticipantsHaveScores(
-    tournamentId: string,
-    errorMessagePrefix: string
-): Promise<void> {
-    const tournament = await prismaOrThrow("validate checked-in participants have scores").tournament.findUnique({
-        where: { id: tournamentId },
-        include: {
-            participants: {
-                where: {
-                    checkedIn: true
-                },
-                include: {
-                    participantScore: true
-                }
-            }
-        }
-    })
-
-    if (!tournament) {
-        throw new Error("Tournament not found")
-    }
-
-    const incompleteParticipants = tournament.participants.filter(p =>
-        !p.participantScore
-    )
-
-    if (incompleteParticipants.length > 0) {
-        throw new Error(`${errorMessagePrefix}: ${incompleteParticipants.length} participants have incomplete scores`)
-    }
 }
 
 export async function updateSharingSettings(

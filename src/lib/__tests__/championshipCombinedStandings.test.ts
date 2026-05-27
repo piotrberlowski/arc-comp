@@ -1,6 +1,7 @@
 import {
     calculateChampionshipCombinedStandings,
     championshipCategoryKey,
+    compareCombinedStandingsCategories,
 } from "@/lib/championshipCombinedStandings"
 import { SCORE_DNC, toScore } from "@/lib/scoreUtils"
 
@@ -22,7 +23,9 @@ describe("championshipCombinedStandings", () => {
             name: "Alex",
             club: "Club A",
             ageGroupId: "age-1",
+            ageGroupName: "Adult",
             categoryId: "cat-1",
+            categoryName: "Barebow Compound",
             genderGroup: "M",
         },
         {
@@ -31,7 +34,9 @@ describe("championshipCombinedStandings", () => {
             name: "Blair",
             club: "Club B",
             ageGroupId: "age-1",
+            ageGroupName: "Adult",
             categoryId: "cat-1",
+            categoryName: "Barebow Compound",
             genderGroup: "M",
         },
     ]
@@ -149,5 +154,84 @@ describe("championshipCombinedStandings", () => {
 
         expect(standings?.complete[0]?.competitors[0]?.place).toBe(1)
         expect(standings?.inProgress).toHaveLength(0)
+    })
+
+    it("sorts category groups by bow, age, then gender", () => {
+        const mixedRegistrations = [
+            {
+                membershipNo: "M-001",
+                competitorNumber: 1,
+                name: "Alex",
+                club: "Club A",
+                ageGroupId: "A",
+                ageGroupName: "Adult",
+                categoryId: "FSR",
+                categoryName: "Freestyle Recurve",
+                genderGroup: "M",
+            },
+            {
+                membershipNo: "M-002",
+                competitorNumber: 2,
+                name: "Blair",
+                club: "Club B",
+                ageGroupId: "C",
+                ageGroupName: "Cub",
+                categoryId: "BBC",
+                categoryName: "Barebow Compound",
+                genderGroup: "M",
+            },
+            {
+                membershipNo: "M-003",
+                competitorNumber: 3,
+                name: "Casey",
+                club: "Club C",
+                ageGroupId: "C",
+                ageGroupName: "Cub",
+                categoryId: "BBC",
+                categoryName: "Barebow Compound",
+                genderGroup: "F",
+            },
+            {
+                membershipNo: "M-004",
+                competitorNumber: 4,
+                name: "Dana",
+                club: "Club D",
+                ageGroupId: "J",
+                ageGroupName: "Junior",
+                categoryId: "BBC",
+                categoryName: "Barebow Compound",
+                genderGroup: "M",
+            },
+        ]
+
+        const standings = calculateChampionshipCombinedStandings(
+            mixedRegistrations,
+            days,
+            rounds,
+            [],
+            Object.fromEntries(mixedRegistrations.map((registration) => [registration.membershipNo, []]))
+        )
+
+        expect(standings?.inProgress.map((group) => group.categoryKey)).toEqual([
+            championshipCategoryKey("C", "F", "BBC"),
+            championshipCategoryKey("C", "M", "BBC"),
+            championshipCategoryKey("J", "M", "BBC"),
+            championshipCategoryKey("A", "M", "FSR"),
+        ])
+    })
+
+    it("compareCombinedStandingsCategories uses bow, age, then gender", () => {
+        expect(
+            compareCombinedStandingsCategories(
+                { categoryName: "Barebow Compound", ageGroupName: "Cub", genderGroup: "M" },
+                { categoryName: "Freestyle Recurve", ageGroupName: "Adult", genderGroup: "M" }
+            )
+        ).toBeLessThan(0)
+        expect(
+            compareCombinedStandingsCategories(
+                { categoryName: "Barebow Compound", ageGroupName: "Cub", genderGroup: "F" },
+                { categoryName: "Barebow Compound", ageGroupName: "Cub", genderGroup: "M" }
+            )
+        ).toBeLessThan(0)
     })
 })

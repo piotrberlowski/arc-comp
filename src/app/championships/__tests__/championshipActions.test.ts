@@ -6,6 +6,7 @@ import {
     createChampionship,
     enrollChampionshipCompetitorsOnDay,
     getChampionshipForOrganizer,
+    getChampionshipSharingStatus,
     listChampionshipDayEnrollmentByTournament,
     listChampionshipDayTournamentsForClubs,
     listChampionshipEnrolledMembershipNos,
@@ -17,6 +18,7 @@ import {
     unenrollChampionshipCompetitorFromDay,
     updateChampionship,
     updateChampionshipRegistration,
+    updateChampionshipSharingSettings,
 } from "../championshipActions"
 
 jest.mock("next/cache", () => ({
@@ -855,5 +857,75 @@ describe("listMyChampionshipsForClubs", () => {
 
         const call = prismaMock.championship.findMany.mock.calls[0][0]
         expect(call.where.isArchive).toBeUndefined()
+    })
+})
+
+describe("getChampionshipSharingStatus", () => {
+    it("returns null when championship is out of scope", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue(null)
+
+        await expect(getChampionshipSharingStatus("champ-1")).resolves.toBeNull()
+    })
+
+    it("returns sharing status for linked tournaments", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            id: "champ-1",
+            rounds: [
+                {
+                    tournamentId: "tour-1",
+                    tournament: { isPublished: false, isShared: true },
+                },
+                {
+                    tournamentId: "tour-2",
+                    tournament: { isPublished: false, isShared: true },
+                },
+            ],
+        } as never)
+
+        await expect(getChampionshipSharingStatus("champ-1")).resolves.toEqual({
+            tournamentCount: 2,
+            sharingOption: "link-shared",
+        })
+    })
+})
+
+describe("updateChampionshipSharingSettings", () => {
+    beforeEach(() => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            id: "champ-1",
+            isArchive: false,
+            rounds: [{ tournamentId: "tour-1" }, { tournamentId: "tour-2" }],
+        } as never)
+        prismaMock.tournament.updateMany.mockResolvedValue({ count: 2 } as never)
+    })
+
+    it("updates all linked tournaments", async () => {
+        await updateChampionshipSharingSettings("champ-1", false, true)
+
+        expect(prismaMock.tournament.updateMany).toHaveBeenCalledWith({
+            where: { id: { in: ["tour-1", "tour-2"] } },
+            data: { isPublished: false, isShared: true },
+        })
+    })
+
+    it("allows public sharing without score validation", async () => {
+        await updateChampionshipSharingSettings("champ-1", true, true)
+
+        expect(prismaMock.tournament.updateMany).toHaveBeenCalledWith({
+            where: { id: { in: ["tour-1", "tour-2"] } },
+            data: { isPublished: true, isShared: true },
+        })
+    })
+
+    it("throws when there are no day tournaments", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            id: "champ-1",
+            isArchive: false,
+            rounds: [],
+        } as never)
+
+        await expect(updateChampionshipSharingSettings("champ-1", false, true)).rejects.toThrow(
+            "Add at least one championship day before sharing results"
+        )
     })
 })

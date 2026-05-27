@@ -78,6 +78,140 @@ export function isDivisionRangeBlockedOnOtherDay(
     )
 }
 
+export function availableRangesForDay(
+    rangeByDay: Record<number, number | null>,
+    dayOrder: number,
+    rangeCount: number
+): number[] {
+    const ranges: number[] = []
+    for (let rangeNumber = 1; rangeNumber <= rangeCount; rangeNumber += 1) {
+        if (!isDivisionRangeBlockedOnOtherDay(rangeByDay, dayOrder, rangeNumber)) {
+            ranges.push(rangeNumber)
+        }
+    }
+    return ranges
+}
+
+export function soleAvailableRangeForDay(
+    rangeByDay: Record<number, number | null>,
+    dayOrder: number,
+    rangeCount: number
+): number | null {
+    if (rangeByDay[dayOrder] != null) {
+        return null
+    }
+
+    const available = availableRangesForDay(rangeByDay, dayOrder, rangeCount)
+    return available.length === 1 ? available[0]! : null
+}
+
+export type SoleAvailableRangeAssignment = {
+    divisionKey: string
+    dayOrder: number
+    rangeNumber: number
+}
+
+export function collectSoleAvailableRangeAssignments(
+    rows: { divisionKey: string; rangeByDay: Record<number, number | null> }[],
+    dayOrders: number[],
+    rangeCount: number,
+    dayOneFrozen: boolean
+): SoleAvailableRangeAssignment[] {
+    const assignments: SoleAvailableRangeAssignment[] = []
+
+    for (const row of rows) {
+        for (const dayOrder of dayOrders) {
+            if (dayOneFrozen && dayOrder === 1) {
+                continue
+            }
+
+            const rangeNumber = soleAvailableRangeForDay(row.rangeByDay, dayOrder, rangeCount)
+            if (rangeNumber !== null) {
+                assignments.push({ divisionKey: row.divisionKey, dayOrder, rangeNumber })
+            }
+        }
+    }
+
+    return assignments
+}
+
+export function isDayRangeAssignmentEditable(dayOrder: number, dayOneFrozen: boolean): boolean {
+    return !(dayOneFrozen && dayOrder === 1)
+}
+
+export function shouldApplyRangeOnDay(
+    rangeByDay: Record<number, number | null>,
+    dayOrder: number,
+    rangeNumber: number | null,
+    dayOneFrozen: boolean
+): boolean {
+    if (!isDayRangeAssignmentEditable(dayOrder, dayOneFrozen)) {
+        return false
+    }
+
+    const current = rangeByDay[dayOrder] ?? null
+    if (rangeNumber === null) {
+        return current !== null
+    }
+
+    if (current === rangeNumber) {
+        return false
+    }
+
+    return !isDivisionRangeBlockedOnOtherDay(rangeByDay, dayOrder, rangeNumber)
+}
+
+export type RangeAssignmentUpdate = {
+    divisionKey: string
+    dayOrder: number
+    rangeNumber: number | null
+}
+
+export function buildCategoryRangeUpdates(
+    rows: { divisionKey: string; rangeByDay: Record<number, number | null> }[],
+    dayOrders: number[],
+    dayOrder: number | "all",
+    rangeNumber: number | null,
+    dayOneFrozen: boolean
+): RangeAssignmentUpdate[] {
+    const targetDays = dayOrder === "all" ? dayOrders : [dayOrder]
+    const updates: RangeAssignmentUpdate[] = []
+
+    for (const row of rows) {
+        for (const targetDay of targetDays) {
+            if (shouldApplyRangeOnDay(row.rangeByDay, targetDay, rangeNumber, dayOneFrozen)) {
+                updates.push({
+                    divisionKey: row.divisionKey,
+                    dayOrder: targetDay,
+                    rangeNumber,
+                })
+            }
+        }
+    }
+
+    return updates
+}
+
+export function categoryHasAssignmentOnFrozenDayOne(
+    rows: { rangeByDay: Record<number, number | null> }[],
+    dayOneFrozen: boolean
+): boolean {
+    if (!dayOneFrozen) {
+        return false
+    }
+
+    return rows.some((row) => row.rangeByDay[1] != null)
+}
+
+export function canAssignDivisionRangeOnDay(
+    rangeByDay: Record<number, number | null>,
+    dayOrder: number,
+    rangeNumber: number,
+    dayOneFrozen: boolean
+): boolean {
+    return shouldApplyRangeOnDay(rangeByDay, dayOrder, rangeNumber, dayOneFrozen)
+}
+
 export function resolveDivisionRangeForDay(
     assignments: ChampionshipDivisionRangeRow[],
     rangeCount: number,

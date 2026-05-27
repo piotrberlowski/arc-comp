@@ -1,10 +1,15 @@
 import {
+    buildCategoryRangeUpdates,
+    canAssignDivisionRangeOnDay,
     canEnrollDivisionOnDay,
+    collectSoleAvailableRangeAssignments,
     findDivisionRangeOnOtherDay,
     isDivisionRangeAssignmentComplete,
     isDivisionRangeBlockedOnOtherDay,
     mapDivisionRangeAssignments,
     resolveDivisionRangeForDay,
+    shouldApplyRangeOnDay,
+    soleAvailableRangeForDay,
 } from "@/lib/championshipRangeRules"
 
 const assignments = [
@@ -60,6 +65,75 @@ describe("isDivisionRangeBlockedOnOtherDay", () => {
     it("blocks ranges already assigned on another day for the row", () => {
         expect(isDivisionRangeBlockedOnOtherDay({ 1: 1, 2: null }, 2, 1)).toBe(true)
         expect(isDivisionRangeBlockedOnOtherDay({ 1: 1, 2: null }, 2, 2)).toBe(false)
+    })
+})
+
+describe("soleAvailableRangeForDay", () => {
+    it("returns the only range left when other days block the rest", () => {
+        expect(soleAvailableRangeForDay({ 1: 1, 2: null }, 2, 2)).toBe(2)
+    })
+
+    it("returns null when multiple ranges are still available", () => {
+        expect(soleAvailableRangeForDay({ 1: null, 2: null }, 1, 2)).toBeNull()
+    })
+
+    it("returns null when the day is already assigned", () => {
+        expect(soleAvailableRangeForDay({ 1: 1, 2: null }, 1, 2)).toBeNull()
+    })
+})
+
+describe("collectSoleAvailableRangeAssignments", () => {
+    it("collects unassigned cells with exactly one valid range", () => {
+        expect(
+            collectSoleAvailableRangeAssignments(
+                [{ divisionKey: "age-1:M:cat-1", rangeByDay: { 1: 1, 2: null } }],
+                [1, 2],
+                2,
+                false
+            )
+        ).toEqual([{ divisionKey: "age-1:M:cat-1", dayOrder: 2, rangeNumber: 2 }])
+    })
+})
+
+describe("canAssignDivisionRangeOnDay", () => {
+    it("allows assigning a free range on an editable day", () => {
+        expect(canAssignDivisionRangeOnDay({ 1: 1, 2: null }, 2, 2, false)).toBe(true)
+    })
+
+    it("rejects blocked ranges and frozen day 1", () => {
+        expect(canAssignDivisionRangeOnDay({ 1: 1, 2: null }, 2, 1, false)).toBe(false)
+        expect(canAssignDivisionRangeOnDay({ 1: null, 2: null }, 1, 1, true)).toBe(false)
+    })
+})
+
+describe("buildCategoryRangeUpdates", () => {
+    const rows = [
+        { divisionKey: "age-1:M:cat-1", rangeByDay: { 1: 1, 2: 2 } },
+        { divisionKey: "age-2:M:cat-1", rangeByDay: { 1: 1, 2: null } },
+    ]
+
+    it("clears every assigned day in the category", () => {
+        expect(buildCategoryRangeUpdates(rows, [1, 2], "all", null, false)).toEqual([
+            { divisionKey: "age-1:M:cat-1", dayOrder: 1, rangeNumber: null },
+            { divisionKey: "age-1:M:cat-1", dayOrder: 2, rangeNumber: null },
+            { divisionKey: "age-2:M:cat-1", dayOrder: 1, rangeNumber: null },
+        ])
+    })
+
+    it("skips frozen day 1 when clearing the whole category", () => {
+        expect(buildCategoryRangeUpdates(rows, [1, 2], "all", null, true)).toEqual([
+            { divisionKey: "age-1:M:cat-1", dayOrder: 2, rangeNumber: null },
+        ])
+    })
+})
+
+describe("shouldApplyRangeOnDay", () => {
+    it("allows clearing an assigned day", () => {
+        expect(shouldApplyRangeOnDay({ 1: 1, 2: 2 }, 2, null, false)).toBe(true)
+    })
+
+    it("skips clear when the day is already empty", () => {
+        expect(shouldApplyRangeOnDay({ 1: 1, 2: null }, 2, null, false)).toBe(false)
     })
 })
 

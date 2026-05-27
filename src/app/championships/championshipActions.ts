@@ -27,10 +27,14 @@ import {
 } from "@/lib/championshipRangeRules"
 import { assertChampionshipOrganizerClubs, resolveChampionshipOrganizerClubs } from "@/lib/championshipOrganizerSession"
 import {
-    calculateChampionshipCombinedStandings,
     type ChampionshipCombinedStandings,
 } from "@/lib/championshipCombinedStandings"
+import { buildChampionshipCombinedStandingsFromChampionshipData } from "@/lib/championshipStandingsInput"
 import { prismaOrThrow } from "@/lib/prisma"
+import {
+    aggregateSharingOption,
+    type SharingOption,
+} from "@/lib/tournamentSharing"
 
 export interface ChampionshipRangeFormatInput {
     rangeNumber: number
@@ -697,40 +701,16 @@ export async function getChampionshipCombinedStandings(
         return null
     }
 
-    const dayOrders = [...new Set(championship.rounds.map((round) => round.dayOrder))].sort(
-        (a, b) => a - b
-    )
-    const days = dayOrders.map((dayOrder) => ({
-        dayOrder,
-        tournamentId:
-            championship.rounds.find((round) => round.dayOrder === dayOrder)?.tournamentId ?? "",
-        label: `Day ${dayOrder}`,
-    }))
-    const rounds = championship.rounds.map((round) => ({
-        dayOrder: round.dayOrder,
-        rangeNumber: round.rangeNumber,
-        tournamentId: round.tournamentId,
-    }))
-
-    const registrations = championship.registrations.map((registration) => ({
-        membershipNo: registration.membershipNo,
-        competitorNumber: registration.competitorNumber,
-        name: registration.name,
-        club: registration.club,
-        ageGroupId: registration.ageGroupId,
-        categoryId: registration.categoryId,
-        genderGroup: registration.genderGroup,
-    }))
-
-    const enrollmentByMembership = buildEnrollmentByMembership(championship.rounds, enrollmentByTournament)
-
-    return calculateChampionshipCombinedStandings(
-        registrations,
-        days,
-        rounds,
+    return buildChampionshipCombinedStandingsFromChampionshipData({
+        registrations: championship.registrations,
+        rounds: championship.rounds.map((round) => ({
+            dayOrder: round.dayOrder,
+            rangeNumber: round.rangeNumber,
+            tournamentId: round.tournamentId,
+        })),
         scores,
-        enrollmentByMembership
-    )
+        enrollmentByTournament,
+    })
 }
 
 export type DivisionRangeMatrixRow = {
@@ -1548,4 +1528,76 @@ export async function archiveChampionship(championshipId: string) {
 
 export async function unarchiveChampionship(championshipId: string) {
     return setChampionshipArchiveState(championshipId, false)
+}
+
+export type ChampionshipSharingStatus = {
+    tournamentCount: number
+    sharingOption: SharingOption
+}
+
+async function listChampionshipTournamentIds(championshipId: string, clubs: string[]): Promise<string[]> {
+    const championship = await getChampionshipForOrganizer(championshipId, clubs)
+    if (!championship) {
+        throw new Error("Unauthorized")
+    }
+
+    return championship.rounds.map((round) => round.tournamentId)
+}
+
+export async function getChampionshipSharingStatus(
+    championshipId: string
+): Promise<ChampionshipSharingStatus | null> {
+    const clubs = await resolveChampionshipOrganizerClubs()
+    if (!clubs) {
+        return null
+    }
+    const championship = await getChampionshipForOrganizer(championshipId, clubs)
+    if (!championship) {
+        return null
+    }
+
+    const tournaments = championship.rounds.map((round) => ({
+        id: round.tournamentId,
+        isPublished: round.tournament.isPublished,
+        isShared: round.tournament.isShared,
+    }))
+
+    if (tournaments.length === 0) {
+        return {
+            tournamentCount: 0,
+            sharingOption: "private",
+        }
+    }
+
+    return {
+        tournamentCount: tournaments.length,
+        sharingOption: aggregateSharingOption(tournaments),
+    }
+}
+
+export async function updateChampionshipSharingSettings(
+    championshipId: string,
+    isPublished: boolean,
+    isShared: boolean
+): Promise<void> {
+    const clubs = await assertChampionshipOrganizerClubs()
+    await assertChampionshipWritable(championshipId)
+
+    const tournamentIds = await listChampionshipTournamentIds(championshipId, clubs)
+    if (tournamentIds.length === 0) {
+        throw new Error("Add at least one championship day before sharing results")
+    }
+
+    await prismaOrThrow("update championship sharing settings").tournament.updateMany({
+        where: { id: { in: tournamentIds } },
+        data: { isPublished, isShared },
+    })
+
+    revalidatePath(`/championships/${championshipId}`)
+    revalidatePath(`/results/championships/${championshipId}`)
+    revalidatePath("/results/championships")
+    revalidatePath("/results")
+    for (const tournamentId of tournamentIds) {
+        revalidatePath(`/tournaments/${tournamentId}/scores`)
+    }
 }

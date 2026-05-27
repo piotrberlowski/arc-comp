@@ -1,5 +1,6 @@
 import { competitorsRegisteredLabel } from "../competitorsRegisteredLabel"
 import ChampionshipNameEdit from "./ChampionshipNameEdit"
+import ChampionshipSharingButton from "./ChampionshipSharingButton"
 
 export default function ChampionshipDetailHeader({
     championshipId,
@@ -24,7 +25,10 @@ export default function ChampionshipDetailHeader({
                     initialName={name}
                     readOnly={readOnly}
                 />
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                    {!readOnly ? (
+                        <ChampionshipSharingButton championshipId={championshipId} readOnly={readOnly} />
+                    ) : null}
                     {isArchive ? (
                         <span className="badge badge-lg badge-warning">Archived</span>
                     ) : null}

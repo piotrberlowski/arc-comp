@@ -24,7 +24,9 @@ export type RegisteredCompetitor = {
     name: string
     club: string
     ageGroupId: string
+    ageGroupName: string
     categoryId: string
+    categoryName: string
     genderGroup: string
 }
 
@@ -47,6 +49,8 @@ type CompetitorStanding = {
     ageGroupId: string
     categoryId: string
     genderGroup: string
+    categoryName: string
+    ageGroupName: string
     categoryKey: string
     categoryLabel: string
     scoresByDay: Record<number, DayScoreStatus>
@@ -57,6 +61,9 @@ type CompetitorStanding = {
 type CategoryStandings = {
     categoryKey: string
     categoryLabel: string
+    categoryName: string
+    ageGroupName: string
+    genderGroup: string
     scoringComplete: boolean
     competitors: CompetitorStanding[]
 }
@@ -91,6 +98,27 @@ export function championshipCategoryKey(
     categoryId: string
 ): string {
     return `${ageGroupId}${genderGroup}${categoryId}`
+}
+
+function compareAlphanumeric(a: string, b: string): number {
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
+}
+
+export function compareCombinedStandingsCategories(
+    a: { categoryName: string; ageGroupName: string; genderGroup: string },
+    b: { categoryName: string; ageGroupName: string; genderGroup: string }
+): number {
+    const byBow = compareAlphanumeric(a.categoryName, b.categoryName)
+    if (byBow !== 0) {
+        return byBow
+    }
+
+    const byAge = compareAlphanumeric(a.ageGroupName, b.ageGroupName)
+    if (byAge !== 0) {
+        return byAge
+    }
+
+    return compareAlphanumeric(a.genderGroup, b.genderGroup)
 }
 
 function formatStandingsTotal(total: number | null): string {
@@ -202,6 +230,8 @@ function calculateCompetitorStandings(
             ageGroupId: registration.ageGroupId,
             categoryId: registration.categoryId,
             genderGroup: registration.genderGroup,
+            categoryName: registration.categoryName,
+            ageGroupName: registration.ageGroupName,
             categoryKey: championshipCategoryKey(
                 registration.ageGroupId,
                 registration.genderGroup,
@@ -244,11 +274,14 @@ function groupStandingsByCategory(competitors: CompetitorStanding[]): CategorySt
             return {
                 categoryKey,
                 categoryLabel: sortedCompetitors[0]?.categoryLabel ?? categoryKey,
+                categoryName: sortedCompetitors[0]?.categoryName ?? "",
+                ageGroupName: sortedCompetitors[0]?.ageGroupName ?? "",
+                genderGroup: sortedCompetitors[0]?.genderGroup ?? "",
                 scoringComplete: sortedCompetitors.every((competitor) => competitor.scoringComplete),
                 competitors: sortedCompetitors,
             }
         })
-        .sort((a, b) => a.categoryLabel.localeCompare(b.categoryLabel))
+        .sort(compareCombinedStandingsCategories)
 }
 
 function formatDayScoreLabel(dayScore: DayScoreStatus | undefined): string {

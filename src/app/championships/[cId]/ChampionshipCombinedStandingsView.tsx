@@ -98,18 +98,25 @@ function CategoryStandingsCard({
 
 export default function ChampionshipCombinedStandingsView({
     standings,
+    embedded = false,
 }: {
     standings: ChampionshipCombinedStandings
+    embedded?: boolean
 }) {
     const tableMinWidth = combinedStandingsMinWidth(standings.days.length)
     const allGroups = [...standings.inProgress, ...standings.complete]
 
     return (
-        <section className={championshipDetailContentClass}>
-            <h2 className="text-lg font-semibold mb-3">Combined standings</h2>
-            <p className="text-sm text-base-content/70 mb-4">
-                Totals sum completed day scores for enrolled competitors. DNC and DNF days do not add to the total.
-            </p>
+        <section className={embedded ? "w-full" : championshipDetailContentClass}>
+            {!embedded ? (
+                <>
+                    <h2 className="text-lg font-semibold mb-3">Combined standings</h2>
+                    <p className="text-sm text-base-content/70 mb-4">
+                        Totals sum completed day scores for enrolled competitors. DNC and DNF days do not add to the
+                        total.
+                    </p>
+                </>
+            ) : null}
             {allGroups.length > 0 ? (
                 <div className="overflow-x-auto">
                     <div className="space-y-3" style={{ minWidth: tableMinWidth }}>

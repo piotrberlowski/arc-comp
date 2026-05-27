@@ -1,6 +1,7 @@
 "use client"
 
 import useErrorContext from "@/components/errors/ErrorContext"
+import { sharingOptionFromFlags } from "@/lib/tournamentSharing"
 import { useEffect, useMemo, useRef, useState } from "react"
 import useTournamentContext from "../TournamentContext"
 import { updateSharingSettings } from "../scoreActions"
@@ -19,12 +20,10 @@ interface SharingDrawerProps {
     onSharingUpdated?: (updatedTournament: TournamentData) => void
 }
 
-type SharingOption = 'private' | 'link-shared' | 'public'
+type TournamentSharingOption = Exclude<import("@/lib/tournamentSharing").SharingOption, "mixed">
 
-function sharingOptionFromTournament(t: { isPublished: boolean; isShared: boolean }): SharingOption {
-    if (t.isPublished && t.isShared) return 'public'
-    if (!t.isPublished && t.isShared) return 'link-shared'
-    return 'private'
+function sharingOptionFromTournament(t: { isPublished: boolean; isShared: boolean }): TournamentSharingOption {
+    return sharingOptionFromFlags(t.isPublished, t.isShared) as TournamentSharingOption
 }
 
 export default function SharingDrawer({ isOpen, onClose, allResultsComplete, tournament: tournamentProp, onSharingUpdated }: SharingDrawerProps) {
@@ -33,7 +32,7 @@ export default function SharingDrawer({ isOpen, onClose, allResultsComplete, tou
     const [isUpdating, setIsUpdating] = useState(false)
     const [copied, setCopied] = useState(false)
     const drawerCheckboxRef = useRef<HTMLInputElement>(null)
-    const [selectedOption, setSelectedOption] = useState<SharingOption>('private')
+    const [selectedOption, setSelectedOption] = useState<TournamentSharingOption>("private")
 
     const tFromContext = tCtx?.getTournament()
     const tournamentResolved = useMemo((): TournamentData | null => {
@@ -73,9 +72,9 @@ export default function SharingDrawer({ isOpen, onClose, allResultsComplete, tou
 
     const tournament = tournamentResolved
 
-    const getCurrentSharingOption = (): SharingOption => sharingOptionFromTournament(tournament)
+    const getCurrentSharingOption = (): TournamentSharingOption => sharingOptionFromTournament(tournament)
 
-    const handleSharingChange = async (option: SharingOption) => {
+    const handleSharingChange = async (option: TournamentSharingOption) => {
         if (option === 'public' && !allResultsComplete) {
             setError("Cannot make results public: all participants must have completed scores")
             return

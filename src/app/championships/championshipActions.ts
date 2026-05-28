@@ -3,11 +3,10 @@
 import { revalidatePath } from "next/cache"
 import { Prisma } from "@/generated/prisma/client"
 import {
-    compareDivisionsForMatrix,
-    championshipDivisionKey,
-    type ChampionshipDivision,
-} from "@/lib/championshipDivision"
-import { participantDivisionAbbrev } from "@/lib/participantProfileFields"
+    buildDivisionRangeMatrixFromShell,
+    type DivisionRangeMatrixData,
+    type DivisionRangeMatrixRow,
+} from "@/lib/championshipDivisionRangeMatrix"
 import { championshipDayTournamentName, nextChampionshipDayOrder } from "@/lib/championshipDayNaming"
 import {
     areChampionshipRangeAssignmentsComplete,
@@ -24,6 +23,7 @@ import {
     resolveDivisionRangeForDay,
     isDayOneRangeAssignmentFrozen,
     type ChampionshipDivisionRangeRow,
+    type RangeAssignmentUpdate,
 } from "@/lib/championshipRangeRules"
 import { assertChampionshipOrganizerClubs, resolveChampionshipOrganizerClubs } from "@/lib/championshipOrganizerSession"
 import {
@@ -713,72 +713,7 @@ export async function getChampionshipCombinedStandings(
     })
 }
 
-export type DivisionRangeMatrixRow = {
-    divisionKey: string
-    ageGroupId: string
-    categoryId: string
-    categoryName: string
-    ageGroupName: string
-    genderGroup: string
-    abbrev: string
-    registrationCount: number
-    rangeByDay: Record<number, number | null>
-    isCub: boolean
-}
-
-export type DivisionRangeMatrixData = {
-    dayOrders: number[]
-    rangeCount: number
-    dayOneFrozen: boolean
-    rows: DivisionRangeMatrixRow[]
-    totalsByDay: Record<number, Record<number, number>>
-}
-
-function buildDivisionRowsFromRegistrations(
-    registrations: ChampionshipShellRow["registrations"]
-): ChampionshipDivision[] {
-    const byKey = new Map<string, ChampionshipDivision & { count: number }>()
-
-    for (const registration of registrations) {
-        const key = championshipDivisionKey(
-            registration.ageGroupId,
-            registration.genderGroup,
-            registration.categoryId
-        )
-        const existing = byKey.get(key)
-        if (existing) {
-            existing.count += 1
-            continue
-        }
-        byKey.set(key, {
-            ageGroupId: registration.ageGroupId,
-            categoryId: registration.categoryId,
-            genderGroup: registration.genderGroup,
-            ageGroupName: registration.ageGroup.name,
-            categoryName: registration.category.name,
-            count: 1,
-        })
-    }
-
-    return [...byKey.values()]
-        .sort(compareDivisionsForMatrix)
-        .map(({ count: _count, ...division }) => division)
-}
-
-function countRegistrationsPerDivision(
-    registrations: ChampionshipShellRow["registrations"]
-): Map<string, number> {
-    const counts = new Map<string, number>()
-    for (const registration of registrations) {
-        const key = championshipDivisionKey(
-            registration.ageGroupId,
-            registration.genderGroup,
-            registration.categoryId
-        )
-        counts.set(key, (counts.get(key) ?? 0) + 1)
-    }
-    return counts
-}
+export type { DivisionRangeMatrixData, DivisionRangeMatrixRow }
 
 export async function getChampionshipDivisionRangeMatrix(
     championshipId: string
@@ -789,78 +724,7 @@ export async function getChampionshipDivisionRangeMatrix(
         return null
     }
 
-    if (championship.rangeCount <= 1) {
-        return null
-    }
-
-    const dayOrders = [...new Set(championship.rounds.map((round) => round.dayOrder))].sort((a, b) => a - b)
-    if (dayOrders.length === 0) {
-        return null
-    }
-
-    const registrationCounts = countRegistrationsPerDivision(championship.registrations)
-    const divisions = buildDivisionRowsFromRegistrations(championship.registrations)
-    const assignments = mapDivisionRangeAssignments(championship.divisionRanges)
-
-    const emptyRangeTotals = () =>
-        Object.fromEntries(
-            Array.from({ length: championship.rangeCount }, (_, index) => [index + 1, 0])
-        ) as Record<number, number>
-
-    const totalsByDay = Object.fromEntries(dayOrders.map((dayOrder) => [dayOrder, emptyRangeTotals()])) as Record<
-        number,
-        Record<number, number>
-    >
-
-    const rows: DivisionRangeMatrixRow[] = divisions.map((division) => {
-        const divisionKey = championshipDivisionKey(
-            division.ageGroupId,
-            division.genderGroup,
-            division.categoryId
-        )
-        const registrationCount = registrationCounts.get(divisionKey) ?? 0
-        const rangeByDay = Object.fromEntries(
-            dayOrders.map((dayOrder) => [
-                dayOrder,
-                findDivisionRangeAssignment(
-                    assignments,
-                    dayOrder,
-                    division.ageGroupId,
-                    division.categoryId,
-                    division.genderGroup
-                ),
-            ])
-        ) as Record<number, number | null>
-
-        for (const dayOrder of dayOrders) {
-            const rangeNumber = rangeByDay[dayOrder]
-            if (rangeNumber !== null) {
-                totalsByDay[dayOrder][rangeNumber] =
-                    (totalsByDay[dayOrder][rangeNumber] ?? 0) + registrationCount
-            }
-        }
-
-        return {
-            divisionKey,
-            ageGroupId: division.ageGroupId,
-            categoryId: division.categoryId,
-            categoryName: division.categoryName,
-            ageGroupName: division.ageGroupName,
-            genderGroup: division.genderGroup,
-            abbrev: participantDivisionAbbrev(division),
-            registrationCount,
-            rangeByDay,
-            isCub: /\bcub\b/i.test(division.ageGroupName),
-        }
-    })
-
-    return {
-        dayOrders,
-        rangeCount: championship.rangeCount,
-        dayOneFrozen: isDayOneRangeAssignmentFrozen(championship.rounds),
-        rows,
-        totalsByDay,
-    }
+    return buildDivisionRangeMatrixFromShell(championship)
 }
 
 async function unenrollDivisionFromRangeTournaments(
@@ -890,102 +754,217 @@ async function unenrollDivisionFromRangeTournaments(
     })
 }
 
+function parseDivisionKey(divisionKey: string): [string, "F" | "M", string] {
+    return divisionKey.split(":") as [string, "F" | "M", string]
+}
+
+function syncWorkingAssignment(
+    assignments: ChampionshipDivisionRangeRow[],
+    dayOrder: number,
+    ageGroupId: string,
+    categoryId: string,
+    genderGroup: string,
+    rangeNumber: number | null
+) {
+    const index = assignments.findIndex(
+        (assignment) =>
+            assignment.dayOrder === dayOrder &&
+            assignment.ageGroupId === ageGroupId &&
+            assignment.categoryId === categoryId &&
+            assignment.genderGroup === genderGroup
+    )
+
+    if (rangeNumber === null) {
+        if (index >= 0) {
+            assignments.splice(index, 1)
+        }
+        return
+    }
+
+    if (index >= 0) {
+        assignments[index] = {
+            dayOrder,
+            ageGroupId,
+            categoryId,
+            genderGroup,
+            rangeNumber,
+        }
+        return
+    }
+
+    assignments.push({ dayOrder, ageGroupId, categoryId, genderGroup, rangeNumber })
+}
+
+function validateDivisionRangeAssignment(
+    championship: ChampionshipShellRow,
+    workingAssignments: ChampionshipDivisionRangeRow[],
+    dayOrder: number,
+    divisionKey: string,
+    rangeNumber: number | null
+) {
+    const [ageGroupId, genderGroup, categoryId] = parseDivisionKey(divisionKey)
+
+    if (dayOrder === 1 && isDayOneRangeAssignmentFrozen(championship.rounds)) {
+        throw new Error("Day 1 category–range assignments are frozen after scores are entered")
+    }
+
+    if (rangeNumber === null) {
+        return { ageGroupId, genderGroup, categoryId }
+    }
+
+    if (rangeNumber < 1 || rangeNumber > championship.rangeCount) {
+        throw new Error("Invalid range number")
+    }
+
+    const conflictDayOrder = findDivisionRangeOnOtherDay(
+        workingAssignments,
+        dayOrder,
+        ageGroupId,
+        categoryId,
+        genderGroup,
+        rangeNumber
+    )
+    if (conflictDayOrder !== null) {
+        throw new Error(
+            `This division is already assigned to range ${rangeNumber} on day ${conflictDayOrder}`
+        )
+    }
+
+    return { ageGroupId, genderGroup, categoryId }
+}
+
+async function applyDivisionRangeAssignmentInTransaction(
+    tx: Prisma.TransactionClient,
+    championshipId: string,
+    dayOrder: number,
+    ageGroupId: string,
+    categoryId: string,
+    genderGroup: "F" | "M",
+    rangeNumber: number | null
+) {
+    const existing = await tx.championshipDivisionRange.findFirst({
+        where: {
+            championshipId,
+            dayOrder,
+            ageGroupId,
+            categoryId,
+            genderGroup,
+        },
+    })
+
+    if (rangeNumber === null) {
+        if (!existing) {
+            return
+        }
+
+        await unenrollDivisionFromRangeTournaments(
+            tx,
+            championshipId,
+            dayOrder,
+            existing.rangeNumber,
+            ageGroupId,
+            categoryId,
+            genderGroup
+        )
+        await tx.championshipDivisionRange.delete({ where: { id: existing.id } })
+        return
+    }
+
+    if (existing && existing.rangeNumber !== rangeNumber) {
+        await unenrollDivisionFromRangeTournaments(
+            tx,
+            championshipId,
+            dayOrder,
+            existing.rangeNumber,
+            ageGroupId,
+            categoryId,
+            genderGroup
+        )
+    }
+
+    await tx.championshipDivisionRange.upsert({
+        where: {
+            championshipId_dayOrder_ageGroupId_categoryId_genderGroup: {
+                championshipId,
+                dayOrder,
+                ageGroupId,
+                categoryId,
+                genderGroup,
+            },
+        },
+        create: {
+            championshipId,
+            dayOrder,
+            ageGroupId,
+            categoryId,
+            genderGroup,
+            rangeNumber,
+        },
+        update: { rangeNumber },
+    })
+}
+
+export async function setChampionshipDivisionRangeAssignments(
+    championshipId: string,
+    updates: RangeAssignmentUpdate[]
+): Promise<DivisionRangeMatrixData | null> {
+    if (updates.length === 0) {
+        return getChampionshipDivisionRangeMatrix(championshipId)
+    }
+
+    const championship = await getWritableChampionshipShell(championshipId)
+    const workingAssignments = mapDivisionRangeAssignments(championship.divisionRanges)
+
+    await prismaOrThrow("set championship division ranges").$transaction(async (tx) => {
+        for (const update of updates) {
+            const { ageGroupId, genderGroup, categoryId } = validateDivisionRangeAssignment(
+                championship,
+                workingAssignments,
+                update.dayOrder,
+                update.divisionKey,
+                update.rangeNumber
+            )
+
+            await applyDivisionRangeAssignmentInTransaction(
+                tx,
+                championshipId,
+                update.dayOrder,
+                ageGroupId,
+                categoryId,
+                genderGroup,
+                update.rangeNumber
+            )
+            syncWorkingAssignment(
+                workingAssignments,
+                update.dayOrder,
+                ageGroupId,
+                categoryId,
+                genderGroup,
+                update.rangeNumber
+            )
+        }
+    })
+
+    revalidatePath(`/championships/${championshipId}`)
+
+    const refreshedRanges = await prismaOrThrow("reload championship division ranges")
+        .championshipDivisionRange.findMany({
+            where: { championshipId },
+        })
+    championship.divisionRanges = refreshedRanges
+
+    return buildDivisionRangeMatrixFromShell(championship)
+}
+
 export async function setChampionshipDivisionRangeAssignment(
     championshipId: string,
     dayOrder: number,
     divisionKey: string,
     rangeNumber: number | null
 ) {
-    const championship = await getWritableChampionshipShell(championshipId)
-    const [ageGroupId, genderGroup, categoryId] = divisionKey.split(":") as [string, "F" | "M", string]
-
-    if (dayOrder === 1 && isDayOneRangeAssignmentFrozen(championship.rounds)) {
-        throw new Error("Day 1 category–range assignments are frozen after scores are entered")
-    }
-
-    if (rangeNumber !== null) {
-        if (rangeNumber < 1 || rangeNumber > championship.rangeCount) {
-            throw new Error("Invalid range number")
-        }
-
-        const assignments = mapDivisionRangeAssignments(championship.divisionRanges)
-        const conflictDayOrder = findDivisionRangeOnOtherDay(
-            assignments,
-            dayOrder,
-            ageGroupId,
-            categoryId,
-            genderGroup,
-            rangeNumber
-        )
-        if (conflictDayOrder !== null) {
-            throw new Error(
-                `This division is already assigned to range ${rangeNumber} on day ${conflictDayOrder}`
-            )
-        }
-    }
-
-    await prismaOrThrow("set championship division range").$transaction(async (tx) => {
-        const existing = await tx.championshipDivisionRange.findFirst({
-            where: {
-                championshipId,
-                dayOrder,
-                ageGroupId,
-                categoryId,
-                genderGroup,
-            },
-        })
-
-        if (rangeNumber === null) {
-            if (existing) {
-                await unenrollDivisionFromRangeTournaments(
-                    tx,
-                    championshipId,
-                    dayOrder,
-                    existing.rangeNumber,
-                    ageGroupId,
-                    categoryId,
-                    genderGroup
-                )
-                await tx.championshipDivisionRange.delete({ where: { id: existing.id } })
-            }
-            return
-        }
-
-        if (existing && existing.rangeNumber !== rangeNumber) {
-            await unenrollDivisionFromRangeTournaments(
-                tx,
-                championshipId,
-                dayOrder,
-                existing.rangeNumber,
-                ageGroupId,
-                categoryId,
-                genderGroup
-            )
-        }
-
-        await tx.championshipDivisionRange.upsert({
-            where: {
-                championshipId_dayOrder_ageGroupId_categoryId_genderGroup: {
-                    championshipId,
-                    dayOrder,
-                    ageGroupId,
-                    categoryId,
-                    genderGroup,
-                },
-            },
-            create: {
-                championshipId,
-                dayOrder,
-                ageGroupId,
-                categoryId,
-                genderGroup,
-                rangeNumber,
-            },
-            update: { rangeNumber },
-        })
-    })
-
-    revalidatePath(`/championships/${championshipId}`)
+    await setChampionshipDivisionRangeAssignments(championshipId, [
+        { divisionKey, dayOrder, rangeNumber },
+    ])
 }
 
 async function createChampionshipDayRangeTournaments(

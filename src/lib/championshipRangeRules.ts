@@ -12,10 +12,8 @@ export type ChampionshipDivisionRangeRow = {
     rangeNumber: number
 }
 
-export type DivisionRangeAssignmentSource = ChampionshipDivisionRangeRow
-
 export function mapDivisionRangeAssignments(
-    divisionRanges: DivisionRangeAssignmentSource[]
+    divisionRanges: ChampionshipDivisionRangeRow[]
 ): ChampionshipDivisionRangeRow[] {
     return divisionRanges.map((row) => ({
         dayOrder: row.dayOrder,
@@ -111,6 +109,44 @@ export type SoleAvailableRangeAssignment = {
     rangeNumber: number
 }
 
+export function isMatrixRowInAutoFillScope<
+    T extends { divisionKey: string; categoryId: string },
+>(row: T, scope: T[]): boolean {
+    if (scope.length === 0) {
+        return false
+    }
+
+    if (scope.length === 1) {
+        return row.divisionKey === scope[0]!.divisionKey
+    }
+
+    return row.categoryId === scope[0]!.categoryId
+}
+
+export function matrixRowsForAutoFillAfterAssign<
+    T extends { divisionKey: string; categoryId: string },
+>(rows: T[], assignments: RangeAssignmentUpdate[]): T[] {
+    const assigning = assignments.filter((assignment) => assignment.rangeNumber !== null)
+    if (assigning.length === 0) {
+        return []
+    }
+
+    const touchedDivisionKeys = new Set(assigning.map((assignment) => assignment.divisionKey))
+    if (touchedDivisionKeys.size === 1) {
+        const divisionKey = [...touchedDivisionKeys][0]!
+        return rows.filter((row) => row.divisionKey === divisionKey)
+    }
+
+    const touchedRows = rows.filter((row) => touchedDivisionKeys.has(row.divisionKey))
+    const categoryIds = new Set(touchedRows.map((row) => row.categoryId))
+    if (categoryIds.size === 1) {
+        const categoryId = [...categoryIds][0]!
+        return rows.filter((row) => row.categoryId === categoryId)
+    }
+
+    return []
+}
+
 export function collectSoleAvailableRangeAssignments(
     rows: { divisionKey: string; rangeByDay: Record<number, number | null> }[],
     dayOrders: number[],
@@ -201,15 +237,6 @@ export function categoryHasAssignmentOnFrozenDayOne(
     }
 
     return rows.some((row) => row.rangeByDay[1] != null)
-}
-
-export function canAssignDivisionRangeOnDay(
-    rangeByDay: Record<number, number | null>,
-    dayOrder: number,
-    rangeNumber: number,
-    dayOneFrozen: boolean
-): boolean {
-    return shouldApplyRangeOnDay(rangeByDay, dayOrder, rangeNumber, dayOneFrozen)
 }
 
 export function resolveDivisionRangeForDay(

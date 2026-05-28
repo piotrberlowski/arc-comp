@@ -9,8 +9,8 @@ import {
 } from "@/lib/championshipEnrollment"
 import { notFound } from "next/navigation"
 import { auth } from "../../auth"
+import { buildDivisionRangeMatrixFromShell } from "@/lib/championshipDivisionRangeMatrix"
 import {
-    getChampionshipDivisionRangeMatrix,
     getChampionshipForOrganizer,
     listChampionshipDayEnrollmentByTournament,
 } from "../championshipActions"
@@ -78,7 +78,7 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
     const needsRangeAssignments =
         championship.rangeCount > 1 && championship.registrations.length > 0 && dayOrders.length > 0
     const divisionRangeMatrix = needsRangeAssignments
-        ? await getChampionshipDivisionRangeMatrix(cId)
+        ? buildDivisionRangeMatrixFromShell(championship)
         : null
 
     const matrixRegistrations: ChampionshipMatrixRegistration[] = championship.registrations.map(

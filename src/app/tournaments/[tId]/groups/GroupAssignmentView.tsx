@@ -8,6 +8,7 @@ import { TournamentGroupsData, cleanupGroups } from "../groupActions"
 import GroupCard from "./GroupCard"
 import GroupWarningHeader from "./GroupWarningHeader"
 import UnassignedParticipants from "./UnassignedParticipants"
+import { groupGridColsClassName } from "@/lib/groupGridCols"
 
 function subscribeNothing(onStoreChange: () => void) {
     void onStoreChange
@@ -93,14 +94,6 @@ export default function GroupAssignmentView({ groupsData }: {
         }
     }
 
-    const getGridCols = () => {
-        const numGroups = groupsData.groups.length
-        if (numGroups <= 4) return "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
-        if (numGroups <= 6) return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-        if (numGroups <= 9) return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-        return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-    }
-
     const activeParticipant = activeId
         ? [...groupsData.unassignedParticipants, ...groupsData.groups.flatMap(g => g.participants)].find(p => p.id === activeId)
         : null
@@ -123,7 +116,7 @@ export default function GroupAssignmentView({ groupsData }: {
             />
 
             {/* Groups Grid */}
-            <div className={`grid ${getGridCols()} gap-4`}>
+            <div className={`grid ${groupGridColsClassName(groupsData.groups.length)} gap-4`}>
                 {groupsData.groups.map((group) => (
                     <GroupCard
                         key={group.groupNumber}

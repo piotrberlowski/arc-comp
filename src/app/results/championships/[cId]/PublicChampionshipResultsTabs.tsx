@@ -6,6 +6,7 @@ import { useState } from "react"
 import type { PublicChampionshipTournamentRef, PublicTournamentGroupsData } from "../championshipResultsActions"
 import PublicGroupCard from "./PublicGroupCard"
 import PublicUnassignedParticipants from "./PublicUnassignedParticipants"
+import { groupGridColsClassName } from "@/lib/groupGridCols"
 
 const activeTabClass =
     "tab-active bg-primary text-primary-content border-secondary border-solid border-1 border-b-0"
@@ -13,12 +14,6 @@ const activeTabClass =
 const resultsPanelClass = "rounded-lg border border-base-300 bg-base-100 overflow-hidden"
 
 type ResultsTabId = number | "standings"
-
-function getGroupGridCols(groupCount: number) {
-    if (groupCount <= 4) return "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
-    if (groupCount <= 9) return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-    return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-}
 
 function DayGroupCard({
     heading,
@@ -37,7 +32,7 @@ function DayGroupCard({
                 <h3 className="card-title text-base">{heading}</h3>
                 <PublicUnassignedParticipants participants={unassigned} />
                 {assignedGroups.length > 0 ? (
-                    <div className={`grid ${getGroupGridCols(assignedGroups.length)} gap-4`}>
+                    <div className={`grid ${groupGridColsClassName(assignedGroups.length)} gap-4`}>
                         {assignedGroups.map((group) => (
                             <PublicGroupCard key={group.groupNumber} group={group} />
                         ))}

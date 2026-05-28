@@ -1,8 +1,8 @@
 import {
     buildCategoryRangeUpdates,
-    canAssignDivisionRangeOnDay,
     canEnrollDivisionOnDay,
     collectSoleAvailableRangeAssignments,
+    matrixRowsForAutoFillAfterAssign,
     findDivisionRangeOnOtherDay,
     isDivisionRangeAssignmentComplete,
     isDivisionRangeBlockedOnOtherDay,
@@ -95,14 +95,42 @@ describe("collectSoleAvailableRangeAssignments", () => {
     })
 })
 
-describe("canAssignDivisionRangeOnDay", () => {
-    it("allows assigning a free range on an editable day", () => {
-        expect(canAssignDivisionRangeOnDay({ 1: 1, 2: null }, 2, 2, false)).toBe(true)
+describe("matrixRowsForAutoFillAfterAssign", () => {
+    const rows = [
+        { divisionKey: "age-1:M:cat-1", categoryId: "cat-1" },
+        { divisionKey: "age-2:M:cat-1", categoryId: "cat-1" },
+        { divisionKey: "age-1:M:cat-2", categoryId: "cat-2" },
+    ]
+
+    it("scopes to one division for a single-cell assign", () => {
+        expect(
+            matrixRowsForAutoFillAfterAssign(rows, [
+                { divisionKey: "age-1:M:cat-1", dayOrder: 1, rangeNumber: 1 },
+            ])
+        ).toEqual([rows[0]])
     })
 
-    it("rejects blocked ranges and frozen day 1", () => {
-        expect(canAssignDivisionRangeOnDay({ 1: 1, 2: null }, 2, 1, false)).toBe(false)
-        expect(canAssignDivisionRangeOnDay({ 1: null, 2: null }, 1, 1, true)).toBe(false)
+    it("scopes to the bow category for bulk assigns in one category", () => {
+        expect(
+            matrixRowsForAutoFillAfterAssign(rows, [
+                { divisionKey: "age-1:M:cat-1", dayOrder: 1, rangeNumber: 1 },
+                { divisionKey: "age-2:M:cat-1", dayOrder: 1, rangeNumber: 2 },
+            ])
+        ).toEqual([rows[0], rows[1]])
+    })
+
+    it("returns no rows for clears or cross-category updates", () => {
+        expect(
+            matrixRowsForAutoFillAfterAssign(rows, [
+                { divisionKey: "age-1:M:cat-1", dayOrder: 1, rangeNumber: null },
+            ])
+        ).toEqual([])
+        expect(
+            matrixRowsForAutoFillAfterAssign(rows, [
+                { divisionKey: "age-1:M:cat-1", dayOrder: 1, rangeNumber: 1 },
+                { divisionKey: "age-1:M:cat-2", dayOrder: 1, rangeNumber: 1 },
+            ])
+        ).toEqual([])
     })
 })
 
@@ -134,6 +162,15 @@ describe("shouldApplyRangeOnDay", () => {
 
     it("skips clear when the day is already empty", () => {
         expect(shouldApplyRangeOnDay({ 1: 1, 2: null }, 2, null, false)).toBe(false)
+    })
+
+    it("allows assigning a free range on an editable day", () => {
+        expect(shouldApplyRangeOnDay({ 1: 1, 2: null }, 2, 2, false)).toBe(true)
+    })
+
+    it("rejects blocked ranges and frozen day 1", () => {
+        expect(shouldApplyRangeOnDay({ 1: 1, 2: null }, 2, 1, false)).toBe(false)
+        expect(shouldApplyRangeOnDay({ 1: null, 2: null }, 1, 1, true)).toBe(false)
     })
 })
 

@@ -1,5 +1,6 @@
 import { isDivisionRangeBlockedOnOtherDay } from "@/lib/championshipRangeRules"
 import type { DivisionRangeMatrixRow } from "@/lib/championshipDivisionRangeMatrix"
+import { useDivisionRangeMatrix } from "./DivisionRangeMatrixContext"
 import MatrixDayColumnsTable from "./MatrixDayColumnsTable"
 
 function RegistrationCountButton({ count, onClick }: { count: number; onClick: () => void }) {
@@ -20,41 +21,32 @@ function RegistrationCountButton({ count, onClick }: { count: number; onClick: (
 }
 
 function RangeSelect({
-    divisionKey,
+    row,
     dayOrder,
-    rangeNumber,
-    rangeByDay,
-    rangeCount,
     frozen,
-    readOnly,
-    isPending,
-    onChange,
 }: {
-    divisionKey: string
+    row: DivisionRangeMatrixRow
     dayOrder: number
-    rangeNumber: number | null
-    rangeByDay: Record<number, number | null>
-    rangeCount: number
     frozen: boolean
-    readOnly: boolean
-    isPending: boolean
-    onChange: (divisionKey: string, dayOrder: number, rangeNumber: number | null) => void
 }) {
+    const { matrix, readOnly, isPending, assignRange } = useDivisionRangeMatrix()
+    const rangeNumber = row.rangeByDay[dayOrder] ?? null
+
     return (
         <select
             className="select select-bordered select-xs w-14 min-h-0 h-8 px-1"
             value={rangeNumber ?? ""}
             disabled={readOnly || isPending || frozen}
-            aria-label={`Day ${dayOrder} range for ${divisionKey}`}
+            aria-label={`Day ${dayOrder} range for ${row.divisionKey}`}
             onChange={(event) => {
                 const value = event.target.value
-                onChange(divisionKey, dayOrder, value === "" ? null : Number(value))
+                assignRange(row.divisionKey, dayOrder, value === "" ? null : Number(value))
             }}
         >
             <option value="">—</option>
-            {Array.from({ length: rangeCount }, (_, index) => {
+            {Array.from({ length: matrix.rangeCount }, (_, index) => {
                 const option = index + 1
-                const blocked = isDivisionRangeBlockedOnOtherDay(rangeByDay, dayOrder, option)
+                const blocked = isDivisionRangeBlockedOnOtherDay(row.rangeByDay, dayOrder, option)
                 return (
                     <option key={option} value={option} disabled={blocked}>
                         R{option}
@@ -65,32 +57,16 @@ function RangeSelect({
     )
 }
 
-export default function DivisionRangeMatrixTable({
-    rows,
-    dayOrders,
-    rangeCount,
-    dayOneFrozen,
-    readOnly,
-    isPending,
-    onRangeChange,
-    onShowParticipants,
-}: {
-    rows: DivisionRangeMatrixRow[]
-    dayOrders: number[]
-    rangeCount: number
-    dayOneFrozen: boolean
-    readOnly: boolean
-    isPending: boolean
-    onRangeChange: (divisionKey: string, dayOrder: number, rangeNumber: number | null) => void
-    onShowParticipants: (abbrev: string, divisionKey: string) => void
-}) {
+export default function DivisionRangeMatrixTable({ rows }: { rows: DivisionRangeMatrixRow[] }) {
+    const { matrix, showDivisionParticipants } = useDivisionRangeMatrix()
+
     return (
-        <MatrixDayColumnsTable dayOrders={dayOrders}>
+        <MatrixDayColumnsTable dayOrders={matrix.dayOrders}>
             <thead>
                 <tr>
                     <th className="font-mono text-xs">Div</th>
                     <th className="text-right text-xs">Reg</th>
-                    {dayOrders.map((dayOrder) => (
+                    {matrix.dayOrders.map((dayOrder) => (
                         <th key={dayOrder} className="text-center text-xs">
                             D{dayOrder}
                         </th>
@@ -105,7 +81,7 @@ export default function DivisionRangeMatrixTable({
                                 type="button"
                                 className="font-mono text-xs link link-hover text-left"
                                 title={`View ${row.registrationCount} registered competitors`}
-                                onClick={() => onShowParticipants(row.abbrev, row.divisionKey)}
+                                onClick={() => showDivisionParticipants(row.abbrev, row.divisionKey)}
                             >
                                 {row.abbrev}
                             </button>
@@ -113,21 +89,15 @@ export default function DivisionRangeMatrixTable({
                         <td className="text-right text-xs">
                             <RegistrationCountButton
                                 count={row.registrationCount}
-                                onClick={() => onShowParticipants(row.abbrev, row.divisionKey)}
+                                onClick={() => showDivisionParticipants(row.abbrev, row.divisionKey)}
                             />
                         </td>
-                        {dayOrders.map((dayOrder) => (
+                        {matrix.dayOrders.map((dayOrder) => (
                             <td key={dayOrder} className="text-center px-1">
                                 <RangeSelect
-                                    divisionKey={row.divisionKey}
+                                    row={row}
                                     dayOrder={dayOrder}
-                                    rangeNumber={row.rangeByDay[dayOrder] ?? null}
-                                    rangeByDay={row.rangeByDay}
-                                    rangeCount={rangeCount}
-                                    frozen={dayOneFrozen && dayOrder === 1}
-                                    readOnly={readOnly}
-                                    isPending={isPending}
-                                    onChange={onRangeChange}
+                                    frozen={matrix.dayOneFrozen && dayOrder === 1}
                                 />
                             </td>
                         ))}

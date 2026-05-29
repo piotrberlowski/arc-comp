@@ -1,9 +1,11 @@
 import { buildEnrollmentByMembership } from "@/lib/championshipEnrollment"
 import {
+    buildCompetitorStandingsByCategory,
     calculateChampionshipCombinedStandings,
     type ChampionshipCombinedStandings,
     type ChampionshipDay,
     type ChampionshipRoundRef,
+    type CompetitorStanding,
     type DayScoreInput,
     type RegisteredCompetitor,
 } from "@/lib/championshipCombinedStandings"
@@ -69,6 +71,33 @@ export function buildChampionshipCombinedStandingsFromChampionshipData({
     const enrollmentByMembership = buildEnrollmentByMembership(rounds, enrollmentByTournament)
 
     return calculateChampionshipCombinedStandings(
+        mapChampionshipRegistrationsToStandings(registrations),
+        days,
+        rounds,
+        scores,
+        enrollmentByMembership
+    )
+}
+
+export function buildCompetitorStandingsByCategoryFromChampionshipData({
+    registrations,
+    rounds,
+    scores,
+    enrollmentByTournament,
+}: {
+    registrations: ChampionshipStandingsRegistrationSource[]
+    rounds: ChampionshipStandingsRoundSource[]
+    scores: DayScoreInput[]
+    enrollmentByTournament: Record<string, string[]>
+}): Map<string, CompetitorStanding[]> {
+    const days = buildChampionshipStandingsDays(rounds)
+    if (days.length === 0) {
+        return new Map()
+    }
+
+    const enrollmentByMembership = buildEnrollmentByMembership(rounds, enrollmentByTournament)
+
+    return buildCompetitorStandingsByCategory(
         mapChampionshipRegistrationsToStandings(registrations),
         days,
         rounds,

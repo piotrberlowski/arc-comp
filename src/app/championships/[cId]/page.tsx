@@ -70,6 +70,8 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
         tournamentName: round.tournament.name,
         tournamentDate: round.tournament.date,
         formatName: round.tournament.format.name,
+        endCount: round.tournament.endCount,
+        groupSize: round.tournament.groupSize,
         canRemove: championship.rounds
             .filter((item) => item.dayOrder === round.dayOrder)
             .every((item) => item.tournament._count.participantScores === 0),

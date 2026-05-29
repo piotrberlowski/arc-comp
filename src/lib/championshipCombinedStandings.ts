@@ -41,7 +41,7 @@ type DayScoreStatus =
     | { kind: "pending" }
     | { kind: "scored"; rawScore: number; result: ParticipantResult }
 
-type CompetitorStanding = {
+export type CompetitorStanding = {
     membershipNo: string
     competitorNumber: number
     name: string
@@ -243,6 +243,75 @@ function calculateCompetitorStandings(
             scoringComplete,
         }
     })
+}
+
+function hasPriorDncOrDnf(competitor: CompetitorStanding, priorDayOrders: number[]): boolean {
+    for (const dayOrder of priorDayOrders) {
+        const dayScore = competitor.scoresByDay[dayOrder]
+        if (dayScore?.kind !== "scored") {
+            continue
+        }
+        if (dayScore.result.status === "DNC" || dayScore.result.status === "DNF") {
+            return true
+        }
+    }
+    return false
+}
+
+function autoSeedSortTier(competitor: CompetitorStanding, priorDayOrders: number[]): number {
+    if (competitor.combinedTotal !== null) {
+        return 0
+    }
+    if (hasPriorDncOrDnf(competitor, priorDayOrders)) {
+        return 1
+    }
+    return 2
+}
+
+export function compareCompetitorsForAutoSeed(
+    left: CompetitorStanding,
+    right: CompetitorStanding,
+    priorDayOrders: number[]
+): number {
+    const leftTier = autoSeedSortTier(left, priorDayOrders)
+    const rightTier = autoSeedSortTier(right, priorDayOrders)
+    if (leftTier !== rightTier) {
+        return leftTier - rightTier
+    }
+
+    if (leftTier === 0) {
+        return (right.combinedTotal ?? 0) - (left.combinedTotal ?? 0)
+    }
+
+    if (left.competitorNumber !== right.competitorNumber) {
+        return left.competitorNumber - right.competitorNumber
+    }
+
+    return left.name.localeCompare(right.name)
+}
+
+export function buildCompetitorStandingsByCategory(
+    registrations: RegisteredCompetitor[],
+    days: ChampionshipDay[],
+    rounds: ChampionshipRoundRef[],
+    scores: DayScoreInput[],
+    enrollmentByMembership: Record<string, ChampionshipEnrollmentSlot[]>
+): Map<string, CompetitorStanding[]> {
+    const grouped = new Map<string, CompetitorStanding[]>()
+
+    for (const competitor of calculateCompetitorStandings(
+        registrations,
+        days,
+        rounds,
+        scores,
+        enrollmentByMembership
+    )) {
+        const existing = grouped.get(competitor.categoryKey) ?? []
+        existing.push(competitor)
+        grouped.set(competitor.categoryKey, existing)
+    }
+
+    return grouped
 }
 
 function compareCompetitorStandings(a: CompetitorStanding, b: CompetitorStanding): number {

@@ -66,12 +66,14 @@ Championship access is **not** a separate role table. It is a **per-club upgrade
 
 ### Behavioral rules
 - Day 1 groups are manual within each range’s day-tournament (M10).
-- Day 2+ groups are auto-seeded from combined standings using adjacent blocks (M12):
-  - example (`groupSize=4`): `1-4`, `5-8`, `9-12`.
+- Day 2+ groups are auto-seeded from combined standings (M12):
+  - organizer chooses **first target** and **number of targets to fill** for the day’s format.
+  - per division with ≥ `groupSize` shooters: keep standing blocks together (example `groupSize=4`: seeds `1–4`, `5–8`, … each on one target).
+  - divisions with fewer than `groupSize` shooters are combined on shared targets with other small divisions.
+  - units are balanced across the selected target range (least-loaded target first).
   - seeding **must respect ranges (M10):** seed only into the day-tournament for the range where that division is assigned for that day; never split a division across range tournaments.
-- Tail handling:
-  - rebalance tail blocks to maximize full groups,
-  - if still impossible, allow a smaller final group (example: `1-4`, `5-7`).
+  - only archers enrolled on the target day are seeded; fewer day-2 shooters than day-1 is normal.
+  - prior-day DNC/DNF sort after completed scores (last in their target group); missing prior scores or day-2-only enrollments sort after that.
 - After auto-seed, organizers can fully edit groups in normal group assignment UI.
 - **Day order is fixed when a day is added** (`dayOrder` = next sequential integer). Reordering days after the fact is not supported (day 2+ seeding and combined standings depend on stable order).
 - Late join on day `N`:
@@ -292,10 +294,10 @@ M1–M5 are delivered in code (including Championship Organizer power-up on `Org
 - Existing per-tournament publish/share unchanged.
 - **UI test:** publish/share championship results URL → spectator sees per-day and combined tables.
 
-### M12 — Day 2+ auto-seed
-- Auto-seed from combined standings (adjacent blocks + tail rebalance).
+### M12 — Day 2+ auto-seed ✓
+- Auto-seed from combined standings with organizer-chosen target range (first target + count), standing blocks kept together, small divisions combined, load balanced across targets.
 - **Must respect ranges (M10):** seed into the day-tournament for each division’s assigned range for that `dayOrder`; never split a division across range tournaments.
-- Organizer control on championship detail or day tournament: run auto-seed for a day before/at group setup.
+- Organizer control on championship detail: run auto-seed **per range** for a day before/at group setup (each range tournament has its own target range).
 - Post-seed editing remains in existing `/tournaments/[tId]/groups` UI.
 - **UI test:** enter day 1 scores → run auto-seed for day 2 → open day 2 groups → groups match seed rules and range rules → manual edit persists until re-seed.
 

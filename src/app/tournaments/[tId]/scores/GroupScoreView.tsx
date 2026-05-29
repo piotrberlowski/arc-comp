@@ -1,6 +1,7 @@
 "use client"
 
 import { ParticipantWithResult } from "../scoreActions"
+import { compareGroupAssignmentOrder } from "@/lib/groupAssignmentOrder"
 import GroupScoreCard from "./GroupScoreCard"
 
 interface GroupScoreViewProps {
@@ -54,13 +55,7 @@ export default function GroupScoreView({ participants }: GroupScoreViewProps) {
     const sortedGroups = Object.entries(groups)
         .map(([groupNumber, participants]) => {
             // Sort participants: target captain first
-            const sortedParticipants = participants.sort((a, b) => {
-                const aIsCaptain = a.groupAssignment?.isCaptain ?? false
-                const bIsCaptain = b.groupAssignment?.isCaptain ?? false
-                if (aIsCaptain && !bIsCaptain) return -1
-                if (!aIsCaptain && bIsCaptain) return 1
-                return 0
-            })
+            const sortedParticipants = participants.sort(compareGroupAssignmentOrder)
             return {
                 groupNumber: parseInt(groupNumber),
                 participants: sortedParticipants,

@@ -180,6 +180,7 @@ model GroupAssignment {
   participantId String      @unique
   tournamentId  String
   groupNumber   Int
+  positionInGroup Int         @default(0)
   participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
   tournament    Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   isCaptain     Boolean     @default(false)

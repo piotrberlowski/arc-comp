@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "ChampionshipDivisionRange_championshipId_dayOrder_ageGroupId_ca" RENAME TO "ChampionshipDivisionRange_championshipId_dayOrder_ageGroupI_key";

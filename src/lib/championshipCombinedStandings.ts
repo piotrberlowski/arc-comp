@@ -125,7 +125,13 @@ function formatStandingsTotal(total: number | null): string {
     if (total === null) {
         return "—"
     }
-    return Number.isInteger(total) ? String(total) : total.toFixed(3).replace(/\.?0+$/, "")
+
+    const result = toResult(total)
+    if (result.status !== "COMPLETED") {
+        return "—"
+    }
+
+    return formatParticipantResultDisplay(result)
 }
 
 function completedScoreContribution(rawScore: number): number | null {

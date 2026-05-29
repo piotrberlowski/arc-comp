@@ -33,8 +33,8 @@ export default async function PublicChampionshipResultsIndexPage() {
                 ) : (
                     <div className="space-y-4">
                         {championships.map((championship) => (
-                            <div key={championship.id} className="card bg-base-100 shadow-md">
-                                <div className="card-body">
+                            <div key={championship.id} className="card shadow-md">
+                                <div className="card-body bg-secondary/50 rounded-lg">
                                     <div className="flex flex-wrap items-center justify-between gap-4">
                                         <div>
                                             <h2 className="card-title">{championship.name}</h2>
@@ -48,7 +48,7 @@ export default async function PublicChampionshipResultsIndexPage() {
                                         </div>
                                         <Link
                                             href={`/results/championships/${championship.id}`}
-                                            className="btn btn-primary"
+                                            className="btn btn-primary "
                                         >
                                             View results
                                         </Link>

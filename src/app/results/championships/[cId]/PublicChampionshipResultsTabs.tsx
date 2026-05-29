@@ -3,10 +3,11 @@
 import ChampionshipCombinedStandingsView from "@/app/championships/[cId]/ChampionshipCombinedStandingsView"
 import type { ChampionshipCombinedStandings } from "@/lib/championshipCombinedStandings"
 import { useState } from "react"
+import { buildPublicChampionshipPrintPath } from "@/lib/publicChampionshipUrls"
+import { PrinterIcon } from "@heroicons/react/24/outline"
+import Link from "next/link"
 import type { PublicChampionshipTournamentRef, PublicTournamentGroupsData } from "../championshipResultsActions"
-import PublicGroupCard from "./PublicGroupCard"
-import PublicUnassignedParticipants from "./PublicUnassignedParticipants"
-import { groupGridColsClassName } from "@/lib/groupGridCols"
+import PublicDayGroupAllocations from "./PublicDayGroupAllocations"
 
 const activeTabClass =
     "tab-active bg-primary text-primary-content border-secondary border-solid border-1 border-b-0"
@@ -14,68 +15,6 @@ const activeTabClass =
 const resultsPanelClass = "rounded-lg border border-base-300 bg-base-100 overflow-hidden"
 
 type ResultsTabId = number | "standings"
-
-function DayGroupCard({
-    heading,
-    groups,
-    unassigned,
-}: {
-    heading: string
-    groups: PublicTournamentGroupsData["groups"]
-    unassigned: PublicTournamentGroupsData["unassigned"]
-}) {
-    const assignedGroups = groups.filter((group) => group.participants.length > 0)
-
-    return (
-        <div className="card bg-base-100 border border-base-300">
-            <div className="card-body gap-4">
-                <h3 className="card-title text-base">{heading}</h3>
-                <PublicUnassignedParticipants participants={unassigned} />
-                {assignedGroups.length > 0 ? (
-                    <div className={`grid ${groupGridColsClassName(assignedGroups.length)} gap-4`}>
-                        {assignedGroups.map((group) => (
-                            <PublicGroupCard key={group.groupNumber} group={group} />
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-sm text-base-content/60">No group assignments yet.</p>
-                )}
-            </div>
-        </div>
-    )
-}
-
-function DayGroupAllocations({
-    dayOrder,
-    rounds,
-    groupsByTournamentId,
-}: {
-    dayOrder: number
-    rounds: PublicChampionshipTournamentRef[]
-    groupsByTournamentId: Record<string, PublicTournamentGroupsData>
-}) {
-    const dayRounds = rounds.filter((round) => round.dayOrder === dayOrder)
-
-    return (
-        <div className="space-y-3">
-            {dayRounds.map((round) => {
-                const groupsData = groupsByTournamentId[round.tournamentId]
-                if (!groupsData) {
-                    return null
-                }
-
-                return (
-                    <DayGroupCard
-                        key={round.tournamentId}
-                        heading={`Range ${round.rangeNumber} — ${round.tournamentName}`}
-                        groups={groupsData.groups}
-                        unassigned={groupsData.unassigned}
-                    />
-                )
-            })}
-        </div>
-    )
-}
 
 function StandingsPanel({ standings }: { standings: ChampionshipCombinedStandings | null }) {
     if (standings) {
@@ -85,18 +24,29 @@ function StandingsPanel({ standings }: { standings: ChampionshipCombinedStanding
     return <p className="text-sm text-base-content/70">Combined standings are not available yet.</p>
 }
 
+function resolveInitialTab(dayOrders: number[], initialDayOrder?: number): ResultsTabId {
+    if (initialDayOrder !== undefined && dayOrders.includes(initialDayOrder)) {
+        return initialDayOrder
+    }
+    return dayOrders[0] ?? "standings"
+}
+
 export default function PublicChampionshipResultsTabs({
+    championshipId,
     dayOrders,
     rounds,
     groupsByTournamentId,
     standings,
+    initialDayOrder,
 }: {
+    championshipId: string
     dayOrders: number[]
     rounds: PublicChampionshipTournamentRef[]
     groupsByTournamentId: Record<string, PublicTournamentGroupsData>
     standings: ChampionshipCombinedStandings | null
+    initialDayOrder?: number
 }) {
-    const [activeTab, setActiveTab] = useState<ResultsTabId>(() => dayOrders[0] ?? "standings")
+    const [activeTab, setActiveTab] = useState<ResultsTabId>(() => resolveInitialTab(dayOrders, initialDayOrder))
 
     return (
         <div className={resultsPanelClass}>
@@ -127,10 +77,23 @@ export default function PublicChampionshipResultsTabs({
                 </button>
             </div>
             <div className="p-4" role="tabpanel">
+                {typeof activeTab === "number" ? (
+                    <div className="flex justify-end mb-3 no-print">
+                        <Link
+                            href={buildPublicChampionshipPrintPath(championshipId, activeTab)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-ghost btn-sm gap-1"
+                        >
+                            <PrinterIcon className="h-4 w-4" />
+                            Print groups
+                        </Link>
+                    </div>
+                ) : null}
                 {activeTab === "standings" ? (
                     <StandingsPanel standings={standings} />
                 ) : (
-                    <DayGroupAllocations
+                    <PublicDayGroupAllocations
                         dayOrder={activeTab}
                         rounds={rounds}
                         groupsByTournamentId={groupsByTournamentId}

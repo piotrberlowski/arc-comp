@@ -1,10 +1,16 @@
 "use server"
 
-import { sortByGroupAssignmentOrder } from "@/lib/groupAssignmentOrder"
 import { prismaOrThrow } from "@/lib/prisma"
 import { notFound } from "next/navigation"
 import { buildChampionshipCombinedStandingsFromChampionshipData } from "@/lib/championshipStandingsInput"
 import type { ChampionshipCombinedStandings } from "@/lib/championshipCombinedStandings"
+import {
+    groupsFromParticipants,
+    type PublicTournamentGroup,
+    type PublicTournamentGroupsData,
+} from "@/lib/publicTournamentGroups"
+
+export type { PublicTournamentGroup, PublicTournamentGroupsData }
 
 export type PublicChampionshipTournamentRef = {
     dayOrder: number
@@ -17,30 +23,6 @@ export type PublicChampionshipTournamentRef = {
     groupSize: number
     isPublished: boolean
     isShared: boolean
-}
-
-export type PublicTournamentGroup = {
-    groupNumber: number
-    participants: {
-        id: string
-        membershipNo: string
-        competitorNumber: number | null
-        name: string
-        club: string | null
-        isCaptain: boolean
-    }[]
-}
-
-export type PublicTournamentGroupsData = {
-    tournament: Pick<PublicChampionshipTournamentRef, "tournamentId" | "tournamentName" | "endCount" | "groupSize">
-    groups: PublicTournamentGroup[]
-    unassigned: {
-        id: string
-        membershipNo: string
-        competitorNumber: number | null
-        name: string
-        club: string | null
-    }[]
 }
 
 export type PublicChampionshipResultsData = {
@@ -61,60 +43,6 @@ export type PublicChampionshipListItem = {
 
 function isTournamentPublic(t: { isPublished: boolean; isShared: boolean }): boolean {
     return t.isPublished || t.isShared
-}
-
-function groupsFromParticipants(
-    endCount: number,
-    participants: {
-        id: string
-        membershipNo: string
-        competitorNumber: number | null
-        name: string
-        club: string | null
-        groupAssignment: { groupNumber: number; isCaptain: boolean; positionInGroup: number } | null
-    }[]
-): { groups: PublicTournamentGroup[]; unassigned: PublicTournamentGroupsData["unassigned"] } {
-    const buckets = Array.from({ length: endCount }, (_, index) => ({
-        groupNumber: index + 1,
-        participants: [] as typeof participants,
-    }))
-
-    const unassigned: PublicTournamentGroupsData["unassigned"] = []
-
-    for (const participant of participants) {
-        const assignment = participant.groupAssignment
-        if (!assignment) {
-            unassigned.push({
-                id: participant.id,
-                membershipNo: participant.membershipNo,
-                competitorNumber: participant.competitorNumber,
-                name: participant.name,
-                club: participant.club,
-            })
-            continue
-        }
-
-        const bucket = buckets[assignment.groupNumber - 1]
-        if (!bucket) {
-            continue
-        }
-        bucket.participants.push(participant)
-    }
-
-    const groups: PublicTournamentGroup[] = buckets.map((bucket) => ({
-        groupNumber: bucket.groupNumber,
-        participants: sortByGroupAssignmentOrder(bucket.participants).map((participant) => ({
-            id: participant.id,
-            membershipNo: participant.membershipNo,
-            competitorNumber: participant.competitorNumber,
-            name: participant.name,
-            club: participant.club,
-            isCaptain: participant.groupAssignment?.isCaptain ?? false,
-        })),
-    }))
-
-    unassigned.sort((left, right) => left.name.localeCompare(right.name))
-    return { groups, unassigned }
 }
 
 function toPublicChampionshipListItem(championship: {
@@ -284,6 +212,56 @@ export async function getPublicChampionshipResults(championshipId: string): Prom
         championship: { id: championship.id, name: championship.name, organizerClub: championship.organizerClub },
         rounds: publicRounds,
         standings,
+        groupsByTournamentId,
+    }
+}
+
+export type PublicChampionshipDayGroupsPrintData = {
+    championship: { id: string; name: string; organizerClub: string }
+    dayOrder: number
+    rounds: {
+        dayOrder: number
+        rangeNumber: number
+        tournamentId: string
+        tournamentName: string
+        date: Date
+        endCount: number
+        groupSize: number
+    }[]
+    groupsByTournamentId: Record<string, PublicTournamentGroupsData>
+}
+
+export async function getPublicChampionshipDayGroupsData(
+    championshipId: string,
+    dayOrder: number
+): Promise<PublicChampionshipDayGroupsPrintData> {
+    const data = await getPublicChampionshipResults(championshipId)
+
+    const dayRounds = data.rounds.filter((round) => round.dayOrder === dayOrder)
+    if (dayRounds.length === 0) {
+        notFound()
+    }
+
+    const groupsByTournamentId: Record<string, PublicTournamentGroupsData> = {}
+    for (const round of dayRounds) {
+        const groupsData = data.groupsByTournamentId[round.tournamentId]
+        if (groupsData) {
+            groupsByTournamentId[round.tournamentId] = groupsData
+        }
+    }
+
+    return {
+        championship: data.championship,
+        dayOrder,
+        rounds: dayRounds.map((round) => ({
+            dayOrder: round.dayOrder,
+            rangeNumber: round.rangeNumber,
+            tournamentId: round.tournamentId,
+            tournamentName: round.tournamentName,
+            date: round.date,
+            endCount: round.endCount,
+            groupSize: round.groupSize,
+        })),
         groupsByTournamentId,
     }
 }

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { useMemo } from "react"
 import { removeChampionshipDay } from "../championshipActions"
 import ChampionshipDayAutoSeedButton from "./ChampionshipDayAutoSeedButton"
+import ChampionshipDayGroupsPrintLink from "./ChampionshipDayGroupsPrintLink"
 import { championshipDetailContentClass } from "./championshipDetailLayout"
 
 export type ChampionshipRoundRow = {
@@ -158,6 +159,12 @@ export default function ChampionshipRoundsList({
                         <div className="flex flex-wrap items-start justify-between gap-2">
                             <h3 className="font-medium">Day {dayOrder}</h3>
                             <div className="flex flex-wrap items-center gap-2">
+                                {!readOnly ? (
+                                    <ChampionshipDayGroupsPrintLink
+                                        championshipId={championshipId}
+                                        dayOrder={dayOrder}
+                                    />
+                                ) : null}
                                 <RemoveDayButton
                                     championshipId={championshipId}
                                     dayOrder={dayOrder}

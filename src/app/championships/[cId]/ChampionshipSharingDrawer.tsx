@@ -133,7 +133,9 @@ export default function ChampionshipSharingDrawer({
 
                     <p className="text-xs text-base-content/70 mb-4">
                         Applies to all {sharingStatus.tournamentCount} day tournament
-                        {sharingStatus.tournamentCount === 1 ? "" : "s"} (standings and groups).
+                        {sharingStatus.tournamentCount === 1 ? "" : "s"} (standings and groups).{" "}
+                        <span className="font-medium">Print groups</span> on each day opens the public print view (same
+                        data as this link) with a QR code.
                     </p>
 
                     {currentOption === "mixed" ? (

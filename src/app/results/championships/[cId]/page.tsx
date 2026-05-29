@@ -1,12 +1,21 @@
 import Link from "next/link"
+import { parsePublicChampionshipDayQuery } from "@/lib/publicChampionshipUrls"
 import { getPublicChampionshipResults } from "../championshipResultsActions"
 import PublicChampionshipResultsTabs from "./PublicChampionshipResultsTabs"
 
-export default async function PublicChampionshipResultsPage({ params }: { params: Promise<{ cId: string }> }) {
+export default async function PublicChampionshipResultsPage({
+    params,
+    searchParams,
+}: {
+    params: Promise<{ cId: string }>
+    searchParams: Promise<{ day?: string }>
+}) {
     const { cId } = await params
+    const { day } = await searchParams
     const data = await getPublicChampionshipResults(cId)
 
     const dayOrders = [...new Set(data.rounds.map((round) => round.dayOrder))].sort((a, b) => a - b)
+    const initialDayOrder = parsePublicChampionshipDayQuery(day)
 
     return (
         <div className="w-full p-6">
@@ -20,10 +29,12 @@ export default async function PublicChampionshipResultsPage({ params }: { params
                 </header>
 
                 <PublicChampionshipResultsTabs
+                    championshipId={cId}
                     dayOrders={dayOrders}
                     rounds={data.rounds}
                     groupsByTournamentId={data.groupsByTournamentId}
                     standings={data.standings}
+                    initialDayOrder={initialDayOrder}
                 />
             </div>
         </div>

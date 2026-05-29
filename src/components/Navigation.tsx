@@ -13,12 +13,12 @@ export default async function Navigation({ className }: { className?: string }) 
 
     return (
         <div className={`navbar bg-neutral ${className}`}>
-            <div className="navbar-start">
+            <div className="navbar-start text-accent">
                 <div className="dropdown">
                     <div tabIndex={0} role="button" className="btn btn-ghost lg:hidden">
                         <Bars3CenterLeftIcon className="h-4 w-4" />
                     </div>
-                    <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+                    <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-300 rounded-box w-52">
                         <li><Link href="/results">Results</Link></li>
                         <li><Link href="/results/championships">Championship Results</Link></li>
                         {authenticated && (
@@ -34,7 +34,7 @@ export default async function Navigation({ className }: { className?: string }) 
                 <Link className="btn btn-ghost text-sm" href="/">Arc-Comp<span className="p-0 m-0 hidden lg:inline">: Tournament Admin ({publicRuntimeConfig.version})</span></Link>
             </div>
             <div className="navbar-center hidden lg:flex">
-                <ul className="menu menu-horizontal px-1 bg-primary rounded-box">
+                <ul className="menu menu-horizontal px-1 color-secondary bg-base-300 rounded-box">
                     <li><Link href="/results">Results</Link></li>
                     <li><Link href="/results/championships">Championship Results</Link></li>
                     {authenticated && (
@@ -47,7 +47,7 @@ export default async function Navigation({ className }: { className?: string }) 
                     )}
                 </ul>
             </div>
-            <div className="navbar-end">
+            <div className="navbar-end text-accent">
                 {
                     authenticated && (<Account />) || (<Link className="btn btn-ghost btn-sm" href={"/login"}>Sign In</Link>)
                 }

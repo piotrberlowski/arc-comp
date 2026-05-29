@@ -1,5 +1,6 @@
 "use server"
 
+import { sortByGroupAssignmentOrder } from "@/lib/groupAssignmentOrder"
 import { prismaOrThrow } from "@/lib/prisma"
 import { notFound } from "next/navigation"
 import { buildChampionshipCombinedStandingsFromChampionshipData } from "@/lib/championshipStandingsInput"
@@ -70,12 +71,12 @@ function groupsFromParticipants(
         competitorNumber: number | null
         name: string
         club: string | null
-        groupAssignment: { groupNumber: number; isCaptain: boolean } | null
+        groupAssignment: { groupNumber: number; isCaptain: boolean; positionInGroup: number } | null
     }[]
 ): { groups: PublicTournamentGroup[]; unassigned: PublicTournamentGroupsData["unassigned"] } {
-    const groups: PublicTournamentGroup[] = Array.from({ length: endCount }, (_, index) => ({
+    const buckets = Array.from({ length: endCount }, (_, index) => ({
         groupNumber: index + 1,
-        participants: [],
+        participants: [] as typeof participants,
     }))
 
     const unassigned: PublicTournamentGroupsData["unassigned"] = []
@@ -93,30 +94,26 @@ function groupsFromParticipants(
             continue
         }
 
-        const group = groups[assignment.groupNumber - 1]
-        if (!group) {
+        const bucket = buckets[assignment.groupNumber - 1]
+        if (!bucket) {
             continue
         }
-        group.participants.push({
+        bucket.participants.push(participant)
+    }
+
+    const groups: PublicTournamentGroup[] = buckets.map((bucket) => ({
+        groupNumber: bucket.groupNumber,
+        participants: sortByGroupAssignmentOrder(bucket.participants).map((participant) => ({
             id: participant.id,
             membershipNo: participant.membershipNo,
             competitorNumber: participant.competitorNumber,
             name: participant.name,
             club: participant.club,
-            isCaptain: assignment.isCaptain,
-        })
-    }
+            isCaptain: participant.groupAssignment?.isCaptain ?? false,
+        })),
+    }))
 
-    for (const group of groups) {
-        group.participants.sort((a, b) => {
-            if (a.isCaptain !== b.isCaptain) {
-                return a.isCaptain ? -1 : 1
-            }
-            return a.name.localeCompare(b.name)
-        })
-    }
-
-    unassigned.sort((a, b) => a.name.localeCompare(b.name))
+    unassigned.sort((left, right) => left.name.localeCompare(right.name))
     return { groups, unassigned }
 }
 
@@ -232,7 +229,7 @@ export async function getPublicChampionshipResults(championshipId: string): Prom
                 competitorNumber: true,
                 name: true,
                 club: true,
-                groupAssignment: { select: { groupNumber: true, isCaptain: true } },
+                groupAssignment: { select: { groupNumber: true, isCaptain: true, positionInGroup: true } },
             },
         }),
     ])

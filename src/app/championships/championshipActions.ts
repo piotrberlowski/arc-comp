@@ -29,7 +29,18 @@ import { assertChampionshipOrganizerClubs, resolveChampionshipOrganizerClubs } f
 import {
     type ChampionshipCombinedStandings,
 } from "@/lib/championshipCombinedStandings"
-import { buildChampionshipCombinedStandingsFromChampionshipData } from "@/lib/championshipStandingsInput"
+import {
+    buildChampionshipCombinedStandingsFromChampionshipData,
+    buildCompetitorStandingsByCategoryFromChampionshipData,
+} from "@/lib/championshipStandingsInput"
+import {
+    assertAutoSeedPlanIsComplete,
+    buildTournamentAutoSeedPlan,
+    participantAllowedOnRangeForDay,
+    validateAutoSeedTargetRange,
+    type AutoSeedTargetRange,
+} from "@/lib/championshipAutoSeed"
+import { createGroupAssignments, mapSeedAssignmentsToCreateRows } from "@/lib/groupAssignmentCreate"
 import { prismaOrThrow } from "@/lib/prisma"
 import {
     aggregateSharingOption,
@@ -1579,4 +1590,162 @@ export async function updateChampionshipSharingSettings(
     for (const tournamentId of tournamentIds) {
         revalidatePath(`/tournaments/${tournamentId}/scores`)
     }
+}
+
+export type AutoSeedChampionshipDayResult = {
+    dayOrder: number
+    tournaments: {
+        tournamentId: string
+        rangeNumber: number
+        assignmentsCount: number
+    }[]
+    warnings: string[]
+}
+
+export type { AutoSeedTargetRange }
+
+export async function autoSeedChampionshipDay(
+    championshipId: string,
+    dayOrder: number,
+    rangeNumber: number,
+    targetRange: AutoSeedTargetRange
+): Promise<AutoSeedChampionshipDayResult> {
+    if (dayOrder < 2) {
+        throw new Error("Auto-seed is only available from day 2 onward")
+    }
+
+    const clubs = await assertChampionshipOrganizerClubs()
+    const championship = await getChampionshipForOrganizer(championshipId, clubs)
+    if (!championship || championship.isArchive) {
+        throw new Error("Unauthorized")
+    }
+
+    const dayRounds = championship.rounds.filter((round) => round.dayOrder === dayOrder)
+    if (dayRounds.length === 0) {
+        throw new Error(`Day ${dayOrder} not found`)
+    }
+
+    const round = dayRounds.find((item) => item.rangeNumber === rangeNumber)
+    if (!round) {
+        throw new Error(`Range ${rangeNumber} not found on day ${dayOrder}`)
+    }
+
+    const priorRounds = championship.rounds.filter((item) => item.dayOrder < dayOrder)
+    if (priorRounds.length === 0) {
+        throw new Error("Add and score the first day before auto-seeding later days")
+    }
+
+    const priorTournamentIds = new Set(priorRounds.map((round) => round.tournamentId))
+    const [enrollmentByTournament, scores] = await Promise.all([
+        listChampionshipDayEnrollmentByTournamentForChampionship(championship),
+        listChampionshipDayScoresForChampionship(championship),
+    ])
+
+    if (!enrollmentByTournament || !scores) {
+        throw new Error("Unable to load championship enrollment or scores")
+    }
+
+    const priorScores = scores.filter((score) => priorTournamentIds.has(score.tournamentId))
+    const standings = buildChampionshipCombinedStandingsFromChampionshipData({
+        registrations: championship.registrations,
+        rounds: priorRounds.map((round) => ({
+            dayOrder: round.dayOrder,
+            rangeNumber: round.rangeNumber,
+            tournamentId: round.tournamentId,
+        })),
+        scores: priorScores,
+        enrollmentByTournament,
+    })
+
+    if (!standings) {
+        throw new Error("Combined standings are not available for prior days")
+    }
+
+    const priorDayOrders = standings.days.map((day) => day.dayOrder)
+    const competitorStandingsByCategory = buildCompetitorStandingsByCategoryFromChampionshipData({
+        registrations: championship.registrations,
+        rounds: priorRounds.map((priorRound) => ({
+            dayOrder: priorRound.dayOrder,
+            rangeNumber: priorRound.rangeNumber,
+            tournamentId: priorRound.tournamentId,
+        })),
+        scores: priorScores,
+        enrollmentByTournament,
+    })
+
+    const rangeError = validateAutoSeedTargetRange(targetRange, round.tournament.endCount)
+    if (rangeError) {
+        throw new Error(rangeError)
+    }
+
+    const divisionAssignments = mapDivisionRangeAssignments(championship.divisionRanges)
+    const tournaments: AutoSeedChampionshipDayResult["tournaments"] = []
+
+    await prismaOrThrow("auto-seed championship day").$transaction(async (tx) => {
+        const participants = await tx.participant.findMany({
+            where: { tournamentId: round.tournamentId },
+            select: {
+                id: true,
+                membershipNo: true,
+                competitorNumber: true,
+                ageGroupId: true,
+                categoryId: true,
+                genderGroup: true,
+            },
+        })
+
+        const eligibleParticipants =
+            championship.rangeCount > 1
+                ? participants.filter((participant) =>
+                      participantAllowedOnRangeForDay(
+                          participant,
+                          dayOrder,
+                          round.rangeNumber,
+                          divisionAssignments
+                      )
+                  )
+                : participants
+
+        const plan = buildTournamentAutoSeedPlan({
+            tournamentId: round.tournamentId,
+            rangeNumber: round.rangeNumber,
+            groupSize: round.tournament.groupSize,
+            endCount: round.tournament.endCount,
+            targetRange,
+            participants: eligibleParticipants.map((participant) => ({
+                ...participant,
+                competitorNumber: participant.competitorNumber ?? 0,
+            })),
+            priorDayOrders,
+            competitorStandingsByCategory,
+        })
+
+        assertAutoSeedPlanIsComplete(
+            plan,
+            eligibleParticipants.map((participant) => participant.id)
+        )
+
+        await tx.groupAssignment.deleteMany({
+            where: { tournamentId: round.tournamentId },
+        })
+
+        if (plan.assignments.length > 0) {
+            await createGroupAssignments(
+                tx,
+                mapSeedAssignmentsToCreateRows(round.tournamentId, plan.assignments)
+            )
+        }
+
+        tournaments.push({
+            tournamentId: round.tournamentId,
+            rangeNumber: round.rangeNumber,
+            assignmentsCount: plan.assignments.length,
+        })
+    })
+
+    revalidatePath(`/championships/${championshipId}`)
+    revalidatePath(`/tournaments/${round.tournamentId}/groups`)
+    revalidatePath(`/tournaments/${round.tournamentId}/scores`)
+
+    return { dayOrder, tournaments, warnings: [] }
 }

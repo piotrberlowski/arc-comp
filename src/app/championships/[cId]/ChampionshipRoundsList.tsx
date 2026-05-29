@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useMemo } from "react"
 import { removeChampionshipDay } from "../championshipActions"
+import ChampionshipDayAutoSeedButton from "./ChampionshipDayAutoSeedButton"
 import { championshipDetailContentClass } from "./championshipDetailLayout"
 
 export type ChampionshipRoundRow = {
@@ -16,6 +17,8 @@ export type ChampionshipRoundRow = {
     tournamentName: string
     tournamentDate: Date
     formatName: string
+    endCount: number
+    groupSize: number
     canRemove: boolean
 }
 
@@ -94,14 +97,36 @@ function groupRoundsByDay(rounds: ChampionshipRoundRow[]) {
         }))
 }
 
-function DayRangeRow({ round }: { round: ChampionshipRoundRow }) {
+function DayRangeRow({
+    round,
+    championshipId,
+    readOnly,
+}: {
+    round: ChampionshipRoundRow
+    championshipId: string
+    readOnly: boolean
+}) {
     return (
         <li className="flex flex-col gap-2 border-t border-base-300 pt-3 first:border-t-0 first:pt-0">
             <div className="flex flex-wrap items-center gap-2">
                 <p className="font-medium text-sm">{round.tournamentName}</p>
                 <span className="badge badge-sm badge-info badge-outline">{round.formatName}</span>
+                {round.rangeNumber > 1 ? (
+                    <span className="badge badge-sm badge-ghost">Range {round.rangeNumber}</span>
+                ) : null}
             </div>
-            <DayTournamentLinks tournamentId={round.tournamentId} />
+            <div className="flex flex-wrap items-center gap-2">
+                <DayTournamentLinks tournamentId={round.tournamentId} />
+                {!readOnly && round.dayOrder >= 2 ? (
+                    <ChampionshipDayAutoSeedButton
+                        championshipId={championshipId}
+                        dayOrder={round.dayOrder}
+                        rangeNumber={round.rangeNumber}
+                        endCount={round.endCount}
+                        groupSize={round.groupSize}
+                    />
+                ) : null}
+            </div>
         </li>
     )
 }
@@ -132,16 +157,23 @@ export default function ChampionshipRoundsList({
                     <div className="card-body gap-3 py-4">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                             <h3 className="font-medium">Day {dayOrder}</h3>
-                            <RemoveDayButton
-                                championshipId={championshipId}
-                                dayOrder={dayOrder}
-                                canRemove={dayRounds[0]?.canRemove ?? false}
-                                readOnly={readOnly}
-                            />
+                            <div className="flex flex-wrap items-center gap-2">
+                                <RemoveDayButton
+                                    championshipId={championshipId}
+                                    dayOrder={dayOrder}
+                                    canRemove={dayRounds[0]?.canRemove ?? false}
+                                    readOnly={readOnly}
+                                />
+                            </div>
                         </div>
                         <ul className="flex flex-col gap-0">
                             {dayRounds.map((round) => (
-                                <DayRangeRow key={round.id} round={round} />
+                                <DayRangeRow
+                                    key={round.id}
+                                    round={round}
+                                    championshipId={championshipId}
+                                    readOnly={readOnly}
+                                />
                             ))}
                         </ul>
                     </div>

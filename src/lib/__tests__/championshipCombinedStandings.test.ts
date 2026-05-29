@@ -87,7 +87,7 @@ describe("championshipCombinedStandings", () => {
             enrollmentByMembership
         )
 
-        expect(standings?.complete[0]?.competitors[0]?.totalLabel).toBe("585.5")
+        expect(standings?.complete[0]?.competitors[0]?.totalLabel).toBe("585 (500)")
     })
 
     it("does not add DNC to the combined total", () => {

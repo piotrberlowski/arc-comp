@@ -1,6 +1,7 @@
 "use client"
 
 import type { ChampionshipCombinedStandings } from "@/lib/championshipCombinedStandings"
+import ChampionshipCombinedIfafExportButton from "./ChampionshipCombinedIfafExportButton"
 import { championshipDetailContentClass } from "./championshipDetailLayout"
 
 
@@ -71,10 +72,17 @@ function CategoryStandingsCard({
 export default function ChampionshipCombinedStandingsView({
     standings,
     embedded = false,
+    championshipId,
+    championshipName,
+    rangeCount,
 }: {
     standings: ChampionshipCombinedStandings
     embedded?: boolean
+    championshipId?: string
+    championshipName?: string
+    rangeCount?: number
 }) {
+    const showIfafExport = !embedded && rangeCount !== undefined && rangeCount > 1 && championshipId && championshipName
     const allGroups = [...standings.inProgress, ...standings.complete]
 
     return (
@@ -86,6 +94,14 @@ export default function ChampionshipCombinedStandingsView({
                         Totals sum completed day scores for enrolled competitors, including any shootoff values entered
                         on those days. DNC and DNF days do not add to the total.
                     </p>
+                    {showIfafExport ? (
+                        <div className="mb-4">
+                            <ChampionshipCombinedIfafExportButton
+                                championshipId={championshipId}
+                                championshipName={championshipName}
+                            />
+                        </div>
+                    ) : null}
                 </>
             ) : null}
             {allGroups.length > 0 ? (

@@ -320,7 +320,20 @@ export function buildCompetitorStandingsByCategory(
     return grouped
 }
 
-function compareCompetitorStandings(a: CompetitorStanding, b: CompetitorStanding): number {
+export function flattenSortedCompetitorStandings(
+    byCategory: Map<string, CompetitorStanding[]>
+): CompetitorStanding[] {
+    return [...byCategory.values()]
+        .sort((left, right) =>
+            compareCombinedStandingsCategories(
+                left[0] ?? { categoryName: "", ageGroupName: "", genderGroup: "" },
+                right[0] ?? { categoryName: "", ageGroupName: "", genderGroup: "" }
+            )
+        )
+        .flatMap((competitors) => [...competitors].sort(compareCompetitorStandings))
+}
+
+export function compareCompetitorStandings(a: CompetitorStanding, b: CompetitorStanding): number {
     if (a.scoringComplete !== b.scoringComplete) {
         return a.scoringComplete ? 1 : -1
     }

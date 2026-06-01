@@ -1,38 +1,6 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
 import { Prisma } from "@/generated/prisma/client"
-import {
-    buildDivisionRangeMatrixFromShell,
-    type DivisionRangeMatrixData,
-    type DivisionRangeMatrixRow,
-} from "@/lib/championshipDivisionRangeMatrix"
-import { championshipDayTournamentName, nextChampionshipDayOrder } from "@/lib/championshipDayNaming"
-import {
-    areChampionshipRangeAssignmentsComplete,
-    buildEnrollmentByMembership,
-    filterMembershipNosEligibleOnDay,
-    participantDataFromRegistration,
-    participantUpdateFromRegistration,
-} from "@/lib/championshipEnrollment"
-import type { EnrollChampionshipDayResult } from "@/lib/championshipEnrollmentMessages"
-import {
-    findDivisionRangeAssignment,
-    findDivisionRangeOnOtherDay,
-    mapDivisionRangeAssignments,
-    resolveDivisionRangeForDay,
-    isDayOneRangeAssignmentFrozen,
-    type ChampionshipDivisionRangeRow,
-    type RangeAssignmentUpdate,
-} from "@/lib/championshipRangeRules"
-import { assertChampionshipOrganizerClubs, resolveChampionshipOrganizerClubs } from "@/lib/championshipOrganizerSession"
-import {
-    type ChampionshipCombinedStandings,
-} from "@/lib/championshipCombinedStandings"
-import {
-    buildChampionshipCombinedStandingsFromChampionshipData,
-    buildCompetitorStandingsByCategoryFromChampionshipData,
-} from "@/lib/championshipStandingsInput"
 import {
     assertAutoSeedPlanIsComplete,
     buildTournamentAutoSeedPlan,
@@ -40,12 +8,47 @@ import {
     validateAutoSeedTargetRange,
     type AutoSeedTargetRange,
 } from "@/lib/championshipAutoSeed"
+import {
+    type ChampionshipCombinedStandings,
+    type ChampionshipRoundRef,
+} from "@/lib/championshipCombinedStandings"
+import { championshipDayTournamentName, nextChampionshipDayOrder } from "@/lib/championshipDayNaming"
+import {
+    buildDivisionRangeMatrixFromShell,
+    type DivisionRangeMatrixData,
+    type DivisionRangeMatrixRow,
+} from "@/lib/championshipDivisionRangeMatrix"
+import {
+    areChampionshipRangeAssignmentsComplete,
+    filterMembershipNosEligibleOnDay,
+    participantDataFromRegistration,
+    participantUpdateFromRegistration
+} from "@/lib/championshipEnrollment"
+import type { EnrollChampionshipDayResult } from "@/lib/championshipEnrollmentMessages"
+import { assertChampionshipOrganizerClubs, resolveChampionshipOrganizerClubs } from "@/lib/championshipOrganizerSession"
+import {
+    findDivisionRangeAssignment,
+    findDivisionRangeOnOtherDay,
+    isDayOneRangeAssignmentFrozen,
+    mapDivisionRangeAssignments,
+    resolveDivisionRangeForDay,
+    type ChampionshipDivisionRangeRow,
+    type RangeAssignmentUpdate,
+} from "@/lib/championshipRangeRules"
+import {
+    buildChampionshipCombinedStandingsFromChampionshipData,
+    buildCompetitorStandingsByCategoryFromChampionshipData,
+} from "@/lib/championshipStandingsInput"
+import { buildChampionshipCombinedIfafExportData } from "@/app/results/[rId]/ifafExport/buildChampionshipCombinedIfafExportData"
+import type { IfafExportData } from "@/app/results/[rId]/ifafExport/ifafExportTypes"
 import { createGroupAssignments, mapSeedAssignmentsToCreateRows } from "@/lib/groupAssignmentCreate"
 import { prismaOrThrow } from "@/lib/prisma"
 import {
     aggregateSharingOption,
     type SharingOption,
 } from "@/lib/tournamentSharing"
+import { roundFormatShortLabel } from "@/lib/roundFormatLabel"
+import { revalidatePath } from "next/cache"
 
 export interface ChampionshipRangeFormatInput {
     rangeNumber: number
@@ -398,10 +401,10 @@ export async function addChampionshipDay(input: AddChampionshipDayInput) {
         championship,
         input.formatId && input.endCount !== undefined && input.groupSize !== undefined
             ? {
-                  formatId: input.formatId,
-                  endCount: input.endCount,
-                  groupSize: input.groupSize,
-              }
+                formatId: input.formatId,
+                endCount: input.endCount,
+                groupSize: input.groupSize,
+            }
             : undefined
     )
 
@@ -714,11 +717,97 @@ export async function getChampionshipCombinedStandings(
 
     return buildChampionshipCombinedStandingsFromChampionshipData({
         registrations: championship.registrations,
-        rounds: championship.rounds.map((round) => ({
-            dayOrder: round.dayOrder,
-            rangeNumber: round.rangeNumber,
-            tournamentId: round.tournamentId,
-        })),
+        rounds: mapChampionshipRoundsForStandings(championship.rounds),
+        scores,
+        enrollmentByTournament,
+    })
+}
+
+function mapChampionshipRoundsForStandings(
+    rounds: ChampionshipShellRow["rounds"]
+): ChampionshipRoundRef[] {
+    return rounds.map((round) => ({
+        dayOrder: round.dayOrder,
+        rangeNumber: round.rangeNumber,
+        tournamentId: round.tournamentId,
+    }))
+}
+
+function championshipRangeFormatNames(championship: ChampionshipShellRow): string[] {
+    return championshipRangeFormatLabels(championship, false)
+}
+
+function championshipRangeFormatShortNames(championship: ChampionshipShellRow): string[] {
+    return championshipRangeFormatLabels(championship, true)
+}
+
+function championshipRangeFormatLabels(
+    championship: ChampionshipShellRow,
+    useShortName: boolean
+): string[] {
+    const labelFor = useShortName ? roundFormatShortLabel : (format: { name: string }) => format.name
+
+    if (championship.rangeConfigs.length > 0) {
+        return [...championship.rangeConfigs]
+            .sort((left, right) => left.rangeNumber - right.rangeNumber)
+            .map((config) => labelFor(config.format))
+    }
+
+    const labels: string[] = []
+    for (let rangeNumber = 1; rangeNumber <= championship.rangeCount; rangeNumber++) {
+        const round = championship.rounds
+            .filter((item) => item.rangeNumber === rangeNumber)
+            .sort((left, right) => left.dayOrder - right.dayOrder)[0]
+        if (round) {
+            labels.push(labelFor(round.tournament.format))
+        }
+    }
+    return labels
+}
+
+function championshipIfafExportDateRange(championship: ChampionshipShellRow): {
+    dateStart: Date
+    dateEnd: Date
+} {
+    const times = championship.rounds.map((round) => round.tournament.date.getTime())
+    if (times.length === 0) {
+        const now = new Date()
+        return { dateStart: now, dateEnd: now }
+    }
+
+    return {
+        dateStart: new Date(Math.min(...times)),
+        dateEnd: new Date(Math.max(...times)),
+    }
+}
+
+export async function getChampionshipCombinedIfafExportData(
+    championshipId: string,
+    organizerClubs: string[]
+): Promise<IfafExportData | null> {
+    const championship = await getChampionshipForOrganizer(championshipId, organizerClubs)
+    if (!championship || championship.rangeCount < 2) {
+        return null
+    }
+
+    const [enrollmentByTournament, scores] = await Promise.all([
+        listChampionshipDayEnrollmentByTournamentForChampionship(championship),
+        listChampionshipDayScoresForChampionship(championship),
+    ])
+
+    if (!enrollmentByTournament || !scores) {
+        return null
+    }
+
+    return buildChampionshipCombinedIfafExportData({
+        championshipName: championship.name,
+        organizerClub: championship.organizerClub,
+        rangeFormatNames: championshipRangeFormatNames(championship),
+        rangeFormatShortNames: championshipRangeFormatShortNames(championship),
+        rangeCount: championship.rangeCount,
+        ...championshipIfafExportDateRange(championship),
+        registrations: championship.registrations,
+        rounds: mapChampionshipRoundsForStandings(championship.rounds),
         scores,
         enrollmentByTournament,
     })
@@ -1697,13 +1786,13 @@ export async function autoSeedChampionshipDay(
         const eligibleParticipants =
             championship.rangeCount > 1
                 ? participants.filter((participant) =>
-                      participantAllowedOnRangeForDay(
-                          participant,
-                          dayOrder,
-                          round.rangeNumber,
-                          divisionAssignments
-                      )
-                  )
+                    participantAllowedOnRangeForDay(
+                        participant,
+                        dayOrder,
+                        round.rangeNumber,
+                        divisionAssignments
+                    )
+                )
                 : participants
 
         const plan = buildTournamentAutoSeedPlan({

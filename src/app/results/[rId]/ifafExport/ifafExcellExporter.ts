@@ -1,6 +1,8 @@
 import { IFAFAgeGenderMapping, IFAFBowStyleMapping } from "@/generated/prisma/client"
 import * as ExcelJS from 'exceljs'
-import { ParticipantResultData, TournamentResultsData } from '../../resultsActions'
+import type { IfafExportData, IfafExportParticipant } from './ifafExportTypes'
+import { formatIfafExportDateRange } from './ifafExportDate'
+import { fillScoreColumnHeaders, scoreColumnCountForExport, trimExcessScoreColumns } from './ifafWorksheetColumns'
 
 export class IFAFExcellExporter {
     private templatePath: string
@@ -36,17 +38,24 @@ export class IFAFExcellExporter {
         )
     }
 
-    async processTournamentResults(tournamentData: TournamentResultsData): Promise<Buffer> {
+    async processExportData(exportData: IfafExportData): Promise<Buffer> {
         // 1. Load template
         const template = await this.loadTemplate()
+        const worksheet = template.getWorksheet('Results')
+        if (!worksheet) {
+            throw new Error('Results worksheet not found')
+        }
 
-        // 2. Fill template header with tournament data
-        this.fillTemplateHeader(template, tournamentData)
+        // 2. Remove unused score columns (template provides six; keep only what export needs)
+        trimExcessScoreColumns(worksheet, scoreColumnCountForExport(exportData.participants))
 
-        // 3. Process template row by row
-        const filledWorkbook = await this.processTemplateRows(template, tournamentData)
+        // 3. Fill template header
+        this.fillTemplateHeader(template, exportData)
 
-        // 4. Return as buffer
+        // 4. Process template row by row
+        const filledWorkbook = await this.processTemplateRows(template, exportData)
+
+        // 5. Return as buffer
         return await this.workbookToBuffer(filledWorkbook)
     }
 
@@ -56,18 +65,31 @@ export class IFAFExcellExporter {
         return workbook
     }
 
-    private fillTemplateHeader(workbook: ExcelJS.Workbook, tournamentData: TournamentResultsData): void {
+    private fillBowStyleScoreColumnHeaders(
+        worksheet: ExcelJS.Worksheet,
+        bowStyleHeaderRow: number,
+        exportData: IfafExportData
+    ): void {
+        const headers = exportData.scoreColumnHeaders
+        if (!headers || headers.length <= 1) {
+            return
+        }
+
+        fillScoreColumnHeaders(worksheet, bowStyleHeaderRow, headers)
+    }
+
+    private fillTemplateHeader(workbook: ExcelJS.Workbook, exportData: IfafExportData): void {
         const worksheet = workbook.getWorksheet('Results')
         if (!worksheet) throw new Error('Results worksheet not found')
 
         // Fill tournament info in header
-        worksheet.getCell('B8').value = tournamentData.tournament.organizerClub // Host Club
-        worksheet.getCell('B9').value = tournamentData.tournament.format.name // Round
-        worksheet.getCell('E9').value = tournamentData.participants.length // # of competitors
-        worksheet.getCell('D10').value = tournamentData.tournament.date.toISOString().split('T')[0] // Date
+        worksheet.getCell('B8').value = exportData.organizerClub // Host Club
+        worksheet.getCell('B9').value = exportData.roundLabel // Round
+        worksheet.getCell('E9').value = exportData.participantCount // # of competitors
+        worksheet.getCell('D10').value = formatIfafExportDateRange(exportData.dateStart, exportData.dateEnd)
     }
 
-    private async processTemplateRows(workbook: ExcelJS.Workbook, tournamentData: TournamentResultsData): Promise<ExcelJS.Workbook> {
+    private async processTemplateRows(workbook: ExcelJS.Workbook, exportData: IfafExportData): Promise<ExcelJS.Workbook> {
         const worksheet = workbook.getWorksheet('Results')
         if (!worksheet) throw new Error('Results worksheet not found')
 
@@ -87,8 +109,10 @@ export class IFAFExcellExporter {
                 // Get the bowstyle mapping for this code
                 const bowStyleMapping = this.bowStyleMap.get(bowStyleCode)
                 if (bowStyleMapping) {
+                    this.fillBowStyleScoreColumnHeaders(worksheet, currentRow, exportData)
+
                     // Get participants for this bow style
-                    const participants = this.getParticipantsForBowStyle(tournamentData, bowStyleMapping)
+                    const participants = this.getParticipantsForBowStyle(exportData, bowStyleMapping)
 
                     if (participants.length > 0) {
                         // Process participants for this bowstyle
@@ -128,17 +152,17 @@ export class IFAFExcellExporter {
     }
 
     private getParticipantsForBowStyle(
-        tournamentData: TournamentResultsData,
+        exportData: IfafExportData,
         bowStyleMapping: IFAFBowStyleMapping & { equipmentCategory: { id: string; name: string } }
-    ): ParticipantResultData[] {
-        return tournamentData.participants.filter(participant =>
-            participant.category.id === bowStyleMapping.equipmentCategoryId
+    ): IfafExportParticipant[] {
+        return exportData.participants.filter(
+            (participant) => participant.categoryId === bowStyleMapping.equipmentCategoryId
         )
     }
 
     private async processBowStyleParticipants(
         worksheet: ExcelJS.Worksheet,
-        participants: ParticipantResultData[],
+        participants: IfafExportParticipant[],
         headingRow: number
     ): Promise<void> {
         // Skip the empty row after the heading
@@ -147,12 +171,13 @@ export class IFAFExcellExporter {
         // Group participants by age/gender
         const participantsByAgeGender = this.groupParticipantsByAgeGender(participants)
 
-        // Process each age/gender group (participants are pre-sorted by score from DB)
+        // Process each age/gender group (sorted by last score column descending)
         for (const [ageGenderKey, groupParticipants] of participantsByAgeGender) {
+            const sorted = [...groupParticipants].sort(compareParticipantsByLastScoreColumn)
             const ageGenderMapping = this.ageGenderMap.get(ageGenderKey)
             if (!ageGenderMapping) continue
 
-            currentRow = this.insertParticipantRows(worksheet, groupParticipants, ageGenderMapping, currentRow)
+            currentRow = this.insertParticipantRows(worksheet, sorted, ageGenderMapping, currentRow)
 
             // Insert empty row after each age/gender group
             worksheet.insertRow(currentRow, [], 'i+')
@@ -160,8 +185,8 @@ export class IFAFExcellExporter {
         }
     }
 
-    private groupParticipantsByAgeGender(participants: ParticipantResultData[]): Map<string, ParticipantResultData[]> {
-        const participantsByAgeGender = new Map<string, ParticipantResultData[]>()
+    private groupParticipantsByAgeGender(participants: IfafExportParticipant[]): Map<string, IfafExportParticipant[]> {
+        const participantsByAgeGender = new Map<string, IfafExportParticipant[]>()
         for (const participant of participants) {
             const key = `${participant.ageGroupId}-${participant.genderGroup}`
             if (!participantsByAgeGender.has(key)) {
@@ -174,20 +199,17 @@ export class IFAFExcellExporter {
 
     private insertParticipantRows(
         worksheet: ExcelJS.Worksheet,
-        participants: ParticipantResultData[],
+        participants: IfafExportParticipant[],
         ageGenderMapping: IFAFAgeGenderMapping & { ageGroup: { id: string; name: string } },
         currentRow: number
     ): number {
         for (const participant of participants) {
-            const { status, score } = participant.result
-            const scoreDisplay = status === 'COMPLETED' ? score?.toString() ?? '' : status
-
             const rowValues = [
                 `${ageGenderMapping.ifafCategoryCode}. ${ageGenderMapping.ifafCategoryName}`,
                 participant.name,
                 participant.membershipNo || '',
                 participant.club || 'Independent',
-                scoreDisplay
+                ...participant.scoreColumns,
             ]
             worksheet.insertRow(currentRow, rowValues, 'i+')
             currentRow++
@@ -195,9 +217,21 @@ export class IFAFExcellExporter {
         return currentRow
     }
 
-
     private async workbookToBuffer(workbook: ExcelJS.Workbook): Promise<Buffer> {
         const buffer = await workbook.xlsx.writeBuffer()
         return Buffer.from(buffer)
     }
+}
+
+function compareParticipantsByLastScoreColumn(left: IfafExportParticipant, right: IfafExportParticipant): number {
+    const leftScore = left.scoreColumns[left.scoreColumns.length - 1] ?? ""
+    const rightScore = right.scoreColumns[right.scoreColumns.length - 1] ?? ""
+    const leftNumeric = Number(leftScore)
+    const rightNumeric = Number(rightScore)
+
+    if (Number.isFinite(leftNumeric) && Number.isFinite(rightNumeric)) {
+        return rightNumeric - leftNumeric
+    }
+
+    return rightScore.localeCompare(leftScore)
 }

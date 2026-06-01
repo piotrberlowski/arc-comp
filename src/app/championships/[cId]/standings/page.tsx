@@ -1,7 +1,7 @@
 import { getChampionshipOrganizerClubs } from "@/lib/championshipOrganizerScope"
 import { notFound } from "next/navigation"
 import { auth } from "../../../auth"
-import { getChampionshipCombinedStandings } from "../../championshipActions"
+import { getChampionshipCombinedStandings, getChampionshipForOrganizer } from "../../championshipActions"
 import ChampionshipCombinedStandingsView from "../ChampionshipCombinedStandingsView"
 
 export default async function ChampionshipStandingsPage({ params }: { params: Promise<{ cId: string }> }) {
@@ -12,15 +12,23 @@ export default async function ChampionshipStandingsPage({ params }: { params: Pr
 
     const { cId } = await params
     const clubs = getChampionshipOrganizerClubs(session.organizerRoles)
-    const standings = await getChampionshipCombinedStandings(cId, clubs)
+    const [championship, standings] = await Promise.all([
+        getChampionshipForOrganizer(cId, clubs),
+        getChampionshipCombinedStandings(cId, clubs),
+    ])
 
-    if (!standings) {
+    if (!championship || !standings) {
         notFound()
     }
 
     return (
         <div className="p-4">
-            <ChampionshipCombinedStandingsView standings={standings} />
+            <ChampionshipCombinedStandingsView
+                standings={standings}
+                championshipId={championship.id}
+                championshipName={championship.name}
+                rangeCount={championship.rangeCount}
+            />
         </div>
     )
 }

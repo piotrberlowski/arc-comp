@@ -124,6 +124,7 @@ model AgeGroup {
 model RoundFormat {
   id                 String              @id @default(cuid())
   name               String              @unique
+  shortName          String?
   tournaments        Tournament[]
   championshipRanges ChampionshipRange[]
   endCount           Int                 @default(28)

@@ -3,6 +3,8 @@ import * as ExcelJS from 'exceljs'
 import { existsSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { TournamentResultsData } from '../../../resultsActions'
+import { ifafExportDataFromTournament } from '../ifafExportMappers'
+import type { IfafExportData } from '../ifafExportTypes'
 import { IFAFExcellExporter } from '../ifafExcellExporter'
 
 // Mock data based on seed.ts - all 12 bowstyles from the template
@@ -274,7 +276,7 @@ describe('IFAFExcellExporter', () => {
     let outputPath: string
 
     beforeEach(() => {
-        templatePath = join(process.cwd(), 'resources', 'templatev3.xlsx')
+        templatePath = join(process.cwd(), 'resources', 'templatev5.xlsx')
         outputPath = join(process.cwd(), 'test-output-ifaf-excell.xlsx')
         processor = new IFAFExcellExporter(templatePath, mockIFAFBowStyleMappings, mockIFAFAgeGenderMappings)
     })
@@ -286,16 +288,16 @@ describe('IFAFExcellExporter', () => {
         }
     })
 
-    describe('processTournamentResults', () => {
+    describe('processExportData', () => {
         it('should process tournament results and return a buffer', async () => {
-            const buffer = await processor.processTournamentResults(mockTournamentData)
+            const buffer = await processor.processExportData(ifafExportDataFromTournament(mockTournamentData))
 
             expect(buffer).toBeInstanceOf(Buffer)
             expect(buffer.length).toBeGreaterThan(0)
         })
 
         it('should create a valid Excel file with correct tournament info', async () => {
-            const buffer = await processor.processTournamentResults(mockTournamentData)
+            const buffer = await processor.processExportData(ifafExportDataFromTournament(mockTournamentData))
 
             // Write buffer to file for inspection
             const fs = await import('fs')
@@ -316,7 +318,7 @@ describe('IFAFExcellExporter', () => {
         })
 
         it('should include all participants with correct age/gender mapping', async () => {
-            const buffer = await processor.processTournamentResults(mockTournamentData)
+            const buffer = await processor.processExportData(ifafExportDataFromTournament(mockTournamentData))
 
             const fs = await import('fs')
             fs.writeFileSync(outputPath, buffer)
@@ -358,7 +360,7 @@ describe('IFAFExcellExporter', () => {
         })
 
         it('should have empty rows after bowstyle headers and age/gender groups', async () => {
-            const buffer = await processor.processTournamentResults(mockTournamentData)
+            const buffer = await processor.processExportData(ifafExportDataFromTournament(mockTournamentData))
 
             const fs = await import('fs')
             fs.writeFileSync(outputPath, buffer)
@@ -404,7 +406,7 @@ describe('IFAFExcellExporter', () => {
         })
 
         it('should maintain consistent styling for participant result rows', async () => {
-            const buffer = await processor.processTournamentResults(mockTournamentData)
+            const buffer = await processor.processExportData(ifafExportDataFromTournament(mockTournamentData))
 
             const fs = await import('fs')
             fs.writeFileSync(outputPath, buffer)
@@ -442,7 +444,7 @@ describe('IFAFExcellExporter', () => {
         })
 
         it('should sort participants by score (descending) within each age/gender group', async () => {
-            const buffer = await processor.processTournamentResults(mockTournamentData)
+            const buffer = await processor.processExportData(ifafExportDataFromTournament(mockTournamentData))
 
             const fs = await import('fs')
             fs.writeFileSync(outputPath, buffer)
@@ -473,7 +475,7 @@ describe('IFAFExcellExporter', () => {
         })
 
         it('should handle participants with null club as "Independent"', async () => {
-            const buffer = await processor.processTournamentResults(mockTournamentData)
+            const buffer = await processor.processExportData(ifafExportDataFromTournament(mockTournamentData))
 
             const fs = await import('fs')
             fs.writeFileSync(outputPath, buffer)
@@ -500,7 +502,7 @@ describe('IFAFExcellExporter', () => {
         })
 
         it('should preserve all bowstyle headings from the template', async () => {
-            const buffer = await processor.processTournamentResults(mockTournamentData)
+            const buffer = await processor.processExportData(ifafExportDataFromTournament(mockTournamentData))
 
             const fs = await import('fs')
             fs.writeFileSync(outputPath, buffer)
@@ -549,6 +551,76 @@ describe('IFAFExcellExporter', () => {
 
             // Verify we found exactly 12 headings
             expect(foundHeadings).toHaveLength(12)
+        })
+    })
+
+    describe('processExportData with multiple score columns', () => {
+        const combinedExportData: IfafExportData = {
+            organizerClub: 'Test Archery Club',
+            dateStart: new Date('2024-01-15'),
+            dateEnd: new Date('2024-01-15'),
+            participantCount: 2,
+            roundLabel: '3D-Standard Round, Field Round',
+            scoreColumnHeaders: ['3D-Std', 'Field', 'total'],
+            participants: [
+                {
+                    name: 'John Smith',
+                    membershipNo: 'MEM001',
+                    club: 'Test Archery Club',
+                    ageGroupId: 'S',
+                    categoryId: 'BBC',
+                    genderGroup: 'M',
+                    scoreColumns: ['140', '138', '278'],
+                },
+                {
+                    name: 'Jane Doe',
+                    membershipNo: 'MEM002',
+                    club: 'Test Archery Club',
+                    ageGroupId: 'S',
+                    categoryId: 'BBC',
+                    genderGroup: 'F',
+                    scoreColumns: ['135', '133', '268'],
+                },
+            ],
+        }
+
+        it('writes range scores in E–F and combined in G', async () => {
+            const buffer = await processor.processExportData(combinedExportData)
+
+            const fs = await import('fs')
+            fs.writeFileSync(outputPath, buffer)
+
+            const workbook = new ExcelJS.Workbook()
+            await workbook.xlsx.readFile(outputPath)
+            const worksheet = workbook.getWorksheet('Results')
+
+            expect(worksheet).toBeDefined()
+            if (!worksheet) return
+
+            let foundJohn = false
+            let foundBowStyleHeaders = false
+
+            worksheet.eachRow({ includeEmpty: false }, (row) => {
+                const cellA = row.getCell(1).value?.toString() ?? ''
+                if (cellA.startsWith('01. Barebow Compound')) {
+                    foundBowStyleHeaders = true
+                    expect(row.getCell(5).value).toBe('3D-Std')
+                    expect(row.getCell(6).value).toBe('Field')
+                    expect(row.getCell(7).value).toBe('total')
+                }
+
+                if (row.getCell(2).value !== 'John Smith') {
+                    return
+                }
+
+                foundJohn = true
+                expect(row.getCell(5).value).toBe('140')
+                expect(row.getCell(6).value).toBe('138')
+                expect(row.getCell(7).value).toBe('278')
+            })
+
+            expect(foundBowStyleHeaders).toBe(true)
+            expect(foundJohn).toBe(true)
         })
     })
 

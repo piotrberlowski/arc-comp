@@ -1,23 +1,15 @@
-import { prismaOrThrow } from '@/lib/prisma'
-import { join } from 'path'
 import { TournamentResultsData } from '../../resultsActions'
-import { IFAFExcellExporter } from './ifafExcellExporter'
+import { ifafExportDataFromTournament } from './ifafExportMappers'
+import type { IfafExportData } from './ifafExportTypes'
+import { loadIfafExporter } from './loadIfafExporter'
+
+export type { IfafExportData, IfafExportParticipant } from './ifafExportTypes'
+
+export async function exportIfafXlsx(exportData: IfafExportData): Promise<Buffer> {
+    const processor = await loadIfafExporter()
+    return processor.processExportData(exportData)
+}
 
 export async function exportToIFAFXLSX(tournamentData: TournamentResultsData): Promise<Buffer> {
-    const templatePath = join(process.cwd(), 'resources', 'templatev3.xlsx')
-
-    // Fetch the required mappings from the database
-    const [iFAFBowStyleMappings, iFAFAgeGenderMappings] = await Promise.all([
-        prismaOrThrow("get all IFAF bow style mappings").iFAFBowStyleMapping.findMany({
-            orderBy: { ifafBowStyleNumber: 'asc' },
-            include: { equipmentCategory: true }
-        }),
-        prismaOrThrow("get all IFAF age gender mappings").iFAFAgeGenderMapping.findMany({
-            include: { ageGroup: true }
-        })
-    ])
-
-    const processor = new IFAFExcellExporter(templatePath, iFAFBowStyleMappings, iFAFAgeGenderMappings)
-
-    return await processor.processTournamentResults(tournamentData)
+    return exportIfafXlsx(ifafExportDataFromTournament(tournamentData))
 }

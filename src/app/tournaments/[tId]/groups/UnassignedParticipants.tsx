@@ -1,21 +1,22 @@
 "use client"
 
-import { GroupAssignment, Participant } from "@/generated/prisma/browser"
+import type { GroupData } from "../groupActions"
 import { UserPlusIcon } from "@heroicons/react/24/outline"
+import NoMatchingParticipants from "./NoMatchingParticipants"
 import ParticipantCard from "./ParticipantCard"
-
-interface UnassignedParticipantsProps {
-    participants: (Participant & { groupAssignment: GroupAssignment | null })[]
-    availableGroups: { groupNumber: number; participants: Participant[] }[]
-    groupSize: number
-}
 
 export default function UnassignedParticipants({
     participants,
+    unassignedTotal,
     availableGroups,
     groupSize
-}: UnassignedParticipantsProps) {
-    if (participants.length === 0) {
+}: {
+    participants: GroupData["participants"]
+    unassignedTotal: number
+    availableGroups: GroupData[]
+    groupSize: number
+}) {
+    if (unassignedTotal === 0) {
         return null
     }
 
@@ -25,17 +26,39 @@ export default function UnassignedParticipants({
                 <UserPlusIcon className="w-6 h-6" />
                 Unassigned Participants ({participants.length})
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {participants.map((participant) => (
-                    <ParticipantCard
-                        key={participant.id}
-                        participant={participant}
-                        isDraggable={true}
-                        availableGroups={availableGroups}
-                        groupSize={groupSize}
-                    />
-                ))}
-            </div>
+            {participants.length === 0 ? (
+                <NoMatchingParticipants />
+            ) : (
+                <UnassignedParticipantCards
+                    participants={participants}
+                    availableGroups={availableGroups}
+                    groupSize={groupSize}
+                />
+            )}
+        </div>
+    )
+}
+
+function UnassignedParticipantCards({
+    participants,
+    availableGroups,
+    groupSize,
+}: {
+    participants: GroupData["participants"]
+    availableGroups: GroupData[]
+    groupSize: number
+}) {
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {participants.map((participant) => (
+                <ParticipantCard
+                    key={participant.id}
+                    participant={participant}
+                    isDraggable={true}
+                    availableGroups={availableGroups}
+                    groupSize={groupSize}
+                />
+            ))}
         </div>
     )
 }

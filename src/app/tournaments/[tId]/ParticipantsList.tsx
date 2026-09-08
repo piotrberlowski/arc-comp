@@ -2,10 +2,12 @@
 
 import useErrorContext from "@/components/errors/ErrorContext";
 import { Participant } from "@/generated/prisma/browser"
-import { useCallback, useEffect, useState, useTransition } from "react"
+import { applyParticipantListView, type ParticipantSortKey } from "@/lib/participantListView"
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import useTournamentContext from "./TournamentContext";
 import CSVImport from "./components/CSVImport"
-import ParticipantFilter from "./components/ParticipantFilter";
+import ParticipantFilter, { createParticipantFilter, useCheckInFilter } from "./components/ParticipantFilter";
+import ParticipantViewControls from "./components/ParticipantViewControls"
 import { listParticipants, removeParticipant } from "./participantActions"
 import ParticipantsListRow from "./ParticipantsListRow"
 
@@ -24,8 +26,14 @@ export default function ParticipantsList({
 }: ParticipantsListProps) {
     const [importFeedback, setImportFeedback] = useState<string | null>(null)
     const [displayP, setDisplayP] = useState(participants)
-    const [filteredParticipants, setFilteredParticipants] = useState(participants)
+    const [nameQuery, setNameQuery] = useState("")
+    const [sortKey, setSortKey] = useState<ParticipantSortKey>("name")
+    const { checkInFilter, setCheckInFilter } = useCheckInFilter()
     const [isPending, startTransition] = useTransition()
+    const visibleParticipants = useMemo(() => {
+        const byStatus = displayP.filter(createParticipantFilter(checkInFilter))
+        return applyParticipantListView(byStatus, nameQuery, sortKey)
+    }, [displayP, checkInFilter, nameQuery, sortKey])
     const tEdit = useTournamentContext()
     const setError = useErrorContext()
 
@@ -34,10 +42,6 @@ export default function ParticipantsList({
         const id = setTimeout(() => setImportFeedback(null), 8000)
         return () => clearTimeout(id)
     }, [importFeedback])
-
-    const handleFilteredChange = useCallback((filtered: Participant[]) => {
-        setFilteredParticipants(filtered)
-    }, [])
 
     const handleImportComplete = useCallback(async (result: { success: boolean; message: string; importedCount: number; errors: string[] }) => {
         if (result.success && tEdit) {
@@ -101,13 +105,22 @@ export default function ParticipantsList({
                 </div>
             )}
 
-            <div className="w-full flex" >
+            <div className="w-full flex gap-2 items-start" >
                 <div className="grow">
-                    {/* Filter Section */}
-                    <ParticipantFilter
-                        participants={displayP}
-                        onFilteredChange={handleFilteredChange}
-                    />
+                    <ParticipantViewControls
+                        nameQuery={nameQuery}
+                        onNameQueryChange={setNameQuery}
+                        sortKey={sortKey}
+                        onSortChange={setSortKey}
+                    >
+                        <ParticipantFilter
+                            filter={checkInFilter}
+                            onFilterChange={setCheckInFilter}
+                        />
+                        <span className="text-sm text-base-content/70 hidden md:block whitespace-nowrap">
+                            Showing {visibleParticipants.length} of {displayP.length}
+                        </span>
+                    </ParticipantViewControls>
                 </div>
                 <div className="hidden md:block md:w-32">
                     {allowImportAndEdit ? <CSVImport onImportComplete={handleImportComplete} /> : null}
@@ -128,7 +141,7 @@ export default function ParticipantsList({
                         </tr>
                     </thead>
                     <tbody className="w-full">
-                        {filteredParticipants.map((p) => (
+                        {visibleParticipants.map((p) => (
                             <ParticipantsListRow
                                 key={`pl-p-${p.id}`}
                                 participant={p}

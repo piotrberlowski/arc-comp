@@ -1,14 +1,16 @@
 "use client"
 
 import useErrorContext from "@/components/errors/ErrorContext"
+import { groupGridColsClassName } from "@/lib/groupGridCols"
+import { applyParticipantListView, filterGroupedParticipantsByName, type ParticipantSortKey } from "@/lib/participantListView"
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
-import { useState, useSyncExternalStore, useTransition } from "react"
+import { useMemo, useState, useSyncExternalStore, useTransition } from "react"
 import { useGroupAssignment } from "../TournamentContext"
+import ParticipantViewControls from "../components/ParticipantViewControls"
 import { TournamentGroupsData, cleanupGroups } from "../groupActions"
 import GroupCard from "./GroupCard"
 import GroupWarningHeader from "./GroupWarningHeader"
 import UnassignedParticipants from "./UnassignedParticipants"
-import { groupGridColsClassName } from "@/lib/groupGridCols"
 
 function subscribeNothing(onStoreChange: () => void) {
     void onStoreChange
@@ -20,9 +22,19 @@ export default function GroupAssignmentView({ groupsData }: {
 }) {
     const [isCleanupPending, startCleanupTransition] = useTransition()
     const [activeId, setActiveId] = useState<string | null>(null)
+    const [nameQuery, setNameQuery] = useState("")
+    const [sortKey, setSortKey] = useState<ParticipantSortKey>("name")
     const isClient = useSyncExternalStore(subscribeNothing, () => true, () => false)
     const setError = useErrorContext()
     const { handleMoveParticipant } = useGroupAssignment()
+    const visibleUnassigned = useMemo(
+        () => applyParticipantListView(groupsData.unassignedParticipants, nameQuery, sortKey),
+        [groupsData.unassignedParticipants, nameQuery, sortKey]
+    )
+    const visibleGroups = useMemo(
+        () => filterGroupedParticipantsByName(groupsData.groups, nameQuery),
+        [groupsData.groups, nameQuery]
+    )
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -100,7 +112,13 @@ export default function GroupAssignmentView({ groupsData }: {
 
     const content = (
         <div className="w-full p-4 space-y-6">
-            {/* Warning Header */}
+            <ParticipantViewControls
+                nameQuery={nameQuery}
+                onNameQueryChange={setNameQuery}
+                sortKey={sortKey}
+                onSortChange={setSortKey}
+            />
+
             <GroupWarningHeader
                 totalAssigned={totalAssigned}
                 notCheckedInCount={notCheckedInCount}
@@ -108,16 +126,15 @@ export default function GroupAssignmentView({ groupsData }: {
                 isCleanupPending={isCleanupPending}
             />
 
-            {/* Unassigned Participants */}
             <UnassignedParticipants
-                participants={groupsData.unassignedParticipants}
+                participants={visibleUnassigned}
+                unassignedTotal={groupsData.unassignedParticipants.length}
                 availableGroups={groupsData.groups}
                 groupSize={groupsData.tournament.groupSize}
             />
 
-            {/* Groups Grid */}
             <div className={`grid ${groupGridColsClassName(groupsData.groups.length)} gap-4`}>
-                {groupsData.groups.map((group) => (
+                {visibleGroups.map((group) => (
                     <GroupCard
                         key={group.groupNumber}
                         group={group}

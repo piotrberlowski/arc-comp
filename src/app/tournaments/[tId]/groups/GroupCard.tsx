@@ -5,9 +5,25 @@ import ParticipantCard from "./ParticipantCard";
 import { useDroppable } from "@dnd-kit/core";
 
 interface GroupCardProps {
-    group: { groupNumber: number; participants: (Participant & { groupAssignment: GroupAssignment | null })[] }
+    group: {
+        groupNumber: number
+        assignedCount?: number
+        participants: (Participant & { groupAssignment: GroupAssignment | null })[]
+    }
     availableGroups: { groupNumber: number; participants: Participant[] }[]
     groupSize: number
+}
+
+function EmptyGroupMessage({ assignedCount }: { assignedCount: number }) {
+    if (assignedCount === 0) {
+        return (
+            <>
+                <p className="text-sm">No participants assigned</p>
+                <p className="text-xs">Drag participants here or use the assign button</p>
+            </>
+        )
+    }
+    return <p className="text-sm">No matching participants</p>
 }
 
 export default function GroupCard({
@@ -15,6 +31,7 @@ export default function GroupCard({
     availableGroups,
     groupSize
 }: GroupCardProps) {
+    const assignedCount = group.assignedCount ?? group.participants.length
     const { setNodeRef, isOver } = useDroppable({
         id: `group-${group.groupNumber}`,
         data: { groupNumber: group.groupNumber }
@@ -34,7 +51,7 @@ export default function GroupCard({
             <div className={`flex items-center justify-between mb-3 p-3 rounded-lg ${headerBgClass} ${headerTextClass}`}>
                 <h3 className="font-semibold text-lg">Target {group.groupNumber}</h3>
                 <span className={`badge badge-sm ${isOddGroup ? 'badge-primary-content' : 'badge-neutral-content'}`}>
-                    {group.participants.length} participants
+                    {assignedCount} participants
                 </span>
             </div>
 
@@ -51,8 +68,7 @@ export default function GroupCard({
 
                 {group.participants.length === 0 && (
                     <div className="text-center text-base-content/50 py-4">
-                        <p className="text-sm">No participants assigned</p>
-                        <p className="text-xs">Drag participants here or use the assign button</p>
+                        <EmptyGroupMessage assignedCount={assignedCount} />
                     </div>
                 )}
             </div>

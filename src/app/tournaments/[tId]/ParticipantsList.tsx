@@ -101,9 +101,11 @@ export default function ParticipantsList({
                 <div className="grow min-w-0">
                     {toolbar}
                 </div>
-                <div className="hidden md:block md:w-32 shrink-0">
-                    {allowImportAndEdit ? <CSVImport onImportComplete={handleImportComplete} /> : null}
-                </div>
+                {allowImportAndEdit ? (
+                    <div className="hidden md:block md:w-32 shrink-0">
+                        <CSVImport onImportComplete={handleImportComplete} />
+                    </div>
+                ) : null}
             </div>
 
             {/* Participants Table */}

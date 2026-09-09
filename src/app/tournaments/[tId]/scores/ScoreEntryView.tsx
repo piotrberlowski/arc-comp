@@ -4,6 +4,7 @@ import useErrorContext from "@/components/errors/ErrorContext"
 import { findTiebreakers, TiebreakerGroup } from "@/lib/scoreUtils"
 import { use, useMemo, useState } from "react"
 import useTournamentContext from "../TournamentContext"
+import { useScoresToolbar } from "../components/ScoresToolbar"
 import { clearScore, setDNC, setDNF, setScore, TournamentResults, updateShootoffScore, ParticipantWithResult } from "../scoreActions"
 import CategoryScoreView from "./CategoryScoreView"
 import GroupScoreView from "./GroupScoreView"
@@ -46,6 +47,7 @@ export default function ScoreEntryView({ results }: { results: Promise<Tournamen
     const tCtx = useTournamentContext()
     const resultsData = use(results)
     const setError = useErrorContext()
+    const { visible: visibleParticipants, toolbar } = useScoresToolbar(resultsData)
 
     const t = tCtx?.getTournament()
 
@@ -144,6 +146,8 @@ export default function ScoreEntryView({ results }: { results: Promise<Tournamen
                     </div>
                 </div>
 
+                {toolbar}
+
                 {/* Tiebreakers Section - at top for visibility */}
                 {tiebreakers.length > 0 && (
                     <TiebreakersSection
@@ -154,10 +158,10 @@ export default function ScoreEntryView({ results }: { results: Promise<Tournamen
 
                 {/* Score Views */}
                 {viewMode === 'group' ? (
-                    <GroupScoreView participants={resultsData} />
+                    <GroupScoreView participants={visibleParticipants} />
                 ) : (
                     <CategoryScoreView
-                        participants={resultsData}
+                        participants={visibleParticipants}
                         unresolvedTieParticipantIds={unresolvedTieParticipantIds}
                     />
                 )}

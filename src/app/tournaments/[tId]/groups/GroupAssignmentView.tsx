@@ -1,14 +1,15 @@
 "use client"
 
 import useErrorContext from "@/components/errors/ErrorContext"
+import { groupGridColsClassName } from "@/lib/groupGridCols"
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
 import { useState, useSyncExternalStore, useTransition } from "react"
 import { useGroupAssignment } from "../TournamentContext"
+import { useGroupsToolbar } from "../components/GroupsToolbar"
 import { TournamentGroupsData, cleanupGroups } from "../groupActions"
 import GroupCard from "./GroupCard"
 import GroupWarningHeader from "./GroupWarningHeader"
 import UnassignedParticipants from "./UnassignedParticipants"
-import { groupGridColsClassName } from "@/lib/groupGridCols"
 
 function subscribeNothing(onStoreChange: () => void) {
     void onStoreChange
@@ -20,6 +21,7 @@ export default function GroupAssignmentView({ groupsData }: {
 }) {
     const [isCleanupPending, startCleanupTransition] = useTransition()
     const [activeId, setActiveId] = useState<string | null>(null)
+    const { visibleUnassigned, visibleGroups, toolbar } = useGroupsToolbar(groupsData)
     const isClient = useSyncExternalStore(subscribeNothing, () => true, () => false)
     const setError = useErrorContext()
     const { handleMoveParticipant } = useGroupAssignment()
@@ -100,6 +102,8 @@ export default function GroupAssignmentView({ groupsData }: {
 
     const content = (
         <div className="w-full p-4 space-y-6">
+            {toolbar}
+
             {/* Warning Header */}
             <GroupWarningHeader
                 totalAssigned={totalAssigned}
@@ -110,14 +114,15 @@ export default function GroupAssignmentView({ groupsData }: {
 
             {/* Unassigned Participants */}
             <UnassignedParticipants
-                participants={groupsData.unassignedParticipants}
+                participants={visibleUnassigned}
+                unassignedTotal={groupsData.unassignedParticipants.length}
                 availableGroups={groupsData.groups}
                 groupSize={groupsData.tournament.groupSize}
             />
 
             {/* Groups Grid */}
             <div className={`grid ${groupGridColsClassName(groupsData.groups.length)} gap-4`}>
-                {groupsData.groups.map((group) => (
+                {visibleGroups.map((group) => (
                     <GroupCard
                         key={group.groupNumber}
                         group={group}

@@ -41,7 +41,7 @@ export default function CheckInButton({
                 onClick={handleToggle}
             >
                 <MinusCircleIcon className={compact ? "w-3 h-3" : "w-4 h-4"} />
-                {!compact && <span className="hidden md:block">Uncheck</span>}
+                {!compact && <span className="hidden lg:block">Uncheck</span>}
             </button>
         )
     }
@@ -53,7 +53,7 @@ export default function CheckInButton({
             onClick={handleToggle}
         >
             <CheckCircleIcon className={compact ? "w-3 h-3" : "w-4 h-4"} />
-            {!compact && <span className="hidden md:block">Check In</span>}
+            {!compact && <span className="hidden lg:block">Check In</span>}
         </button>
     )
 }

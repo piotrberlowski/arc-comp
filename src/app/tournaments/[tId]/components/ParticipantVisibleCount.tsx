@@ -6,8 +6,6 @@ export default function ParticipantVisibleCount({
     total: number
 }) {
     return (
-        <span className="text-sm text-base-content/70 whitespace-nowrap">
-            Showing {visible} out of {total}
-        </span>
+        <input className="hidden md:inline input input-bordered input-xs md:input-sm whitespace-nowrap max-w-max" placeholder={`${visible}/${total} shown`} disabled />
     )
 }

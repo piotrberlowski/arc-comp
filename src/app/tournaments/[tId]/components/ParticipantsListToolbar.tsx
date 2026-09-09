@@ -15,10 +15,10 @@ export function useParticipantsListToolbar(participants: Participant[]) {
     return {
         visible,
         toolbar: (
-            <div className="flex flex-wrap items-center gap-2 w-full">
+            <div className="flex items-center gap-2 w-full">
                 {checkIn.control}
                 {name.control}
-                <div className="grow" />
+                <div className="hidden md:inline grow" />
                 <ParticipantVisibleCount visible={visible.length} total={participants.length} />
                 {sort.control}
             </div>

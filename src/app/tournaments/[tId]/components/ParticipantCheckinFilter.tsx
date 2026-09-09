@@ -65,7 +65,7 @@ export default function ParticipantCheckinFilter({
 }) {
     return (
         <select
-            className="select select-bordered select-sm w-full sm:w-auto"
+            className="select select-bordered select-xs sm:select-sm max-w-max"
             value={value}
             onChange={(event) => onChange(parseCheckInFilter(event.target.value))}
             aria-label="Filter by check-in status"

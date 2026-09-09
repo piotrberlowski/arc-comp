@@ -19,8 +19,8 @@ export type ParticipantSortFields = {
 export const PARTICIPANT_SORT_OPTIONS: { value: ParticipantSortKey; label: string }[] = [
     { value: "name", label: "Name" },
     { value: "club", label: "Club" },
-    { value: "category", label: "Bow category" },
-    { value: "membershipNo", label: "Membership number" },
+    { value: "category", label: "Category" },
+    { value: "membershipNo", label: "Membership No." },
 ]
 
 function isParticipantSortKey(value: string): value is ParticipantSortKey {
@@ -85,7 +85,7 @@ export default function ParticipantSortSelect({
             </label>
             <select
                 id="participant-sort"
-                className="select select-bordered select-sm"
+                className="hidden md:block select select-bordered select-xs md:select-sm max-w-max"
                 value={value}
                 onChange={(event) => onChange(parseParticipantSortKey(event.target.value))}
             >

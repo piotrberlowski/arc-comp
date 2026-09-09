@@ -5,6 +5,29 @@ import ChampionshipCombinedIfafExportButton from "./ChampionshipCombinedIfafExpo
 import { championshipDetailContentClass } from "./championshipDetailLayout"
 
 
+function CombinedIfafExportSection({
+    championshipId,
+    championshipName,
+    rangeCount,
+}: {
+    championshipId?: string
+    championshipName?: string
+    rangeCount?: number
+}) {
+    if (!championshipId || !championshipName || rangeCount === undefined || rangeCount <= 1) {
+        return null
+    }
+
+    return (
+        <div className="mb-4">
+            <ChampionshipCombinedIfafExportButton
+                championshipId={championshipId}
+                championshipName={championshipName}
+            />
+        </div>
+    )
+}
+
 function CombinedStandingsHeader({ days }: { days: ChampionshipCombinedStandings["days"] }) {
     return (
         <thead>
@@ -82,7 +105,6 @@ export default function ChampionshipCombinedStandingsView({
     championshipName?: string
     rangeCount?: number
 }) {
-    const showIfafExport = !embedded && rangeCount !== undefined && rangeCount > 1 && championshipId && championshipName
     const allGroups = [...standings.inProgress, ...standings.complete]
 
     return (
@@ -92,16 +114,13 @@ export default function ChampionshipCombinedStandingsView({
                     <h2 className="text-lg font-semibold mb-3">Combined standings</h2>
                     <p className="text-sm text-base-content/70 mb-4">
                         Totals sum completed day scores for enrolled competitors, including any shootoff values entered
-                        on those days. DNC and DNF days do not add to the total.
+                        on those days. Days not enrolled count as DNC. DNC and DNF days do not add to the total.
                     </p>
-                    {showIfafExport ? (
-                        <div className="mb-4">
-                            <ChampionshipCombinedIfafExportButton
-                                championshipId={championshipId}
-                                championshipName={championshipName}
-                            />
-                        </div>
-                    ) : null}
+                    <CombinedIfafExportSection
+                        championshipId={championshipId}
+                        championshipName={championshipName}
+                        rangeCount={rangeCount}
+                    />
                 </>
             ) : null}
             {allGroups.length > 0 ? (

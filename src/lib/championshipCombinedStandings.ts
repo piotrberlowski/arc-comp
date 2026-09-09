@@ -1,6 +1,7 @@
 import type { ChampionshipEnrollmentSlot } from "@/lib/championshipEnrollment"
 import { participantDivisionAbbrev } from "@/lib/participantProfileFields"
 import {
+    SCORE_DNC,
     formatParticipantResultDisplay,
     toResult,
     type ParticipantResult,
@@ -347,10 +348,17 @@ export function compareCompetitorStandings(a: CompetitorStanding, b: CompetitorS
     return a.name.localeCompare(b.name)
 }
 
+function competitorIsEnrolledOnAnyDay(competitor: CompetitorStanding): boolean {
+    return Object.values(competitor.scoresByDay).some((dayScore) => dayScore.kind !== "not_enrolled")
+}
+
 function groupStandingsByCategory(competitors: CompetitorStanding[]): CategoryStandings[] {
     const grouped = new Map<string, CompetitorStanding[]>()
 
     for (const competitor of competitors) {
+        if (!competitorIsEnrolledOnAnyDay(competitor)) {
+            continue
+        }
         const existing = grouped.get(competitor.categoryKey) ?? []
         existing.push(competitor)
         grouped.set(competitor.categoryKey, existing)
@@ -379,7 +387,7 @@ function formatDayScoreLabel(dayScore: DayScoreStatus | undefined): string {
     if (dayScore?.kind === "pending") {
         return "—"
     }
-    return ""
+    return formatParticipantResultDisplay(toResult(SCORE_DNC))
 }
 
 function formatCategoryStandingsGroup(

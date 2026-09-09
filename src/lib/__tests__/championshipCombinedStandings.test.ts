@@ -54,7 +54,7 @@ describe("championshipCombinedStandings", () => {
 
     function calculate(
         scores: { tournamentId: string; membershipNo: string; rawScore: number | null }[],
-        enrollment = enrollmentByMembership
+        enrollment: Record<string, { dayOrder: number; rangeNumber: number }[]> = enrollmentByMembership
     ) {
         return calculateChampionshipCombinedStandings(registrations, days, rounds, scores, enrollment)
     }
@@ -105,7 +105,7 @@ describe("championshipCombinedStandings", () => {
         expect(standings?.complete[0]?.competitors[0]?.totalLabel).toBe("295")
     })
 
-    it("labels not enrolled and pending days", () => {
+    it("labels not enrolled days as DNC so one-day entries can complete", () => {
         const standings = calculateChampionshipCombinedStandings(
             [registrations[0]],
             days,
@@ -114,9 +114,73 @@ describe("championshipCombinedStandings", () => {
             { "M-001": [{ dayOrder: 1, rangeNumber: 1 }] }
         )
 
-        const labels = standings?.complete[0]?.competitors[0]?.dayScoreLabels ?? []
-        expect(labels[0]).toBe("290")
-        expect(labels[1]).toBe("")
+        const competitor = standings?.complete[0]?.competitors[0]
+        expect(competitor?.dayScoreLabels).toEqual(["290", "DNC"])
+        expect(competitor?.totalLabel).toBe("290")
+        expect(competitor?.place).toBe(1)
+        expect(standings?.inProgress).toHaveLength(0)
+    })
+
+    it("labels pending enrolled days as missing until scored", () => {
+        const standings = calculateChampionshipCombinedStandings(
+            [registrations[0]],
+            days,
+            rounds,
+            [{ tournamentId: "t1", membershipNo: "M-001", rawScore: 290 }],
+            {
+                "M-001": [
+                    { dayOrder: 1, rangeNumber: 1 },
+                    { dayOrder: 2, rangeNumber: 1 },
+                ],
+            }
+        )
+
+        const competitor = standings?.inProgress[0]?.competitors[0]
+        expect(competitor?.dayScoreLabels).toEqual(["290", "—"])
+        expect(standings?.complete).toHaveLength(0)
+    })
+
+    it("completes a mixed category when one-day competitors are DNC on other days", () => {
+        const standings = calculate(
+            [
+                { tournamentId: "t1", membershipNo: "M-001", rawScore: 290 },
+                { tournamentId: "t2", membershipNo: "M-001", rawScore: 295 },
+                { tournamentId: "t1", membershipNo: "M-002", rawScore: 280 },
+            ],
+            {
+                "M-001": [
+                    { dayOrder: 1, rangeNumber: 1 },
+                    { dayOrder: 2, rangeNumber: 1 },
+                ],
+                "M-002": [{ dayOrder: 1, rangeNumber: 1 }],
+            }
+        )
+
+        const competitors = standings?.complete[0]?.competitors ?? []
+        const blair = competitors.find((entry) => entry.membershipNo === "M-002")
+
+        expect(standings?.inProgress).toHaveLength(0)
+        expect(competitors.map((entry) => entry.membershipNo)).toEqual(["M-001", "M-002"])
+        expect(blair?.dayScoreLabels).toEqual(["280", "DNC"])
+        expect(blair?.totalLabel).toBe("280")
+    })
+
+    it("does not keep standings in progress for registrations with no day enrollment", () => {
+        const standings = calculate(
+            [
+                { tournamentId: "t1", membershipNo: "M-001", rawScore: 290 },
+                { tournamentId: "t2", membershipNo: "M-001", rawScore: 295 },
+            ],
+            {
+                "M-001": [
+                    { dayOrder: 1, rangeNumber: 1 },
+                    { dayOrder: 2, rangeNumber: 1 },
+                ],
+            }
+        )
+
+        expect(standings?.inProgress).toHaveLength(0)
+        expect(standings?.complete[0]?.competitors.map((entry) => entry.membershipNo)).toEqual(["M-001"])
     })
 
     it("sorts complete competitors by total then name", () => {
@@ -204,12 +268,22 @@ describe("championshipCombinedStandings", () => {
             },
         ]
 
+        const mixedEnrollment = Object.fromEntries(
+            mixedRegistrations.map((registration) => [
+                registration.membershipNo,
+                [
+                    { dayOrder: 1, rangeNumber: 1 },
+                    { dayOrder: 2, rangeNumber: 1 },
+                ],
+            ])
+        )
+
         const standings = calculateChampionshipCombinedStandings(
             mixedRegistrations,
             days,
             rounds,
             [],
-            Object.fromEntries(mixedRegistrations.map((registration) => [registration.membershipNo, []]))
+            mixedEnrollment
         )
 
         expect(standings?.inProgress.map((group) => group.categoryKey)).toEqual([

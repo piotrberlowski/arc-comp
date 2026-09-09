@@ -25,7 +25,7 @@ export default function ParticipantNameFilter({
             <input
                 id="participant-name-filter"
                 type="search"
-                className="input input-bordered input-sm min-w-40 sm:max-w-xs"
+                className="input input-bordered input-xs md:input-sm md:w-auto"
                 placeholder="Filter by name"
                 value={value}
                 onChange={(event) => onChange(event.target.value)}

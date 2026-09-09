@@ -40,7 +40,7 @@ export default function ParticipantsListRow({
                         onClick={() => onEditParticipant(participant)}
                     >
                         <PencilIcon className="w-4 h-4" />
-                        <span className="hidden md:block">Edit</span>
+                        <span className="hidden lg:block">Edit</span>
                     </button>
                 )}
                 <button
@@ -50,7 +50,7 @@ export default function ParticipantsListRow({
                     onClick={() => onRemoveParticipant(participant)}
                 >
                     <XCircleIcon className="w-4 h-4" />
-                    <span className="hidden md:block">Remove</span>
+                    <span className="hidden lg:block">Remove</span>
                 </button>
             </td>
         </tr>

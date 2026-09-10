@@ -1,5 +1,6 @@
 import type { PublicTournamentGroupsData } from "../championshipResultsActions"
 import PrintTargetGroupCard from "./PrintTargetGroupCard"
+import { championshipRangeSectionHeading } from "@/lib/championshipDayNaming"
 
 function PrintRangeSection({
     heading,
@@ -51,6 +52,7 @@ export default function PrintDayGroupAllocations({
     rounds: {
         dayOrder: number
         rangeNumber: number
+        rangeName: string | null
         tournamentId: string
         tournamentName: string
     }[]
@@ -69,7 +71,11 @@ export default function PrintDayGroupAllocations({
                 return (
                     <PrintRangeSection
                         key={round.tournamentId}
-                        heading={`Range ${round.rangeNumber} — ${round.tournamentName}`}
+                        heading={championshipRangeSectionHeading(
+                            round.rangeNumber,
+                            round.tournamentName,
+                            round.rangeName
+                        )}
                         groups={groupsData.groups}
                         unassigned={groupsData.unassigned}
                     />

@@ -63,16 +63,22 @@ function AutoSeedTargetFields({
     )
 }
 
+function autoSeedRangePhrase(rangeNumber: number, rangeLabel: string | null): string {
+    return rangeLabel ?? `range ${rangeNumber}`
+}
+
 export default function ChampionshipDayAutoSeedButton({
     championshipId,
     dayOrder,
     rangeNumber,
+    rangeLabel,
     endCount,
     groupSize,
 }: {
     championshipId: string
     dayOrder: number
     rangeNumber: number
+    rangeLabel: string | null
     endCount: number
     groupSize: number
 }) {
@@ -83,6 +89,8 @@ export default function ChampionshipDayAutoSeedButton({
     const [firstTarget, setFirstTarget] = useState(1)
     const [targetCount, setTargetCount] = useState(() => Math.min(2, endCount))
     const [isPending, startTransition] = useTransition()
+
+    const rangePhrase = autoSeedRangePhrase(rangeNumber, rangeLabel)
 
     const maxTargetCount = useMemo(
         () => Math.max(1, endCount - firstTarget + 1),
@@ -126,7 +134,7 @@ export default function ChampionshipDayAutoSeedButton({
                         (sum, tournament) => sum + tournament.assignmentsCount,
                         0
                     )
-                    setInfo(`Auto-seeded ${seeded} assignments on day ${dayOrder}, range ${rangeNumber}.`)
+                    setInfo(`Auto-seeded ${seeded} assignments on day ${dayOrder}, ${rangePhrase}.`)
                     router.refresh()
                 })
                 .catch((error) => {
@@ -143,7 +151,7 @@ export default function ChampionshipDayAutoSeedButton({
             <FormModal ref={modalRef}>
                 <div className="flex flex-col gap-4">
                     <h3 className="text-lg font-medium">
-                        Auto-seed day {dayOrder}, range {rangeNumber}
+                        Auto-seed day {dayOrder}, {rangePhrase}
                     </h3>
                     <AutoSeedTargetFields
                         firstTarget={firstTarget}

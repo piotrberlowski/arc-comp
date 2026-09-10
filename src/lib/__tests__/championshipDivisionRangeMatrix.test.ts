@@ -40,6 +40,38 @@ describe("buildDivisionRangeMatrixFromShell", () => {
         expect(matrix?.rows).toHaveLength(1)
         expect(matrix?.rows[0]?.rangeByDay[1]).toBe(2)
         expect(matrix?.totalsByDay[1][2]).toBe(1)
+        expect(matrix?.rangeLabels).toEqual({ 1: "Range 1", 2: "Range 2" })
+    })
+
+    it("uses custom range names in matrix labels", () => {
+        const matrix = buildDivisionRangeMatrixFromShell({
+            rangeCount: 2,
+            rangeConfigs: [{ rangeNumber: 1, name: "Forest" }],
+            rounds: [
+                {
+                    dayOrder: 1,
+                    rangeNumber: 1,
+                    tournament: { _count: { participantScores: 0 } },
+                },
+                {
+                    dayOrder: 1,
+                    rangeNumber: 2,
+                    tournament: { _count: { participantScores: 0 } },
+                },
+            ],
+            registrations: [
+                {
+                    ageGroupId: "J",
+                    categoryId: "R",
+                    genderGroup: "M",
+                    ageGroup: { name: "Junior" },
+                    category: { name: "Recurve" },
+                },
+            ],
+            divisionRanges: [],
+        })
+
+        expect(matrix?.rangeLabels).toEqual({ 1: "Forest", 2: "Range 2" })
     })
 
     it("returns null for single-range championships", () => {

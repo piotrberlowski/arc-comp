@@ -3,7 +3,7 @@
 import useErrorContext from "@/components/errors/ErrorContext"
 import TournamentDayPicker from "@/app/tournaments/TournamentDayPicker"
 import TournamentSetupForm, { type TournamentSetupFieldErrors } from "@/app/tournaments/TournamentSetupForm"
-import { championshipDayTournamentName } from "@/lib/championshipDayNaming"
+import { championshipDayTournamentName, championshipRangeDisplayName } from "@/lib/championshipDayNaming"
 import { PencilSquareIcon } from "@heroicons/react/24/solid"
 import Form from "next/form"
 import { useActionState, useEffect, useMemo, useRef, useState } from "react"
@@ -15,6 +15,7 @@ import { initialAddChampionshipDayFormState } from "./addChampionshipDayFormStat
 export type ChampionshipRangeConfigSummary = {
     rangeNumber: number
     formatName: string
+    name: string | null
 }
 
 function AddDaySubmitButton({ pending }: { pending: boolean }) {
@@ -56,8 +57,15 @@ export default function AddChampionshipDayForm({
 }) {
     const usesStoredRangeFormats = rangeConfigs.length > 0
     const generatedDayName = useMemo(
-        () => championshipDayTournamentName(championshipName, nextDayOrder, 1, rangeCount),
-        [championshipName, nextDayOrder, rangeCount]
+        () =>
+            championshipDayTournamentName(
+                championshipName,
+                nextDayOrder,
+                1,
+                rangeCount,
+                rangeConfigs.find((rangeConfig) => rangeConfig.rangeNumber === 1)?.name
+            ),
+        [championshipName, nextDayOrder, rangeCount, rangeConfigs]
     )
     const router = useRouter()
     const setError = useErrorContext()
@@ -112,7 +120,9 @@ export default function AddChampionshipDayForm({
                                 className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-base-200 px-3 py-2 text-sm"
                             >
                                 <span className="font-medium">
-                                    {rangeCount > 1 ? `Range ${rangeConfig.rangeNumber}` : "Round type"}
+                                    {rangeCount > 1
+                                        ? championshipRangeDisplayName(rangeConfig.rangeNumber, rangeConfig.name)
+                                        : "Round type"}
                                 </span>
                                 <span className="badge badge-info badge-outline">{rangeConfig.formatName}</span>
                             </li>

@@ -4,6 +4,7 @@ import {
     championshipDivisionKey,
     type ChampionshipDivision,
 } from "@/lib/championshipDivision"
+import { championshipRangeLabels } from "@/lib/championshipDayNaming"
 import { computeDivisionRangeTotalsByDay } from "@/lib/divisionRangeMatrixTotals"
 import {
     isDayOneRangeAssignmentFrozen,
@@ -29,6 +30,7 @@ export type DivisionRangeMatrixRow = {
 export type DivisionRangeMatrixData = {
     dayOrders: number[]
     rangeCount: number
+    rangeLabels: Record<number, string>
     dayOneFrozen: boolean
     rows: DivisionRangeMatrixRow[]
     totalsByDay: Record<number, Record<number, number>>
@@ -47,6 +49,7 @@ export type ChampionshipShellForDivisionRangeMatrix = {
     rounds: ChampionshipRoundWithScoreCount[]
     registrations: ChampionshipRegistrationForMatrix[]
     divisionRanges: ChampionshipDivisionRangeRow[]
+    rangeConfigs?: { rangeNumber: number; name?: string | null }[]
 }
 
 type DivisionWithCount = ChampionshipDivision & { registrationCount: number }
@@ -153,6 +156,7 @@ export function buildDivisionRangeMatrixFromShell(
     return {
         dayOrders,
         rangeCount: championship.rangeCount,
+        rangeLabels: championshipRangeLabels(championship.rangeCount, championship.rangeConfigs ?? []),
         dayOneFrozen: isDayOneRangeAssignmentFrozen(championship.rounds),
         rows,
         totalsByDay: computeDivisionRangeTotalsByDay(dayOrders, championship.rangeCount, rows),

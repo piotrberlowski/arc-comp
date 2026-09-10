@@ -1,6 +1,7 @@
 "use server"
 
 import { Prisma } from "@/generated/prisma/client"
+import { championshipDayRangeLabel, championshipRangeNamesByNumber } from "@/lib/championshipDayNaming"
 import { prismaOrThrow } from "@/lib/prisma"
 import { standaloneTournamentWhere } from "@/lib/standaloneTournamentScope"
 
@@ -91,6 +92,7 @@ export type ChampionshipDayLink = {
     championshipId: string
     championshipName: string
     dayOrder: number
+    rangeLabel: string | null
 }
 
 export async function getChampionshipDayLinkForTournament(
@@ -100,7 +102,12 @@ export async function getChampionshipDayLinkForTournament(
         where: { tournamentId },
         include: {
             championship: {
-                select: { id: true, name: true },
+                select: {
+                    id: true,
+                    name: true,
+                    rangeCount: true,
+                    rangeConfigs: { select: { rangeNumber: true, name: true } },
+                },
             },
         },
     }).catch(() => null)
@@ -109,10 +116,17 @@ export async function getChampionshipDayLinkForTournament(
         return null
     }
 
+    const rangeName = championshipRangeNamesByNumber(round.championship.rangeConfigs).get(round.rangeNumber)
+
     return {
         championshipId: round.championship.id,
         championshipName: round.championship.name,
         dayOrder: round.dayOrder,
+        rangeLabel: championshipDayRangeLabel(
+            round.championship.rangeCount,
+            round.rangeNumber,
+            rangeName
+        ),
     }
 }
 

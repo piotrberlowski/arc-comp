@@ -38,7 +38,7 @@ function CategoryDayQuickAssign({ group }: { group: MatrixBowStyleGroup }) {
                     <div key={dayOrder} className="flex items-center gap-1">
                         <span className="text-base-content/70">D{dayOrder}</span>
                         <select
-                            className="select select-bordered select-xs w-[4.75rem] min-h-0 h-7 px-1"
+                            className="select select-bordered select-xs w-28 min-h-0 h-7 px-1"
                             disabled={isPending || !editable}
                             aria-label={`Assign all divisions on day ${dayOrder}`}
                             defaultValue=""
@@ -53,10 +53,10 @@ function CategoryDayQuickAssign({ group }: { group: MatrixBowStyleGroup }) {
                         >
                             <option value="">All →</option>
                             {Array.from({ length: matrix.rangeCount }, (_, index) => {
-                                const rangeNumber = index + 1
+                                const option = index + 1
                                 return (
-                                    <option key={rangeNumber} value={rangeNumber}>
-                                        R{rangeNumber}
+                                    <option key={option} value={option}>
+                                        {matrix.rangeLabels[option] ?? `Range ${option}`}
                                     </option>
                                 )
                             })}

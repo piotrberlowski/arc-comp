@@ -17,6 +17,7 @@ import {
     unarchiveChampionship,
     unenrollChampionshipCompetitorFromDay,
     updateChampionship,
+    updateChampionshipRangeName,
     updateChampionshipRegistration,
     updateChampionshipSharingSettings,
 } from "../championshipActions"
@@ -93,7 +94,7 @@ describe("updateChampionship", () => {
             { dayOrder: 1, rangeNumber: 1, tournamentId: "tour-1" },
             { dayOrder: 2, rangeNumber: 1, tournamentId: "tour-2" },
         ] as never)
-        prismaMock.championship.findUnique.mockResolvedValue({ rangeCount: 1 } as never)
+        prismaMock.championship.findUnique.mockResolvedValue({ rangeCount: 1, rangeConfigs: [] } as never)
     })
 
     it("updates championship name and renames linked day tournaments", async () => {
@@ -118,6 +119,33 @@ describe("updateChampionship", () => {
         })
     })
 
+    it("includes custom range names when renaming a multi-range championship", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({ id: "champ-1" } as never)
+        prismaMock.championship.findUnique.mockResolvedValue({
+            rangeCount: 2,
+            rangeConfigs: [
+                { rangeNumber: 1, name: "Forest" },
+                { rangeNumber: 2, name: null },
+            ],
+        } as never)
+        prismaMock.championshipRound.findMany.mockResolvedValue([
+            { dayOrder: 1, rangeNumber: 1, tournamentId: "tour-1" },
+            { dayOrder: 1, rangeNumber: 2, tournamentId: "tour-2" },
+        ] as never)
+        prismaMock.championship.update.mockResolvedValue({ id: "champ-1", name: "Renamed" } as never)
+
+        await updateChampionship("champ-1", { name: "Renamed" })
+
+        expect(prismaMock.tournament.update).toHaveBeenCalledWith({
+            where: { id: "tour-1" },
+            data: { name: "Renamed — Day 1 Forest" },
+        })
+        expect(prismaMock.tournament.update).toHaveBeenCalledWith({
+            where: { id: "tour-2" },
+            data: { name: "Renamed — Day 1 Range 2" },
+        })
+    })
+
     it("throws when championship is not in organizer scope", async () => {
         prismaMock.championship.findFirst.mockResolvedValue(null)
 
@@ -131,6 +159,72 @@ describe("updateChampionship", () => {
         await expect(updateChampionship("champ-1", { name: "Renamed" })).rejects.toThrow(
             "Unable to update championship"
         )
+    })
+})
+
+describe("updateChampionshipRangeName", () => {
+    beforeEach(() => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            id: "champ-1",
+            name: "Spring Series",
+            isArchive: false,
+            rangeCount: 2,
+            rangeConfigs: [
+                { id: "range-1", rangeNumber: 1, name: null },
+                { id: "range-2", rangeNumber: 2, name: null },
+            ],
+        } as never)
+        prismaMock.$transaction.mockImplementation((callback) =>
+            typeof callback === "function" ? callback(prismaMock) : Promise.resolve(callback)
+        )
+        prismaMock.championship.findUnique.mockResolvedValue({
+            rangeCount: 2,
+            rangeConfigs: [
+                { rangeNumber: 1, name: "Forest" },
+                { rangeNumber: 2, name: null },
+            ],
+        } as never)
+        prismaMock.championshipRound.findMany.mockResolvedValue([
+            { dayOrder: 1, rangeNumber: 1, tournamentId: "tour-1" },
+            { dayOrder: 1, rangeNumber: 2, tournamentId: "tour-2" },
+        ] as never)
+        prismaMock.championshipRange.update.mockResolvedValue({ id: "range-1", name: "Forest" } as never)
+    })
+
+    it("saves the trimmed name and syncs day tournament labels", async () => {
+        await expect(updateChampionshipRangeName("champ-1", 1, " Forest ")).resolves.toEqual({
+            id: "range-1",
+            name: "Forest",
+        })
+
+        expect(prismaMock.championshipRange.update).toHaveBeenCalledWith({
+            where: { id: "range-1" },
+            data: { name: "Forest" },
+        })
+        expect(prismaMock.tournament.update).toHaveBeenCalledWith({
+            where: { id: "tour-1" },
+            data: { name: "Spring Series — Day 1 Forest" },
+        })
+        expect(prismaMock.tournament.update).toHaveBeenCalledWith({
+            where: { id: "tour-2" },
+            data: { name: "Spring Series — Day 1 Range 2" },
+        })
+    })
+
+    it("stores blank names as null", async () => {
+        prismaMock.championshipRange.update.mockResolvedValue({ id: "range-1", name: null } as never)
+
+        await updateChampionshipRangeName("champ-1", 1, "  ")
+
+        expect(prismaMock.championshipRange.update).toHaveBeenCalledWith({
+            where: { id: "range-1" },
+            data: { name: null },
+        })
+    })
+
+    it("throws when the range does not exist", async () => {
+        await expect(updateChampionshipRangeName("champ-1", 3, "Forest")).rejects.toThrow("Range not found")
+        expect(prismaMock.$transaction).not.toHaveBeenCalled()
     })
 })
 
@@ -286,6 +380,48 @@ describe("addChampionshipDay", () => {
         expect(prismaMock.championshipRound.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 data: expect.objectContaining({ dayOrder: 1 }),
+            })
+        )
+    })
+
+    it("names day tournaments with custom range labels", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            id: "champ-1",
+            name: "Spring Series",
+            organizerClub: "ClubA",
+            rangeCount: 2,
+            rangeConfigs: [
+                {
+                    rangeNumber: 1,
+                    formatId: "fmt-1",
+                    name: "Forest",
+                    format: { endCount: 28, groupSize: 4 },
+                },
+                {
+                    rangeNumber: 2,
+                    formatId: "fmt-2",
+                    name: null,
+                    format: { endCount: 28, groupSize: 4 },
+                },
+            ],
+            rounds: [],
+        } as never)
+
+        await addChampionshipDay({
+            ...dayInput,
+            name: "Spring Series — Day 1",
+        })
+
+        expect(prismaMock.tournament.create).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({
+                data: expect.objectContaining({ name: "Spring Series — Day 1 Forest" }),
+            })
+        )
+        expect(prismaMock.tournament.create).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                data: expect.objectContaining({ name: "Spring Series — Day 1 Range 2" }),
             })
         )
     })

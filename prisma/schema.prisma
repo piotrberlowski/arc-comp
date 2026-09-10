@@ -232,6 +232,7 @@ model ChampionshipRange {
   championshipId String
   rangeNumber    Int
   formatId       String
+  name           String?
   championship   Championship @relation(fields: [championshipId], references: [id], onDelete: Cascade)
   format         RoundFormat  @relation(fields: [formatId], references: [id], onDelete: Restrict)
 

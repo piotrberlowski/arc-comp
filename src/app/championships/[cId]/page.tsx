@@ -1,4 +1,5 @@
 import { championshipDivisionKey } from "@/lib/championshipDivision"
+import { championshipRangeLabels } from "@/lib/championshipDayNaming"
 import { mapDivisionRangeAssignments } from "@/lib/championshipRangeRules"
 import { getChampionshipOrganizerClubs } from "@/lib/championshipOrganizerScope"
 import {
@@ -18,6 +19,7 @@ import ChampionshipDaysSection from "./ChampionshipDaysSection"
 import ChampionshipDivisionRangeMatrix, {
     type ChampionshipMatrixRegistration,
 } from "./ChampionshipDivisionRangeMatrix"
+import ChampionshipRangesSection from "./ChampionshipRangesSection"
 import ChampionshipRosterSection from "./ChampionshipRosterSection"
 import ChampionshipSetupTabs from "./ChampionshipSetupTabs"
 import type { ChampionshipRegistrationRow } from "./ChampionshipRosterList"
@@ -62,10 +64,14 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
 
     const enrollmentByMembership = buildEnrollmentByMembership(championship.rounds, enrollmentByTournament)
 
+    const rangeLabels = championshipRangeLabels(championship.rangeCount, championship.rangeConfigs)
+    const showRangeLabels = championship.rangeCount > 1
+
     const rounds = championship.rounds.map((round) => ({
         id: round.id,
         dayOrder: round.dayOrder,
         rangeNumber: round.rangeNumber,
+        rangeLabel: showRangeLabels ? rangeLabels[round.rangeNumber] : null,
         tournamentId: round.tournamentId,
         tournamentName: round.tournament.name,
         tournamentDate: round.tournament.date,
@@ -113,6 +119,14 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
 
     return (
         <div className="p-4 space-y-8">
+            <ChampionshipRangesSection
+                championshipId={championship.id}
+                ranges={championship.rangeConfigs.map((rangeConfig) => ({
+                    rangeNumber: rangeConfig.rangeNumber,
+                    name: rangeConfig.name,
+                }))}
+                readOnly={championship.isArchive}
+            />
             <ChampionshipDaysSection
                 championshipId={championship.id}
                 championshipName={championship.name}
@@ -121,6 +135,7 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
                 rangeConfigs={championship.rangeConfigs.map((rangeConfig) => ({
                     rangeNumber: rangeConfig.rangeNumber,
                     formatName: rangeConfig.format.name,
+                    name: rangeConfig.name,
                 }))}
                 rounds={rounds}
                 readOnly={championship.isArchive}

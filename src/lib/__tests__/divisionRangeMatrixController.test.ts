@@ -9,6 +9,7 @@ function sampleMatrix(overrides?: Partial<DivisionRangeMatrixData>): DivisionRan
     return {
         dayOrders: [1, 2],
         rangeCount: 2,
+        rangeLabels: { 1: "Range 1", 2: "Range 2" },
         dayOneFrozen: false,
         totalsByDay: { 1: { 1: 0, 2: 0 }, 2: { 1: 0, 2: 0 } },
         rows: [

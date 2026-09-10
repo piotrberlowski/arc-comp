@@ -14,6 +14,7 @@ export type ChampionshipRoundRow = {
     id: string
     dayOrder: number
     rangeNumber: number
+    rangeLabel: string | null
     tournamentId: string
     tournamentName: string
     tournamentDate: Date
@@ -112,8 +113,8 @@ function DayRangeRow({
             <div className="flex flex-wrap items-center gap-2">
                 <p className="font-medium text-sm">{round.tournamentName}</p>
                 <span className="badge badge-sm badge-info badge-outline">{round.formatName}</span>
-                {round.rangeNumber > 1 ? (
-                    <span className="badge badge-sm badge-ghost">Range {round.rangeNumber}</span>
+                {round.rangeLabel ? (
+                    <span className="badge badge-sm badge-ghost">{round.rangeLabel}</span>
                 ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -123,6 +124,7 @@ function DayRangeRow({
                         championshipId={championshipId}
                         dayOrder={round.dayOrder}
                         rangeNumber={round.rangeNumber}
+                        rangeLabel={round.rangeLabel}
                         endCount={round.endCount}
                         groupSize={round.groupSize}
                     />

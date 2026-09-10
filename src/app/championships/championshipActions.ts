@@ -12,7 +12,13 @@ import {
     type ChampionshipCombinedStandings,
     type ChampionshipRoundRef,
 } from "@/lib/championshipCombinedStandings"
-import { championshipDayTournamentName, nextChampionshipDayOrder } from "@/lib/championshipDayNaming"
+import {
+    championshipDayTournamentName,
+    championshipRangeDisplayName,
+    championshipRangeNamesByNumber,
+    nextChampionshipDayOrder,
+    normalizeChampionshipRangeName,
+} from "@/lib/championshipDayNaming"
 import {
     buildDivisionRangeMatrixFromShell,
     type DivisionRangeMatrixData,
@@ -87,6 +93,7 @@ type RangeTournamentConfig = {
     formatId: string
     endCount: number
     groupSize: number
+    name: string | null
 }
 
 function resolveRangeTournamentConfigs(
@@ -102,6 +109,7 @@ function resolveRangeTournamentConfigs(
                 formatId: rangeConfig.formatId,
                 endCount: rangeConfig.format.endCount,
                 groupSize: rangeConfig.format.groupSize,
+                name: normalizeChampionshipRangeName(rangeConfig.name),
             }))
     }
 
@@ -114,6 +122,7 @@ function resolveRangeTournamentConfigs(
         formatId: legacy.formatId,
         endCount: legacy.endCount,
         groupSize: legacy.groupSize,
+        name: null,
     }))
 }
 
@@ -124,9 +133,13 @@ async function syncDayTournamentNamesForChampionship(
 ) {
     const championship = await tx.championship.findUnique({
         where: { id: championshipId },
-        select: { rangeCount: true },
+        select: {
+            rangeCount: true,
+            rangeConfigs: { select: { rangeNumber: true, name: true } },
+        },
     })
     const rangeCount = championship?.rangeCount ?? 1
+    const rangeNames = championshipRangeNamesByNumber(championship?.rangeConfigs ?? [])
 
     const roundRows = await tx.championshipRound.findMany({
         where: { championshipId },
@@ -141,7 +154,8 @@ async function syncDayTournamentNamesForChampionship(
                     championshipName,
                     round.dayOrder,
                     round.rangeNumber,
-                    rangeCount
+                    rangeCount,
+                    rangeNames.get(round.rangeNumber)
                 ),
             },
         })
@@ -234,7 +248,7 @@ export async function createChampionship(input: ChampionshipCreateInput) {
 
     const missingFormat = input.rangeFormats.find((row) => !row.formatId.trim())
     if (missingFormat) {
-        throw new Error(`Range ${missingFormat.rangeNumber} must have a round type selected`)
+        throw new Error(`${championshipRangeDisplayName(missingFormat.rangeNumber)} must have a round type selected`)
     }
 
     return prismaOrThrow("create championship").$transaction(async (tx) => {
@@ -297,6 +311,49 @@ export async function updateChampionship(championshipId: string, input: Champion
         console.error("Failed to update championship:", error)
         throw new Error("Unable to update championship")
     })
+}
+
+async function loadWritableChampionship(championshipId: string) {
+    const clubs = await assertChampionshipOrganizerClubs()
+    const championship = await getChampionshipForOrganizer(championshipId, clubs)
+    if (!championship) {
+        throw new Error("Unauthorized")
+    }
+    if (championship.isArchive) {
+        throw new Error("Championship is archived")
+    }
+    return championship
+}
+
+export async function updateChampionshipRangeName(
+    championshipId: string,
+    rangeNumber: number,
+    name: string | null
+) {
+    const championship = await loadWritableChampionship(championshipId)
+    const rangeConfig = championship.rangeConfigs.find((row) => row.rangeNumber === rangeNumber)
+    if (!rangeConfig) {
+        throw new Error("Range not found")
+    }
+
+    const normalized = normalizeChampionshipRangeName(name)
+
+    const updated = await prismaOrThrow("update championship range name")
+        .$transaction(async (tx) => {
+            const range = await tx.championshipRange.update({
+                where: { id: rangeConfig.id },
+                data: { name: normalized },
+            })
+            await syncDayTournamentNamesForChampionship(tx, championshipId, championship.name)
+            return range
+        })
+        .catch((error) => {
+            console.error("Failed to update championship range name:", error)
+            throw new Error("Unable to update championship range name")
+        })
+
+    revalidatePath(`/championships/${championshipId}`)
+    return updated
 }
 
 export async function listMyChampionships(includeArchive = false): Promise<ChampionshipShellRow[] | null> {
@@ -1088,7 +1145,8 @@ async function createChampionshipDayRangeTournaments(
                     input.championshipName,
                     input.dayOrder,
                     rangeConfig.rangeNumber,
-                    input.rangeCount
+                    input.rangeCount,
+                    rangeConfig.name
                 ),
                 organizerClub: input.organizerClub,
                 formatId: rangeConfig.formatId,

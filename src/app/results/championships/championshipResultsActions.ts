@@ -1,5 +1,6 @@
 "use server"
 
+import { championshipRangeNamesByNumber } from "@/lib/championshipDayNaming"
 import { prismaOrThrow } from "@/lib/prisma"
 import { notFound } from "next/navigation"
 import { buildChampionshipCombinedStandingsFromChampionshipData } from "@/lib/championshipStandingsInput"
@@ -15,6 +16,7 @@ export type { PublicTournamentGroup, PublicTournamentGroupsData }
 export type PublicChampionshipTournamentRef = {
     dayOrder: number
     rangeNumber: number
+    rangeName: string | null
     tournamentId: string
     tournamentName: string
     date: Date
@@ -95,6 +97,9 @@ export async function getPublicChampionshipResults(championshipId: string): Prom
     const championship = await prismaOrThrow("get public championship").championship.findUnique({
         where: { id: championshipId },
         include: {
+            rangeConfigs: {
+                select: { rangeNumber: true, name: true },
+            },
             registrations: {
                 include: {
                     ageGroup: true,
@@ -113,11 +118,14 @@ export async function getPublicChampionshipResults(championshipId: string): Prom
         notFound()
     }
 
+    const rangeNames = championshipRangeNamesByNumber(championship.rangeConfigs)
+
     const publicRounds = championship.rounds
         .filter((round) => isTournamentPublic(round.tournament))
         .map((round) => ({
             dayOrder: round.dayOrder,
             rangeNumber: round.rangeNumber,
+            rangeName: rangeNames.get(round.rangeNumber) ?? null,
             tournamentId: round.tournamentId,
             tournamentName: round.tournament.name,
             date: round.tournament.date,
@@ -222,6 +230,7 @@ export type PublicChampionshipDayGroupsPrintData = {
     rounds: {
         dayOrder: number
         rangeNumber: number
+        rangeName: string | null
         tournamentId: string
         tournamentName: string
         date: Date
@@ -256,6 +265,7 @@ export async function getPublicChampionshipDayGroupsData(
         rounds: dayRounds.map((round) => ({
             dayOrder: round.dayOrder,
             rangeNumber: round.rangeNumber,
+            rangeName: round.rangeName,
             tournamentId: round.tournamentId,
             tournamentName: round.tournamentName,
             date: round.date,

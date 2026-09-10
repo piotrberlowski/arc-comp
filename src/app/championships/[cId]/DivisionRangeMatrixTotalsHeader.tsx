@@ -2,13 +2,40 @@ import { isDayRangeAssignmentEditable } from "@/lib/championshipRangeRules"
 import MatrixDayColumnsTable from "./MatrixDayColumnsTable"
 import { useDivisionRangeMatrix } from "./DivisionRangeMatrixContext"
 
+function RangeTotalButton({
+    dayOrder,
+    rangeNumber,
+    rangeLabel,
+    count,
+    onRangeDayClick,
+}: {
+    dayOrder: number
+    rangeNumber: number
+    rangeLabel: string
+    count: number
+    onRangeDayClick: (dayOrder: number, rangeNumber: number) => void
+}) {
+    return (
+        <button
+            type="button"
+            className="link link-hover tabular-nums"
+            title={`View divisions on day ${dayOrder}, ${rangeLabel}`}
+            onClick={() => onRangeDayClick(dayOrder, rangeNumber)}
+        >
+            {rangeLabel}: {count}
+        </button>
+    )
+}
+
 function DayRangeTotals({
     dayOrder,
     totals,
+    rangeLabels,
     onRangeDayClick,
 }: {
     dayOrder: number
     totals: Record<number, number>
+    rangeLabels: Record<number, string>
     onRangeDayClick: (dayOrder: number, rangeNumber: number) => void
 }) {
     const entries = Object.entries(totals).filter(([, count]) => count > 0)
@@ -19,15 +46,14 @@ function DayRangeTotals({
     return (
         <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5 text-xs">
             {entries.map(([rangeNumber, count]) => (
-                <button
+                <RangeTotalButton
                     key={rangeNumber}
-                    type="button"
-                    className="link link-hover tabular-nums"
-                    title={`View divisions on day ${dayOrder}, range ${rangeNumber}`}
-                    onClick={() => onRangeDayClick(dayOrder, Number(rangeNumber))}
-                >
-                    R{rangeNumber}: {count}
-                </button>
+                    dayOrder={dayOrder}
+                    rangeNumber={Number(rangeNumber)}
+                    rangeLabel={rangeLabels[Number(rangeNumber)] ?? `Range ${rangeNumber}`}
+                    count={count}
+                    onRangeDayClick={onRangeDayClick}
+                />
             ))}
         </div>
     )
@@ -76,6 +102,7 @@ export default function DivisionRangeMatrixTotalsHeader() {
                             <DayRangeTotals
                                 dayOrder={dayOrder}
                                 totals={matrix.totalsByDay[dayOrder] ?? {}}
+                                rangeLabels={matrix.rangeLabels}
                                 onRangeDayClick={showRangeDayParticipants}
                             />
                         </td>

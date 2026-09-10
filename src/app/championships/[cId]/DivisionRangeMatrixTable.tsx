@@ -20,6 +20,22 @@ function RegistrationCountButton({ count, onClick }: { count: number; onClick: (
     )
 }
 
+function RangeSelectOption({
+    rangeNumber,
+    rangeLabel,
+    blocked,
+}: {
+    rangeNumber: number
+    rangeLabel: string
+    blocked: boolean
+}) {
+    return (
+        <option value={rangeNumber} disabled={blocked}>
+            {rangeLabel}
+        </option>
+    )
+}
+
 function RangeSelect({
     row,
     dayOrder,
@@ -34,7 +50,7 @@ function RangeSelect({
 
     return (
         <select
-            className="select select-bordered select-xs w-14 min-h-0 h-8 px-1"
+            className="select select-bordered select-xs w-24 min-h-0 h-8 px-1"
             value={rangeNumber ?? ""}
             disabled={readOnly || isPending || frozen}
             aria-label={`Day ${dayOrder} range for ${row.divisionKey}`}
@@ -46,11 +62,13 @@ function RangeSelect({
             <option value="">—</option>
             {Array.from({ length: matrix.rangeCount }, (_, index) => {
                 const option = index + 1
-                const blocked = isDivisionRangeBlockedOnOtherDay(row.rangeByDay, dayOrder, option)
                 return (
-                    <option key={option} value={option} disabled={blocked}>
-                        R{option}
-                    </option>
+                    <RangeSelectOption
+                        key={option}
+                        rangeNumber={option}
+                        rangeLabel={matrix.rangeLabels[option] ?? `Range ${option}`}
+                        blocked={isDivisionRangeBlockedOnOtherDay(row.rangeByDay, dayOrder, option)}
+                    />
                 )
             })}
         </select>

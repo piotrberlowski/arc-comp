@@ -2,6 +2,7 @@ import type { PublicChampionshipTournamentRef, PublicTournamentGroupsData } from
 import PublicGroupCard from "./PublicGroupCard"
 import PublicUnassignedParticipants from "./PublicUnassignedParticipants"
 import { groupGridColsClassName } from "@/lib/groupGridCols"
+import { championshipRangeSectionHeading } from "@/lib/championshipDayNaming"
 
 function DayGroupCard({
     heading,
@@ -55,7 +56,11 @@ export default function PublicDayGroupAllocations({
                 return (
                     <DayGroupCard
                         key={round.tournamentId}
-                        heading={`Range ${round.rangeNumber} — ${round.tournamentName}`}
+                        heading={championshipRangeSectionHeading(
+                            round.rangeNumber,
+                            round.tournamentName,
+                            round.rangeName
+                        )}
                         groups={groupsData.groups}
                         unassigned={groupsData.unassigned}
                     />

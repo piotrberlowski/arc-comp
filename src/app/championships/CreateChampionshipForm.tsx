@@ -2,6 +2,7 @@
 
 import useErrorContext from "@/components/errors/ErrorContext"
 import RoundFormatSelect from "@/components/RoundFormatSelect"
+import { championshipRangeDisplayName } from "@/lib/championshipDayNaming"
 import { PencilSquareIcon } from "@heroicons/react/24/solid"
 import Form from "next/form"
 import { useRouter } from "next/navigation"
@@ -26,7 +27,7 @@ function validateChampionshipInput(
     }
     for (let rangeNumber = 1; rangeNumber <= rangeCount; rangeNumber += 1) {
         if (!formatByRange[rangeNumber]?.trim()) {
-            return `Range ${rangeNumber} must have a round type selected`
+            return `${championshipRangeDisplayName(rangeNumber)} must have a round type selected`
         }
     }
     return null
@@ -41,7 +42,10 @@ function ChampionshipRangeFormatRow({
     formatId: string
     onFormatChange: (rangeNumber: number, formatId: string) => void
 }) {
-    const label = rangeNumber === 1 && formatId === "" ? "Round type" : `Range ${rangeNumber} round type`
+    const label =
+        rangeNumber === 1 && formatId === ""
+            ? "Round type"
+            : `${championshipRangeDisplayName(rangeNumber)} round type`
 
     return (
         <label className="form-control w-full">

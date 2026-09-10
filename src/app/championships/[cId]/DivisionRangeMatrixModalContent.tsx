@@ -23,7 +23,7 @@ export default function DivisionRangeMatrixModalContent() {
         )
         return (
             <CategoryDivisionsParticipantsModal
-                title={`Day ${modalView.dayOrder} · Range ${modalView.rangeNumber}`}
+                title={`Day ${modalView.dayOrder} · ${matrix.rangeLabels[modalView.rangeNumber] ?? `Range ${modalView.rangeNumber}`}`}
                 groups={buildModalCategoryGroups(rows, participantsByDivision)}
             />
         )

@@ -1,6 +1,5 @@
 "use client"
 
-import { championshipDetailContentClass } from "./championshipDetailLayout"
 import ChampionshipRangeNameEdit from "./ChampionshipRangeNameEdit"
 
 export type ChampionshipRangeNameRow = {
@@ -8,7 +7,7 @@ export type ChampionshipRangeNameRow = {
     name: string | null
 }
 
-function RangeNameListItem({
+function RangeNameCard({
     championshipId,
     range,
     readOnly,
@@ -18,13 +17,16 @@ function RangeNameListItem({
     readOnly: boolean
 }) {
     return (
-        <li className="flex items-center min-h-10">
-            <ChampionshipRangeNameEdit
-                championshipId={championshipId}
-                rangeNumber={range.rangeNumber}
-                initialName={range.name}
-                readOnly={readOnly}
-            />
+        <li className="card bg-base-200 shadow-sm">
+            <div className="card-body gap-3 py-4">
+                <span className="text-2xl font-semibold tabular-nums leading-none">{range.rangeNumber}</span>
+                <ChampionshipRangeNameEdit
+                    championshipId={championshipId}
+                    rangeNumber={range.rangeNumber}
+                    initialName={range.name}
+                    readOnly={readOnly}
+                />
+            </div>
         </li>
     )
 }
@@ -39,22 +41,19 @@ export default function ChampionshipRangesSection({
     readOnly?: boolean
 }) {
     if (ranges.length === 0) {
-        return null
+        return <p className="text-base-content/70">No ranges to rename yet.</p>
     }
 
     return (
-        <section className="mt-6">
-            <h2 className="text-lg font-medium mb-3">Ranges</h2>
-            <ul className={`flex flex-col gap-2 ${championshipDetailContentClass}`}>
-                {ranges.map((range) => (
-                    <RangeNameListItem
-                        key={range.rangeNumber}
-                        championshipId={championshipId}
-                        range={range}
-                        readOnly={readOnly}
-                    />
-                ))}
-            </ul>
-        </section>
+        <ul className="grid gap-3 sm:grid-cols-2">
+            {ranges.map((range) => (
+                <RangeNameCard
+                    key={range.rangeNumber}
+                    championshipId={championshipId}
+                    range={range}
+                    readOnly={readOnly}
+                />
+            ))}
+        </ul>
     )
 }

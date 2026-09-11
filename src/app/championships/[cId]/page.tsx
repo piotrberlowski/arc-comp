@@ -15,6 +15,7 @@ import {
     getChampionshipForOrganizer,
     listChampionshipDayEnrollmentByTournament,
 } from "../championshipActions"
+import ChampionshipDaysRangesTabs from "./ChampionshipDaysRangesTabs"
 import ChampionshipDaysSection from "./ChampionshipDaysSection"
 import ChampionshipDivisionRangeMatrix, {
     type ChampionshipMatrixRegistration,
@@ -119,26 +120,32 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
 
     return (
         <div className="p-4 space-y-8">
-            <ChampionshipRangesSection
-                championshipId={championship.id}
-                ranges={championship.rangeConfigs.map((rangeConfig) => ({
-                    rangeNumber: rangeConfig.rangeNumber,
-                    name: rangeConfig.name,
-                }))}
-                readOnly={championship.isArchive}
-            />
-            <ChampionshipDaysSection
-                championshipId={championship.id}
-                championshipName={championship.name}
-                organizerClub={championship.organizerClub}
-                rangeCount={championship.rangeCount}
-                rangeConfigs={championship.rangeConfigs.map((rangeConfig) => ({
-                    rangeNumber: rangeConfig.rangeNumber,
-                    formatName: rangeConfig.format.name,
-                    name: rangeConfig.name,
-                }))}
-                rounds={rounds}
-                readOnly={championship.isArchive}
+            <ChampionshipDaysRangesTabs
+                days={
+                    <ChampionshipDaysSection
+                        championshipId={championship.id}
+                        championshipName={championship.name}
+                        organizerClub={championship.organizerClub}
+                        rangeCount={championship.rangeCount}
+                        rangeConfigs={championship.rangeConfigs.map((rangeConfig) => ({
+                            rangeNumber: rangeConfig.rangeNumber,
+                            formatName: rangeConfig.format.name,
+                            name: rangeConfig.name,
+                        }))}
+                        rounds={rounds}
+                        readOnly={championship.isArchive}
+                    />
+                }
+                ranges={
+                    <ChampionshipRangesSection
+                        championshipId={championship.id}
+                        ranges={championship.rangeConfigs.map((rangeConfig) => ({
+                            rangeNumber: rangeConfig.rangeNumber,
+                            name: rangeConfig.name,
+                        }))}
+                        readOnly={championship.isArchive}
+                    />
+                }
             />
             <ChampionshipSetupTabs
                 showRangeAssignments={divisionRangeMatrix !== null && divisionRangeMatrix.rows.length > 0}

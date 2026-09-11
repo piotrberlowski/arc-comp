@@ -45,7 +45,7 @@ export default function ChampionshipDaysSection({
     }
 
     return (
-        <section className="mt-6">
+        <section>
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <h2 className="text-lg font-medium">Days (by order)</h2>
                 {!readOnly ? (

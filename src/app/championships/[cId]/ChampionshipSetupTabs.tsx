@@ -2,12 +2,8 @@
 
 import { ErrorContextBanner, ErrorContextProvider } from "@/components/errors/ErrorContext"
 import { useState, type ReactNode } from "react"
-import { championshipDetailContentClass } from "./championshipDetailLayout"
-
-const activeTabClass =
-    "tab-active bg-primary text-primary-content border-secondary border-solid border-1 border-b-0"
-
-const setupPanelClass = "rounded-lg border border-base-300 bg-base-100 overflow-hidden"
+import ChampionshipPanelTab from "./ChampionshipPanelTab"
+import { championshipDetailContentClass, championshipPanelClass } from "./championshipDetailLayout"
 
 type SetupTabId = "roster" | "ranges"
 
@@ -26,7 +22,7 @@ export default function ChampionshipSetupTabs({
         return (
             <ErrorContextProvider>
                 <div className={`mt-6 ${championshipDetailContentClass}`}>
-                    <div className={`${setupPanelClass} p-4 flex flex-col gap-3`}>
+                    <div className={`${championshipPanelClass} p-4 flex flex-col gap-3`}>
                         <ErrorContextBanner key="setup-error-banner" placement="sticky-top" />
                         <div key="roster">{roster}</div>
                     </div>
@@ -38,29 +34,23 @@ export default function ChampionshipSetupTabs({
     return (
         <ErrorContextProvider>
             <div className={`mt-6 ${championshipDetailContentClass}`}>
-                <div className={setupPanelClass}>
+                <div className={championshipPanelClass}>
                     <div
                         role="tablist"
                         className="tabs tabs-boxed bg-base-200 w-full rounded-none border-b border-base-300"
                     >
-                        <button
-                            type="button"
-                            role="tab"
-                            aria-selected={activeTab === "roster"}
-                            className={`tab flex-1 ${activeTab === "roster" ? activeTabClass : "hover:bg-base-300"}`}
-                            onClick={() => setActiveTab("roster")}
+                        <ChampionshipPanelTab
+                            selected={activeTab === "roster"}
+                            onSelect={() => setActiveTab("roster")}
                         >
                             Competitor roster
-                        </button>
-                        <button
-                            type="button"
-                            role="tab"
-                            aria-selected={activeTab === "ranges"}
-                            className={`tab flex-1 ${activeTab === "ranges" ? activeTabClass : "hover:bg-base-300"}`}
-                            onClick={() => setActiveTab("ranges")}
+                        </ChampionshipPanelTab>
+                        <ChampionshipPanelTab
+                            selected={activeTab === "ranges"}
+                            onSelect={() => setActiveTab("ranges")}
                         >
                             Division — range assignments
-                        </button>
+                        </ChampionshipPanelTab>
                     </div>
                     <div className="p-4 flex flex-col gap-3" role="tabpanel">
                         <ErrorContextBanner key="setup-error-banner" placement="sticky-top" />

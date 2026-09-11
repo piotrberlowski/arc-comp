@@ -71,6 +71,7 @@ export default function ChampionshipRangeNameEdit({
     const [error, setError] = useState("")
     const [saving, setSaving] = useState(false)
     const displayName = championshipRangeDisplayName(rangeNumber, storedName)
+    const customName = storedName?.trim() ?? ""
 
     function startEdit() {
         setDraftName(storedName ?? "")
@@ -116,10 +117,7 @@ export default function ChampionshipRangeNameEdit({
 
     return (
         <div className="flex flex-wrap items-center gap-2">
-            <p className="font-medium">{displayName}</p>
-            {storedName ? (
-                <span className="badge badge-sm badge-ghost">Range {rangeNumber}</span>
-            ) : null}
+            <p className={customName ? "font-medium" : "text-base-content/50"}>{customName || "Name"}</p>
             {!readOnly ? (
                 <button
                     type="button"

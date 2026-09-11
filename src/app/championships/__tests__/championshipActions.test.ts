@@ -4,6 +4,7 @@ import {
     addRoundTournament,
     archiveChampionship,
     createChampionship,
+    enrollAllChampionshipCompetitorsOnAssignedDays,
     enrollChampionshipCompetitorsOnDay,
     getChampionshipForOrganizer,
     getChampionshipSharingStatus,
@@ -698,47 +699,41 @@ describe("enrollChampionshipCompetitorsOnDay", () => {
         prismaMock.$transaction.mockImplementation((callback) =>
             typeof callback === "function" ? callback(prismaMock) : Promise.resolve(callback)
         )
-        prismaMock.participant.upsert.mockResolvedValue({ id: "part-1" } as never)
+        prismaMock.participant.findMany.mockResolvedValue([] as never)
+        prismaMock.participant.createMany.mockResolvedValue({ count: 2 } as never)
+        prismaMock.participant.deleteMany.mockResolvedValue({ count: 0 } as never)
     })
 
-    it("upserts participants copied from registrations", async () => {
+    it("creates participants copied from registrations in one write", async () => {
         await expect(
             enrollChampionshipCompetitorsOnDay("champ-1", 1, ["M-001", "M-002"])
         ).resolves.toEqual({ enrolledCount: 2, skippedCount: 0 })
 
-        expect(prismaMock.participant.upsert).toHaveBeenNthCalledWith(1, {
-            where: {
-                tournamentId_membershipNo: {
+        expect(prismaMock.participant.createMany).toHaveBeenCalledWith({
+            data: [
+                expect.objectContaining({
                     tournamentId: "tour-1",
                     membershipNo: "M-001",
-                },
-            },
-            create: expect.objectContaining({
-                tournamentId: "tour-1",
-                membershipNo: "M-001",
-                competitorNumber: 1,
-                checkedIn: false,
-            }),
-            update: expect.objectContaining({
-                name: "Alex Archer",
-                competitorNumber: 1,
-            }),
+                    competitorNumber: 1,
+                    checkedIn: false,
+                }),
+                expect.objectContaining({
+                    tournamentId: "tour-1",
+                    membershipNo: "M-002",
+                    competitorNumber: 2,
+                    checkedIn: false,
+                }),
+            ],
+            skipDuplicates: true,
         })
-        expect(prismaMock.participant.upsert).toHaveBeenCalledTimes(2)
+        expect(prismaMock.participant.upsert).not.toHaveBeenCalled()
+        expect(prismaMock.participant.deleteMany).not.toHaveBeenCalled()
     })
 
     it("throws when membership number is not registered", async () => {
         await expect(enrollChampionshipCompetitorsOnDay("champ-1", 1, ["M-999"])).rejects.toThrow(
             "Not registered in championship: M-999"
         )
-        expect(prismaMock.$transaction).not.toHaveBeenCalled()
-    })
-
-    it("returns zero when no membership numbers are provided", async () => {
-        await expect(enrollChampionshipCompetitorsOnDay("champ-1", 1, [])).resolves.toEqual({
-            enrolledCount: 0,
-            skippedCount: 0,
-        })
         expect(prismaMock.$transaction).not.toHaveBeenCalled()
     })
 
@@ -788,7 +783,8 @@ describe("enrollChampionshipCompetitorsOnDay", () => {
         })
 
         expect(prismaMock.participant.findMany).toHaveBeenCalledTimes(1)
-        expect(prismaMock.participant.findMany).toHaveBeenCalledWith(
+        expect(prismaMock.participant.findMany).toHaveBeenNthCalledWith(
+            1,
             expect.objectContaining({
                 where: expect.objectContaining({
                     membershipNo: { in: ["M-001", "M-002"] },
@@ -821,7 +817,122 @@ describe("enrollChampionshipCompetitorsOnDay", () => {
             skippedCount: 1,
         })
 
-        expect(prismaMock.participant.upsert).toHaveBeenCalledTimes(1)
+        expect(prismaMock.participant.createMany).toHaveBeenCalledTimes(1)
+        expect(prismaMock.participant.createMany).toHaveBeenCalledWith({
+            data: [
+                expect.objectContaining({
+                    tournamentId: "tour-1",
+                    membershipNo: "M-001",
+                }),
+            ],
+            skipDuplicates: true,
+        })
+    })
+
+    it("moves a competitor off the wrong range onto the assigned range", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            ...writableChampionshipShell,
+            rangeCount: 2,
+            divisionRanges: [
+                {
+                    dayOrder: 1,
+                    ageGroupId: "age-1",
+                    categoryId: "cat-1",
+                    genderGroup: "M",
+                    rangeNumber: 2,
+                },
+            ],
+            rounds: [
+                { dayOrder: 1, rangeNumber: 1, tournamentId: "tour-1" },
+                { dayOrder: 1, rangeNumber: 2, tournamentId: "tour-1b" },
+            ],
+        } as never)
+
+        await expect(enrollChampionshipCompetitorsOnDay("champ-1", 1, ["M-001"])).resolves.toEqual({
+            enrolledCount: 1,
+            skippedCount: 0,
+        })
+
+        expect(prismaMock.participant.deleteMany).toHaveBeenCalledWith({
+            where: {
+                membershipNo: { in: ["M-001"] },
+                tournamentId: { in: ["tour-1"] },
+            },
+        })
+        expect(prismaMock.participant.createMany).toHaveBeenCalledWith({
+            data: [
+                expect.objectContaining({
+                    tournamentId: "tour-1b",
+                    membershipNo: "M-001",
+                }),
+            ],
+            skipDuplicates: true,
+        })
+    })
+
+    it("maps a transaction timeout to a human error", async () => {
+        prismaMock.$transaction.mockRejectedValue({
+            code: "P2028",
+            message: "Transaction API error: expired",
+        })
+
+        await expect(enrollChampionshipCompetitorsOnDay("champ-1", 1, ["M-001"])).rejects.toThrow(
+            "This update took too long. Try again."
+        )
+    })
+})
+
+describe("enrollAllChampionshipCompetitorsOnAssignedDays", () => {
+    it("reports a partial failure when a later day errors after an earlier day committed", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            ...writableChampionshipShell,
+            rangeCount: 2,
+            divisionRanges: [
+                {
+                    dayOrder: 1,
+                    ageGroupId: "age-1",
+                    categoryId: "cat-1",
+                    genderGroup: "M",
+                    rangeNumber: 1,
+                },
+                {
+                    dayOrder: 1,
+                    ageGroupId: "age-1",
+                    categoryId: "cat-1",
+                    genderGroup: "F",
+                    rangeNumber: 1,
+                },
+                {
+                    dayOrder: 2,
+                    ageGroupId: "age-1",
+                    categoryId: "cat-1",
+                    genderGroup: "M",
+                    rangeNumber: 2,
+                },
+                {
+                    dayOrder: 2,
+                    ageGroupId: "age-1",
+                    categoryId: "cat-1",
+                    genderGroup: "F",
+                    rangeNumber: 2,
+                },
+            ],
+            rounds: [
+                { dayOrder: 1, rangeNumber: 1, tournamentId: "tour-1" },
+                { dayOrder: 2, rangeNumber: 2, tournamentId: "tour-2" },
+            ],
+        } as never)
+        prismaMock.$transaction
+            .mockImplementationOnce((callback) =>
+                typeof callback === "function" ? callback(prismaMock) : Promise.resolve(callback)
+            )
+            .mockRejectedValueOnce({ code: "P2028", message: "expired" })
+        prismaMock.participant.createMany.mockResolvedValue({ count: 2 } as never)
+        prismaMock.participant.findMany.mockResolvedValue([] as never)
+
+        await expect(
+            enrollAllChampionshipCompetitorsOnAssignedDays("champ-1", ["M-001", "M-002"])
+        ).rejects.toThrow("Enrolled competitors on earlier days, then failed on day 2: This update took too long. Try again.")
     })
 })
 
@@ -853,12 +964,17 @@ describe("updateChampionshipRegistration", () => {
             id: "reg-1",
             membershipNo: "M-001",
             competitorNumber: 1,
+            ageGroupId: "age-1",
+            categoryId: "cat-1",
+            club: "Club A",
+            genderGroup: "M",
         } as never)
         prismaMock.$transaction.mockImplementation((callback) =>
             typeof callback === "function" ? callback(prismaMock) : Promise.resolve(callback)
         )
         prismaMock.championshipRegistration.update.mockResolvedValue({ id: "reg-1" } as never)
         prismaMock.participant.updateMany.mockResolvedValue({ count: 2 } as never)
+        prismaMock.participant.deleteMany.mockResolvedValue({ count: 0 } as never)
     })
 
     it("updates registration and syncs enrolled day participants", async () => {
@@ -866,10 +982,10 @@ describe("updateChampionshipRegistration", () => {
             updateChampionshipRegistration("champ-1", "reg-1", {
                 name: "Alex Updated",
                 membershipNo: "M-001",
-                ageGroupId: "age-2",
-                categoryId: "cat-2",
+                ageGroupId: "age-1",
+                categoryId: "cat-1",
                 club: "Club B",
-                genderGroup: "F",
+                genderGroup: "M",
             })
         ).resolves.toBeUndefined()
 
@@ -878,10 +994,10 @@ describe("updateChampionshipRegistration", () => {
             data: {
                 name: "Alex Updated",
                 membershipNo: "M-001",
-                ageGroupId: "age-2",
-                categoryId: "cat-2",
+                ageGroupId: "age-1",
+                categoryId: "cat-1",
                 club: "Club B",
-                genderGroup: "F",
+                genderGroup: "M",
             },
         })
         expect(prismaMock.participant.updateMany).toHaveBeenCalledWith({
@@ -897,6 +1013,93 @@ describe("updateChampionshipRegistration", () => {
                 competitorNumber: 1,
             }),
         })
+        expect(prismaMock.participant.findMany).not.toHaveBeenCalled()
+        expect(prismaMock.participant.deleteMany).not.toHaveBeenCalled()
+    })
+
+    it("unenrolls a competitor who is on the wrong range after a division change", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            ...writableChampionshipShell,
+            rangeCount: 2,
+            divisionRanges: [
+                {
+                    dayOrder: 1,
+                    ageGroupId: "age-1",
+                    categoryId: "cat-1",
+                    genderGroup: "M",
+                    rangeNumber: 1,
+                },
+                {
+                    dayOrder: 1,
+                    ageGroupId: "age-1",
+                    categoryId: "cat-2",
+                    genderGroup: "M",
+                    rangeNumber: 2,
+                },
+            ],
+            rounds: [
+                { dayOrder: 1, rangeNumber: 1, tournamentId: "tour-1" },
+                { dayOrder: 1, rangeNumber: 2, tournamentId: "tour-1b" },
+            ],
+        } as never)
+
+        await expect(
+            updateChampionshipRegistration("champ-1", "reg-1", {
+                name: "Alex Archer",
+                membershipNo: "M-001",
+                ageGroupId: "age-1",
+                categoryId: "cat-2",
+                club: "Club A",
+                genderGroup: "M",
+            })
+        ).resolves.toBeUndefined()
+
+        expect(prismaMock.participant.deleteMany).toHaveBeenCalledWith({
+            where: { membershipNo: "M-001", tournamentId: { in: ["tour-1"] } },
+        })
+    })
+
+    it("keeps enrollment when the new division stays on the same range", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            ...writableChampionshipShell,
+            rangeCount: 2,
+            divisionRanges: [
+                {
+                    dayOrder: 1,
+                    ageGroupId: "age-1",
+                    categoryId: "cat-1",
+                    genderGroup: "M",
+                    rangeNumber: 1,
+                },
+                {
+                    dayOrder: 1,
+                    ageGroupId: "age-1",
+                    categoryId: "cat-2",
+                    genderGroup: "M",
+                    rangeNumber: 1,
+                },
+            ],
+            rounds: [
+                { dayOrder: 1, rangeNumber: 1, tournamentId: "tour-1" },
+                { dayOrder: 1, rangeNumber: 2, tournamentId: "tour-1b" },
+            ],
+        } as never)
+
+        await expect(
+            updateChampionshipRegistration("champ-1", "reg-1", {
+                name: "Alex Archer",
+                membershipNo: "M-001",
+                ageGroupId: "age-1",
+                categoryId: "cat-2",
+                club: "Club A",
+                genderGroup: "M",
+            })
+        ).resolves.toBeUndefined()
+
+        expect(prismaMock.participant.deleteMany).toHaveBeenCalledWith({
+            where: { membershipNo: "M-001", tournamentId: { in: ["tour-1b"] } },
+        })
+        expect(prismaMock.participant.updateMany).toHaveBeenCalled()
     })
 
     it("throws when registration is not found", async () => {

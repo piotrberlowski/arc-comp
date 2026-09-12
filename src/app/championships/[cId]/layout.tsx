@@ -1,4 +1,5 @@
 import UnauthorizedChampionshipOrganizer from "@/components/UnauthorizedChampionshipOrganizer"
+import { countChampionshipMedals } from "@/lib/championshipMedalCount"
 import {
     getChampionshipOrganizerClubs,
     hasChampionshipOrganizerAccess,
@@ -37,6 +38,7 @@ export default async function ChampionshipDetailLayout({
                 name={championship.name}
                 organizerClub={championship.organizerClub}
                 registrationCount={championship._count.registrations}
+                medalCount={countChampionshipMedals(championship.registrations)}
                 isArchive={championship.isArchive}
                 readOnly={championship.isArchive}
             />

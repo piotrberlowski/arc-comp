@@ -1,4 +1,6 @@
+import type { ChampionshipMedalCount } from "@/lib/championshipMedalCount"
 import { competitorsRegisteredLabel } from "../competitorsRegisteredLabel"
+import ChampionshipMedalCountButton from "./ChampionshipMedalCountButton"
 import ChampionshipNameEdit from "./ChampionshipNameEdit"
 import ChampionshipSharingButton from "./ChampionshipSharingButton"
 
@@ -7,6 +9,7 @@ export default function ChampionshipDetailHeader({
     name,
     organizerClub,
     registrationCount,
+    medalCount,
     isArchive,
     readOnly,
 }: {
@@ -14,6 +17,7 @@ export default function ChampionshipDetailHeader({
     name: string
     organizerClub: string
     registrationCount: number
+    medalCount: ChampionshipMedalCount
     isArchive: boolean
     readOnly: boolean
 }) {
@@ -26,6 +30,7 @@ export default function ChampionshipDetailHeader({
                     readOnly={readOnly}
                 />
                 <div className="flex flex-wrap items-center gap-2">
+                    <ChampionshipMedalCountButton medalCount={medalCount} />
                     {!readOnly ? (
                         <ChampionshipSharingButton championshipId={championshipId} readOnly={readOnly} />
                     ) : null}

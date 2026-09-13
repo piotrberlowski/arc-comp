@@ -28,6 +28,7 @@ import {
     areChampionshipRangeAssignmentsComplete,
     participantDataFromRegistration,
     participantUpdateFromRegistration,
+    resolveEnrollmentRangeNumber,
 } from "@/lib/championshipEnrollment"
 import type { EnrollChampionshipDayResult } from "@/lib/championshipEnrollmentMessages"
 import { assertChampionshipOrganizerClubs, resolveChampionshipOrganizerClubs } from "@/lib/championshipOrganizerSession"
@@ -35,10 +36,19 @@ import {
     findDivisionRangeOnOtherDay,
     isDayOneRangeAssignmentFrozen,
     mapDivisionRangeAssignments,
-    resolveDivisionRangeForDay,
     type ChampionshipDivisionRangeRow,
     type RangeAssignmentUpdate,
 } from "@/lib/championshipRangeRules"
+import {
+    CHAMPIONSHIP_SHOOTOFF_RANGE_NAME,
+    championshipHasShootoff,
+    championshipShootoffTournamentName,
+    isShootoffRound,
+    nextChampionshipRangeNumber,
+    regularChampionshipDayOrders,
+    regularChampionshipRanges,
+    shootoffRangeNumber,
+} from "@/lib/championshipShootoff"
 import {
     buildChampionshipCombinedStandingsFromChampionshipData,
     buildCompetitorStandingsByCategoryFromChampionshipData,
@@ -86,19 +96,28 @@ export interface AddChampionshipDayInput {
     groupSize?: number
 }
 
+export interface AddChampionshipShootoffDayInput {
+    championshipId: string
+    date: Date
+    formatId: string
+    endCount: number
+    groupSize: number
+}
+
 type RangeTournamentConfig = {
     rangeNumber: number
     formatId: string
     endCount: number
     groupSize: number
     name: string | null
+    tournamentName?: string
 }
 
 function resolveRangeTournamentConfigs(
     championship: ChampionshipShellRow,
     legacy?: { formatId: string; endCount: number; groupSize: number }
 ): RangeTournamentConfig[] {
-    const rangeConfigs = championship.rangeConfigs ?? []
+    const rangeConfigs = regularChampionshipRanges(championship.rangeConfigs ?? [], championship.rangeCount)
     if (rangeConfigs.length > 0) {
         return [...rangeConfigs]
             .sort((a, b) => a.rangeNumber - b.rangeNumber)
@@ -148,13 +167,15 @@ async function syncDayTournamentNamesForChampionship(
         await tx.tournament.update({
             where: { id: round.tournamentId },
             data: {
-                name: championshipDayTournamentName(
-                    championshipName,
-                    round.dayOrder,
-                    round.rangeNumber,
-                    rangeCount,
-                    rangeNames.get(round.rangeNumber)
-                ),
+                name: isShootoffRound(round, rangeCount)
+                    ? championshipShootoffTournamentName(championshipName)
+                    : championshipDayTournamentName(
+                        championshipName,
+                        round.dayOrder,
+                        round.rangeNumber,
+                        rangeCount,
+                        rangeNames.get(round.rangeNumber)
+                    ),
             },
         })
     }
@@ -508,6 +529,69 @@ export async function addChampionshipDay(input: AddChampionshipDayInput) {
     })
 }
 
+function assertCanAddShootoffDay(championship: ChampionshipShellRow) {
+    if (championship.rounds.length === 0) {
+        throw new Error("Add a championship day before adding a shootoff")
+    }
+    if (championshipHasShootoff(championship.rangeConfigs, championship.rangeCount)) {
+        throw new Error("A shootoff day already exists")
+    }
+}
+
+export async function addChampionshipShootoffDay(input: AddChampionshipShootoffDayInput) {
+    const championship = await getWritableChampionshipShell(input.championshipId)
+    assertCanAddShootoffDay(championship)
+
+    const formatId = input.formatId.trim()
+    if (!formatId) {
+        throw new Error("Round format must be selected")
+    }
+
+    const format = await prismaOrThrow("load shootoff round format").roundFormat.findUnique({
+        where: { id: formatId },
+        select: { id: true },
+    })
+    if (!format) {
+        throw new Error("Round format not found")
+    }
+
+    const rangeNumber = nextChampionshipRangeNumber(championship.rangeConfigs)
+    const dayOrder = nextChampionshipDayOrder(championship.rounds)
+
+    return prismaOrThrow("add championship shootoff day").$transaction(async (tx) => {
+        await tx.championshipRange.create({
+            data: {
+                championshipId: input.championshipId,
+                rangeNumber,
+                formatId,
+                name: CHAMPIONSHIP_SHOOTOFF_RANGE_NAME,
+            },
+        })
+
+        return createChampionshipDayRangeTournaments(tx, {
+            championshipId: input.championshipId,
+            championshipName: championship.name,
+            organizerClub: championship.organizerClub,
+            rangeCount: championship.rangeCount,
+            dayOrder,
+            date: input.date,
+            rangeTournaments: [
+                {
+                    rangeNumber,
+                    formatId,
+                    endCount: input.endCount,
+                    groupSize: input.groupSize,
+                    name: CHAMPIONSHIP_SHOOTOFF_RANGE_NAME,
+                    tournamentName: championshipShootoffTournamentName(championship.name),
+                },
+            ],
+        })
+    }).catch((error) => {
+        console.error("Failed to add championship shootoff day:", error)
+        throw new Error("Unable to add championship shootoff day")
+    })
+}
+
 export async function addRoundTournament(input: CreateRoundTournamentInput) {
     await assertChampionshipAccessForId(input.championshipId)
 
@@ -537,6 +621,21 @@ export async function removeRound(championshipId: string, dayOrder: number) {
     return removeChampionshipDay(championshipId, dayOrder)
 }
 
+function assertChampionshipDayRemovable(
+    dayRounds: ChampionshipShellRow["rounds"],
+    rangeCount: number
+) {
+    if (dayRounds.length === 0) {
+        throw new Error("Championship day not found")
+    }
+    if (dayRounds.some((round) => isShootoffRound(round, rangeCount))) {
+        throw new Error("Cannot remove a shootoff day")
+    }
+    if (dayRounds.some((round) => round.tournament._count.participantScores > 0)) {
+        throw new Error("Cannot remove a day after scores have been entered")
+    }
+}
+
 export async function removeChampionshipDay(championshipId: string, dayOrder: number) {
     const clubs = await assertChampionshipOrganizerClubs()
     const championship = await getChampionshipForOrganizer(championshipId, clubs)
@@ -549,14 +648,7 @@ export async function removeChampionshipDay(championshipId: string, dayOrder: nu
     }
 
     const dayRounds = championship.rounds.filter((item) => item.dayOrder === dayOrder)
-    if (dayRounds.length === 0) {
-        throw new Error("Championship day not found")
-    }
-
-    const hasScores = dayRounds.some((round) => round.tournament._count.participantScores > 0)
-    if (hasScores) {
-        throw new Error("Cannot remove a day after scores have been entered")
-    }
+    assertChampionshipDayRemovable(dayRounds, championship.rangeCount)
 
     return prismaOrThrow("remove championship day").$transaction(async (tx) => {
         const tournamentIds = dayRounds.map((round) => round.tournamentId)
@@ -786,19 +878,21 @@ export async function getChampionshipCombinedStandings(
 
     return buildChampionshipCombinedStandingsFromChampionshipData({
         registrations: championship.registrations,
-        rounds: mapChampionshipRoundsForStandings(championship.rounds),
+        rounds: mapChampionshipRoundsForStandings(championship.rounds, championship.rangeCount),
         scores,
         enrollmentByTournament,
     })
 }
 
 function mapChampionshipRoundsForStandings(
-    rounds: ChampionshipShellRow["rounds"]
+    rounds: ChampionshipShellRow["rounds"],
+    rangeCount: number
 ): ChampionshipRoundRef[] {
     return rounds.map((round) => ({
         dayOrder: round.dayOrder,
         rangeNumber: round.rangeNumber,
         tournamentId: round.tournamentId,
+        isShootoff: isShootoffRound(round, rangeCount),
     }))
 }
 
@@ -817,7 +911,7 @@ function championshipRangeFormatLabels(
     const labelFor = useShortName ? roundFormatShortLabel : (format: { name: string }) => format.name
 
     if (championship.rangeConfigs.length > 0) {
-        return [...championship.rangeConfigs]
+        return regularChampionshipRanges(championship.rangeConfigs, championship.rangeCount)
             .sort((left, right) => left.rangeNumber - right.rangeNumber)
             .map((config) => labelFor(config.format))
     }
@@ -876,7 +970,7 @@ export async function getChampionshipCombinedIfafExportData(
         rangeCount: championship.rangeCount,
         ...championshipIfafExportDateRange(championship),
         registrations: championship.registrations,
-        rounds: mapChampionshipRoundsForStandings(championship.rounds),
+        rounds: mapChampionshipRoundsForStandings(championship.rounds, championship.rangeCount),
         scores,
         enrollmentByTournament,
     })
@@ -1153,7 +1247,7 @@ async function createChampionshipDayRangeTournaments(
     for (const rangeConfig of input.rangeTournaments) {
         const tournament = await tx.tournament.create({
             data: {
-                name: championshipDayTournamentName(
+                name: rangeConfig.tournamentName ?? championshipDayTournamentName(
                     input.championshipName,
                     input.dayOrder,
                     rangeConfig.rangeNumber,
@@ -1277,6 +1371,7 @@ function buildDayEnrollmentWrite(
     }
 
     const assignments = mapDivisionRangeAssignments(championship.divisionRanges)
+    const shootoffRange = shootoffRangeNumber(championship.rangeConfigs, championship.rangeCount)
     const dayTournamentIds = championship.rounds
         .filter((round) => round.dayOrder === dayOrder)
         .map((round) => round.tournamentId)
@@ -1285,13 +1380,15 @@ function buildDayEnrollmentWrite(
 
     for (const membershipNo of membershipNos) {
         const registration = byMembership.get(membershipNo)!
-        const rangeNumber = resolveDivisionRangeForDay(
+        const rangeNumber = resolveEnrollmentRangeNumber(
             assignments,
             championship.rangeCount,
             dayOrder,
             registration.ageGroupId,
             registration.categoryId,
-            registration.genderGroup
+            registration.genderGroup,
+            championship.rounds,
+            shootoffRange
         )
         if (rangeNumber === null) {
             continue
@@ -1355,16 +1452,19 @@ function otherRangeTournamentIds(
     division: { ageGroupId: string; categoryId: string; genderGroup: string }
 ): string[] {
     const assignments = mapDivisionRangeAssignments(championship.divisionRanges)
+    const shootoffRange = shootoffRangeNumber(championship.rangeConfigs, championship.rangeCount)
     return championship.rounds
         .filter(
             (round) =>
-                resolveDivisionRangeForDay(
+                resolveEnrollmentRangeNumber(
                     assignments,
                     championship.rangeCount,
                     round.dayOrder,
                     division.ageGroupId,
                     division.categoryId,
-                    division.genderGroup
+                    division.genderGroup,
+                    championship.rounds,
+                    shootoffRange
                 ) !== round.rangeNumber
         )
         .map((round) => round.tournamentId)
@@ -1399,7 +1499,8 @@ export async function enrollAllChampionshipCompetitorsOnAssignedDays(
     membershipNos: string[]
 ): Promise<EnrollChampionshipDayResult> {
     const championship = await getWritableChampionshipShell(championshipId)
-    const dayOrders = [...new Set(championship.rounds.map((round) => round.dayOrder))].sort((a, b) => a - b)
+    const shootoffRange = shootoffRangeNumber(championship.rangeConfigs, championship.rangeCount)
+    const dayOrders = regularChampionshipDayOrders(championship.rounds, shootoffRange)
     const assignments = mapDivisionRangeAssignments(championship.divisionRanges)
 
     if (
@@ -1751,6 +1852,7 @@ export async function autoSeedChampionshipDay(
             dayOrder: round.dayOrder,
             rangeNumber: round.rangeNumber,
             tournamentId: round.tournamentId,
+            isShootoff: isShootoffRound(round, championship.rangeCount),
         })),
         scores: priorScores,
         enrollmentByTournament,

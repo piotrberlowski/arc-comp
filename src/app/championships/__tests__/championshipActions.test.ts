@@ -1,6 +1,7 @@
 import { prismaMock } from "@/test/prismaSingleton"
 import {
     addChampionshipDay,
+    addChampionshipShootoffDay,
     addRoundTournament,
     archiveChampionship,
     createChampionship,
@@ -433,6 +434,145 @@ describe("addChampionshipDay", () => {
         await expect(addChampionshipDay(dayInput)).rejects.toThrow("Unauthorized")
         expect(prismaMock.$transaction).not.toHaveBeenCalled()
     })
+
+    it("does not create a tournament for an existing shootoff range", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            id: "champ-1",
+            name: "Spring Series",
+            organizerClub: "ClubA",
+            rangeCount: 1,
+            rangeConfigs: [
+                {
+                    rangeNumber: 1,
+                    formatId: "fmt-1",
+                    format: { endCount: 28, groupSize: 4 },
+                },
+                {
+                    rangeNumber: 2,
+                    formatId: "fmt-so",
+                    format: { endCount: 5, groupSize: 2 },
+                },
+            ],
+            rounds: [
+                { dayOrder: 1, rangeNumber: 1 },
+                { dayOrder: 2, rangeNumber: 2 },
+            ],
+        } as never)
+
+        await addChampionshipDay({
+            ...dayInput,
+            name: "Spring Series — Day 3",
+        })
+
+        expect(prismaMock.tournament.create).toHaveBeenCalledTimes(1)
+        expect(prismaMock.championshipRound.create).toHaveBeenCalledWith({
+            data: {
+                championshipId: "champ-1",
+                dayOrder: 3,
+                rangeNumber: 1,
+                tournamentId: "tour-2",
+            },
+            include: { tournament: true },
+        })
+    })
+})
+
+describe("addChampionshipShootoffDay", () => {
+    const shootoffInput = {
+        championshipId: "champ-1",
+        date: new Date("2026-06-03"),
+        formatId: "fmt-so",
+        endCount: 5,
+        groupSize: 2,
+    }
+
+    const championshipWithDay = {
+        id: "champ-1",
+        name: "Spring Series",
+        organizerClub: "ClubA",
+        isArchive: false,
+        rangeCount: 1,
+        rangeConfigs: [{ rangeNumber: 1, formatId: "fmt-1" }],
+        rounds: [{ dayOrder: 1, rangeNumber: 1, tournamentId: "tour-1" }],
+    }
+
+    beforeEach(() => {
+        prismaMock.championship.findFirst.mockResolvedValue(championshipWithDay as never)
+        prismaMock.roundFormat.findUnique.mockResolvedValue({ id: "fmt-so" } as never)
+        prismaMock.$transaction.mockImplementation((callback) =>
+            typeof callback === "function" ? callback(prismaMock) : Promise.resolve(callback)
+        )
+        prismaMock.championshipRange.create.mockResolvedValue({ id: "range-so" } as never)
+        prismaMock.tournament.create.mockResolvedValue({ id: "tour-so" } as never)
+        prismaMock.championshipRound.create.mockResolvedValue({ id: "round-so", dayOrder: 2 } as never)
+    })
+
+    it("creates a shootoff range and day tournament", async () => {
+        await expect(addChampionshipShootoffDay(shootoffInput)).resolves.toEqual({
+            id: "round-so",
+            dayOrder: 2,
+        })
+
+        expect(prismaMock.championshipRange.create).toHaveBeenCalledWith({
+            data: {
+                championshipId: "champ-1",
+                rangeNumber: 2,
+                formatId: "fmt-so",
+                name: "Shootoff",
+            },
+        })
+        expect(prismaMock.tournament.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                name: "Spring Series — Shootoff",
+                formatId: "fmt-so",
+                endCount: 5,
+                groupSize: 2,
+            }),
+        })
+        expect(prismaMock.championshipRound.create).toHaveBeenCalledWith({
+            data: {
+                championshipId: "champ-1",
+                dayOrder: 2,
+                rangeNumber: 2,
+                tournamentId: "tour-so",
+            },
+            include: { tournament: true },
+        })
+    })
+
+    it("throws when no championship day exists yet", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            ...championshipWithDay,
+            rounds: [],
+        } as never)
+
+        await expect(addChampionshipShootoffDay(shootoffInput)).rejects.toThrow(
+            "Add a championship day before adding a shootoff"
+        )
+        expect(prismaMock.$transaction).not.toHaveBeenCalled()
+    })
+
+    it("throws when a shootoff already exists", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            ...championshipWithDay,
+            rangeConfigs: [
+                { rangeNumber: 1, formatId: "fmt-1" },
+                { rangeNumber: 2, formatId: "fmt-so" },
+            ],
+        } as never)
+
+        await expect(addChampionshipShootoffDay(shootoffInput)).rejects.toThrow(
+            "A shootoff day already exists"
+        )
+        expect(prismaMock.$transaction).not.toHaveBeenCalled()
+    })
+
+    it("throws when the round format is missing", async () => {
+        prismaMock.roundFormat.findUnique.mockResolvedValue(null)
+
+        await expect(addChampionshipShootoffDay(shootoffInput)).rejects.toThrow("Round format not found")
+        expect(prismaMock.$transaction).not.toHaveBeenCalled()
+    })
 })
 
 describe("removeChampionshipDay", () => {
@@ -490,6 +630,28 @@ describe("removeChampionshipDay", () => {
 
     it("throws when day order is not found", async () => {
         await expect(removeChampionshipDay("champ-1", 9)).rejects.toThrow("Championship day not found")
+    })
+
+    it("throws when the day is a shootoff", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            id: "champ-1",
+            rangeCount: 1,
+            rangeConfigs: [
+                { rangeNumber: 1 },
+                { rangeNumber: 2 },
+            ],
+            rounds: [
+                {
+                    dayOrder: 2,
+                    rangeNumber: 2,
+                    tournamentId: "tour-so",
+                    tournament: { _count: { participantScores: 0 } },
+                },
+            ],
+        } as never)
+
+        await expect(removeChampionshipDay("champ-1", 2)).rejects.toThrow("Cannot remove a shootoff day")
+        expect(prismaMock.$transaction).not.toHaveBeenCalled()
     })
 })
 
@@ -748,6 +910,31 @@ describe("enrollChampionshipCompetitorsOnDay", () => {
             "No competitors have a range assignment for this day"
         )
         expect(prismaMock.$transaction).not.toHaveBeenCalled()
+    })
+
+    it("enrolls on the shootoff range without a division-range assignment", async () => {
+        prismaMock.championship.findFirst.mockResolvedValue({
+            ...writableChampionshipShell,
+            rangeConfigs: [
+                { rangeNumber: 1, formatId: "fmt-1" },
+                { rangeNumber: 2, formatId: "fmt-so" },
+            ],
+            rounds: [
+                { dayOrder: 1, rangeNumber: 1, tournamentId: "tour-1" },
+                { dayOrder: 2, rangeNumber: 2, tournamentId: "tour-so" },
+            ],
+        } as never)
+        prismaMock.participant.findMany.mockResolvedValue([] as never)
+
+        await expect(enrollChampionshipCompetitorsOnDay("champ-1", 2, ["M-001"])).resolves.toEqual({
+            enrolledCount: 1,
+            skippedCount: 0,
+        })
+
+        expect(prismaMock.participant.createMany).toHaveBeenCalledWith({
+            data: [expect.objectContaining({ membershipNo: "M-001", tournamentId: "tour-so" })],
+            skipDuplicates: true,
+        })
     })
 
     it("loads prior range enrollments in one query when enrolling on day 2", async () => {

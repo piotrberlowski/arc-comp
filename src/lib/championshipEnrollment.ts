@@ -4,7 +4,9 @@ import {
     canEnrollDivisionOnDay,
     type ChampionshipDivisionRangeRow,
     isDivisionRangeAssignmentComplete,
+    resolveDivisionRangeForDay,
 } from "@/lib/championshipRangeRules"
+import { shootoffEnrollmentRangeForDay } from "@/lib/championshipShootoff"
 
 export type ChampionshipRegistrationProfile = Pick<
     ChampionshipRegistration,
@@ -113,11 +115,36 @@ export function buildUniqueRegistrationDivisions(
     return [...byKey.values()]
 }
 
+export function resolveEnrollmentRangeNumber(
+    assignments: ChampionshipDivisionRangeRow[],
+    rangeCount: number,
+    dayOrder: number,
+    ageGroupId: string,
+    categoryId: string,
+    genderGroup: string,
+    rounds: { dayOrder: number; rangeNumber: number }[],
+    shootoffRange: number | null
+): number | null {
+    return (
+        shootoffEnrollmentRangeForDay(dayOrder, rounds, shootoffRange) ??
+        resolveDivisionRangeForDay(
+            assignments,
+            rangeCount,
+            dayOrder,
+            ageGroupId,
+            categoryId,
+            genderGroup
+        )
+    )
+}
+
 export function buildChampionshipEnrollmentEligibility(
     registrations: DivisionKeyParts[],
     dayOrders: number[],
     assignments: ChampionshipDivisionRangeRow[],
-    rangeCount: number
+    rangeCount: number,
+    rounds: { dayOrder: number; rangeNumber: number }[] = [],
+    shootoffRange: number | null = null
 ): ChampionshipEnrollmentEligibility {
     const eligibility: ChampionshipEnrollmentEligibility = {}
 
@@ -130,14 +157,16 @@ export function buildChampionshipEnrollmentEligibility(
         eligibility[divisionKey] = Object.fromEntries(
             dayOrders.map((dayOrder) => [
                 dayOrder,
-                canEnrollDivisionOnDay(
+                resolveEnrollmentRangeNumber(
                     assignments,
                     rangeCount,
                     dayOrder,
                     registration.ageGroupId,
                     registration.categoryId,
-                    registration.genderGroup
-                ),
+                    registration.genderGroup,
+                    rounds,
+                    shootoffRange
+                ) !== null,
             ])
         )
     }

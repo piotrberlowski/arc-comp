@@ -1,5 +1,6 @@
 "use client"
 
+import { championshipDayTitle } from "@/lib/championshipShootoff"
 import ConfirmingButton from "@/components/ConfirmingButton"
 import { TrashIcon } from "@heroicons/react/24/outline"
 import Link from "next/link"
@@ -15,6 +16,7 @@ export type ChampionshipRoundRow = {
     dayOrder: number
     rangeNumber: number
     rangeLabel: string | null
+    isShootoff: boolean
     tournamentId: string
     tournamentName: string
     tournamentDate: Date
@@ -45,17 +47,22 @@ function RemoveDayButton({
     championshipId,
     dayOrder,
     canRemove,
+    isShootoff,
     readOnly,
 }: {
     championshipId: string
     dayOrder: number
     canRemove: boolean
+    isShootoff: boolean
     readOnly: boolean
 }) {
     const router = useRouter()
 
     if (readOnly) {
         return null
+    }
+    if (isShootoff) {
+        return <span className="text-xs text-base-content/50">Shootoff cannot be removed</span>
     }
     if (!canRemove) {
         return <span className="text-xs text-base-content/50">Scores entered — cannot remove</span>
@@ -95,6 +102,7 @@ function groupRoundsByDay(rounds: ChampionshipRoundRow[]) {
         .sort(([dayA], [dayB]) => dayA - dayB)
         .map(([dayOrder, dayRounds]) => ({
             dayOrder,
+            isShootoff: dayRounds.some((round) => round.isShootoff),
             rounds: [...dayRounds].sort((a, b) => a.rangeNumber - b.rangeNumber),
         }))
 }
@@ -155,11 +163,11 @@ export default function ChampionshipRoundsList({
 
     return (
         <ul className={`flex flex-col gap-4 ${championshipDetailContentClass}`}>
-            {days.map(({ dayOrder, rounds: dayRounds }) => (
+            {days.map(({ dayOrder, isShootoff, rounds: dayRounds }) => (
                 <li key={dayOrder} className="card bg-base-200 shadow-sm w-full">
                     <div className="card-body gap-3 py-4">
                         <div className="flex flex-wrap items-start justify-between gap-2">
-                            <h3 className="font-medium">Day {dayOrder}</h3>
+                            <h3 className="font-medium">{championshipDayTitle(dayOrder, isShootoff)}</h3>
                             <div className="flex flex-wrap items-center gap-2">
                                 {!readOnly ? (
                                     <ChampionshipDayGroupsPrintLink
@@ -171,6 +179,7 @@ export default function ChampionshipRoundsList({
                                     championshipId={championshipId}
                                     dayOrder={dayOrder}
                                     canRemove={dayRounds[0]?.canRemove ?? false}
+                                    isShootoff={isShootoff}
                                     readOnly={readOnly}
                                 />
                             </div>

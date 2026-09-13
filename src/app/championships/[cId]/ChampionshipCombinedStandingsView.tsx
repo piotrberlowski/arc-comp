@@ -1,6 +1,7 @@
 "use client"
 
 import type { ChampionshipCombinedStandings } from "@/lib/championshipCombinedStandings"
+import { CHAMPIONSHIP_SHOOTOFF_STANDINGS_LABEL } from "@/lib/championshipShootoff"
 import ChampionshipCombinedIfafExportButton from "./ChampionshipCombinedIfafExportButton"
 import { championshipDetailContentClass } from "./championshipDetailLayout"
 
@@ -28,6 +29,13 @@ function CombinedIfafExportSection({
     )
 }
 
+function standingsHeaderLabel(day: { dayOrder: number; label: string }): string {
+    if (day.label === CHAMPIONSHIP_SHOOTOFF_STANDINGS_LABEL) {
+        return day.label
+    }
+    return `D${day.dayOrder}`
+}
+
 function CombinedStandingsHeader({ days }: { days: ChampionshipCombinedStandings["days"] }) {
     return (
         <thead>
@@ -38,7 +46,7 @@ function CombinedStandingsHeader({ days }: { days: ChampionshipCombinedStandings
                 <th className="hidden md:table-cell text-left">Club</th>
                 {days.map((day) => (
                     <th key={day.dayOrder} className="text-left hidden sm:table-cell w-12">
-                        D{day.dayOrder}
+                        {standingsHeaderLabel(day)}
                     </th>
                 ))}
                 <th className="text-left w-16">Total</th>
@@ -113,8 +121,9 @@ export default function ChampionshipCombinedStandingsView({
                 <>
                     <h2 className="text-lg font-semibold mb-3">Combined standings</h2>
                     <p className="text-sm text-base-content/70 mb-4">
-                        Totals sum completed day scores for enrolled competitors, including any shootoff values entered
-                        on those days. Days not enrolled count as DNC. DNC and DNF days do not add to the total.
+                        Totals sum completed day scores for enrolled competitors, including shootoff-day scores and any
+                        shootoff values entered on those days. Days not enrolled count as DNC. DNC and DNF days do not
+                        add to the total.
                     </p>
                     <CombinedIfafExportSection
                         championshipId={championshipId}

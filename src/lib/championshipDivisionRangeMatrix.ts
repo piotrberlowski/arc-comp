@@ -5,6 +5,7 @@ import {
     type ChampionshipDivision,
 } from "@/lib/championshipDivision"
 import { championshipRangeLabels } from "@/lib/championshipDayNaming"
+import { regularChampionshipDayOrders, shootoffRangeNumber } from "@/lib/championshipShootoff"
 import { computeDivisionRangeTotalsByDay } from "@/lib/divisionRangeMatrixTotals"
 import {
     isDayOneRangeAssignmentFrozen,
@@ -111,7 +112,10 @@ export function buildDivisionRangeMatrixFromShell(
         return null
     }
 
-    const dayOrders = [...new Set(championship.rounds.map((round) => round.dayOrder))].sort((a, b) => a - b)
+    const dayOrders = regularChampionshipDayOrders(
+        championship.rounds,
+        shootoffRangeNumber(championship.rangeConfigs ?? [], championship.rangeCount)
+    )
     if (dayOrders.length === 0) {
         return null
     }

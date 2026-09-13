@@ -11,6 +11,7 @@ export type ChampionshipRoundRef = {
     tournamentId: string
     dayOrder: number
     rangeNumber: number
+    isShootoff?: boolean
 }
 
 export type ChampionshipDay = {

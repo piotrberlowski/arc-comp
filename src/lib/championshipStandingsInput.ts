@@ -9,6 +9,7 @@ import {
     type DayScoreInput,
     type RegisteredCompetitor,
 } from "@/lib/championshipCombinedStandings"
+import { championshipStandingsDayLabel } from "@/lib/championshipShootoff"
 
 export type ChampionshipStandingsRegistrationSource = {
     membershipNo: string
@@ -41,14 +42,17 @@ export function mapChampionshipRegistrationsToStandings(
 }
 
 export function buildChampionshipStandingsDays(
-    rounds: Pick<ChampionshipRoundRef, "dayOrder" | "tournamentId">[]
+    rounds: Pick<ChampionshipRoundRef, "dayOrder" | "tournamentId" | "rangeNumber" | "isShootoff">[]
 ): ChampionshipDay[] {
     const dayOrders = [...new Set(rounds.map((round) => round.dayOrder))].sort((a, b) => a - b)
+    const shootoffDays = new Set(
+        rounds.filter((round) => round.isShootoff).map((round) => round.dayOrder)
+    )
 
     return dayOrders.map((dayOrder) => ({
         dayOrder,
         tournamentId: rounds.find((round) => round.dayOrder === dayOrder)?.tournamentId ?? "",
-        label: `Day ${dayOrder}`,
+        label: championshipStandingsDayLabel(dayOrder, shootoffDays.has(dayOrder)),
     }))
 }
 

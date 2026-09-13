@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { addChampionshipDay } from "../championshipActions"
-import type { AddChampionshipDayFormState } from "./addChampionshipDayFormState"
+import {
+    normalizeChampionshipFormFieldErrors,
+    type AddChampionshipDayFormState,
+} from "./addChampionshipDayFormState"
 
 function emptyToUndefined(value: FormDataEntryValue | null): string | undefined {
     if (value === null || value === "") {
@@ -37,20 +40,6 @@ const addChampionshipDayFormSchema = z
         }
     })
 
-function normalizeFieldErrors(
-    fieldErrors: Record<string, string[] | undefined> | undefined
-): Record<string, string> {
-    if (!fieldErrors) {
-        return {}
-    }
-
-    return Object.fromEntries(
-        Object.entries(fieldErrors)
-            .filter((entry): entry is [string, string[]] => !!entry[1]?.length)
-            .map(([field, messages]) => [field, messages[0]])
-    )
-}
-
 function formDataToInput(formData: FormData) {
     return {
         championshipId: formData.get("championshipId"),
@@ -71,7 +60,7 @@ export async function submitAddChampionshipDayForm(
 
     if (!parseResult.success) {
         return {
-            errors: normalizeFieldErrors(parseResult.error.flatten().fieldErrors),
+            errors: normalizeChampionshipFormFieldErrors(parseResult.error.flatten().fieldErrors),
             success: false,
         }
     }

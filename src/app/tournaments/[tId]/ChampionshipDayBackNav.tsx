@@ -7,7 +7,9 @@ export default function ChampionshipDayBackNav({ link }: { link: ChampionshipDay
             <Link href={`/championships/${link.championshipId}`} className="btn btn-sm btn-ghost">
                 ← Back to {link.championshipName}
             </Link>
-            <span className="text-sm text-base-content/70">Day {link.dayOrder}</span>
+            <span className="text-sm text-base-content/70">
+                {link.isShootoff ? "Shootoff" : `Day ${link.dayOrder}`}
+            </span>
             {link.rangeLabel ? (
                 <span className="text-sm text-base-content/70">{link.rangeLabel}</span>
             ) : null}

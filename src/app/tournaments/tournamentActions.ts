@@ -2,6 +2,7 @@
 
 import { Prisma } from "@/generated/prisma/client"
 import { championshipDayRangeLabel, championshipRangeNamesByNumber } from "@/lib/championshipDayNaming"
+import { isShootoffRound } from "@/lib/championshipShootoff"
 import { prismaOrThrow } from "@/lib/prisma"
 import { standaloneTournamentWhere } from "@/lib/standaloneTournamentScope"
 
@@ -93,6 +94,7 @@ export type ChampionshipDayLink = {
     championshipName: string
     dayOrder: number
     rangeLabel: string | null
+    isShootoff: boolean
 }
 
 export async function getChampionshipDayLinkForTournament(
@@ -116,17 +118,21 @@ export async function getChampionshipDayLinkForTournament(
         return null
     }
 
+    const isShootoff = isShootoffRound(round, round.championship.rangeCount)
     const rangeName = championshipRangeNamesByNumber(round.championship.rangeConfigs).get(round.rangeNumber)
 
     return {
         championshipId: round.championship.id,
         championshipName: round.championship.name,
         dayOrder: round.dayOrder,
-        rangeLabel: championshipDayRangeLabel(
-            round.championship.rangeCount,
-            round.rangeNumber,
-            rangeName
-        ),
+        isShootoff,
+        rangeLabel: isShootoff
+            ? null
+            : championshipDayRangeLabel(
+                round.championship.rangeCount,
+                round.rangeNumber,
+                rangeName
+            ),
     }
 }
 

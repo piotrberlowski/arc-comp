@@ -1,5 +1,5 @@
 import { championshipDivisionKey } from "@/lib/championshipDivision"
-import { championshipRangeLabels } from "@/lib/championshipDayNaming"
+import { championshipRangeDisplayName } from "@/lib/championshipDayNaming"
 import { mapDivisionRangeAssignments } from "@/lib/championshipRangeRules"
 import { getChampionshipOrganizerClubs } from "@/lib/championshipOrganizerScope"
 import {
@@ -8,6 +8,14 @@ import {
     buildEnrollmentByMembership,
     listChampionshipRosterDays,
 } from "@/lib/championshipEnrollment"
+import {
+    championshipDayTitle,
+    championshipHasShootoff,
+    isShootoffRound,
+    regularChampionshipDayOrders,
+    regularChampionshipRanges,
+    shootoffRangeNumber,
+} from "@/lib/championshipShootoff"
 import { notFound } from "next/navigation"
 import { auth } from "../../auth"
 import { buildDivisionRangeMatrixFromShell } from "@/lib/championshipDivisionRangeMatrix"
@@ -42,50 +50,62 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
     const enrollmentByTournament = (await listChampionshipDayEnrollmentByTournament(cId, clubs)) ?? {}
     const enrolledSet = new Set(Object.values(enrollmentByTournament).flat())
 
-    const dayOrders = [...new Set(championship.rounds.map((round) => round.dayOrder))].sort((a, b) => a - b)
+    const shootoffRange = shootoffRangeNumber(championship.rangeConfigs, championship.rangeCount)
+    const hasShootoff = championshipHasShootoff(championship.rangeConfigs, championship.rangeCount)
+    const assignmentDayOrders = regularChampionshipDayOrders(championship.rounds, shootoffRange)
+    const rosterDayOrders = [...new Set(championship.rounds.map((round) => round.dayOrder))].sort((a, b) => a - b)
     const rosterDays = listChampionshipRosterDays(
         championship.rounds.map((round) => ({
             dayOrder: round.dayOrder,
-            label: `Day ${round.dayOrder}`,
+            label: championshipDayTitle(round.dayOrder, isShootoffRound(round, championship.rangeCount)),
         }))
     )
     const divisionRangeAssignments = mapDivisionRangeAssignments(championship.divisionRanges)
     const assignmentsComplete = areChampionshipRangeAssignmentsComplete(
         championship.registrations,
-        dayOrders,
+        assignmentDayOrders,
         divisionRangeAssignments,
         championship.rangeCount
     )
     const enrollmentEligibility = buildChampionshipEnrollmentEligibility(
         championship.registrations,
-        dayOrders,
+        rosterDayOrders,
         divisionRangeAssignments,
-        championship.rangeCount
+        championship.rangeCount,
+        championship.rounds,
+        shootoffRange
     )
 
     const enrollmentByMembership = buildEnrollmentByMembership(championship.rounds, enrollmentByTournament)
 
-    const rangeLabels = championshipRangeLabels(championship.rangeCount, championship.rangeConfigs)
+    const regularRangeConfigs = regularChampionshipRanges(championship.rangeConfigs, championship.rangeCount)
     const showRangeLabels = championship.rangeCount > 1
 
-    const rounds = championship.rounds.map((round) => ({
-        id: round.id,
-        dayOrder: round.dayOrder,
-        rangeNumber: round.rangeNumber,
-        rangeLabel: showRangeLabels ? rangeLabels[round.rangeNumber] : null,
-        tournamentId: round.tournamentId,
-        tournamentName: round.tournament.name,
-        tournamentDate: round.tournament.date,
-        formatName: round.tournament.format.name,
-        endCount: round.tournament.endCount,
-        groupSize: round.tournament.groupSize,
-        canRemove: championship.rounds
-            .filter((item) => item.dayOrder === round.dayOrder)
-            .every((item) => item.tournament._count.participantScores === 0),
-    }))
+    const rounds = championship.rounds.map((round) => {
+        const isShootoff = isShootoffRound(round, championship.rangeCount)
+        const rangeName = championship.rangeConfigs.find((config) => config.rangeNumber === round.rangeNumber)?.name
+        return {
+            id: round.id,
+            dayOrder: round.dayOrder,
+            rangeNumber: round.rangeNumber,
+            rangeLabel: isShootoff || !showRangeLabels
+                ? null
+                : championshipRangeDisplayName(round.rangeNumber, rangeName),
+            isShootoff,
+            tournamentId: round.tournamentId,
+            tournamentName: round.tournament.name,
+            tournamentDate: round.tournament.date,
+            formatName: round.tournament.format.name,
+            endCount: round.tournament.endCount,
+            groupSize: round.tournament.groupSize,
+            canRemove: !isShootoff && championship.rounds
+                .filter((item) => item.dayOrder === round.dayOrder)
+                .every((item) => item.tournament._count.participantScores === 0),
+        }
+    })
 
     const needsRangeAssignments =
-        championship.rangeCount > 1 && championship.registrations.length > 0 && dayOrders.length > 0
+        championship.rangeCount > 1 && championship.registrations.length > 0 && assignmentDayOrders.length > 0
     const divisionRangeMatrix = needsRangeAssignments
         ? buildDivisionRangeMatrixFromShell(championship)
         : null
@@ -127,19 +147,20 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
                         championshipName={championship.name}
                         organizerClub={championship.organizerClub}
                         rangeCount={championship.rangeCount}
-                        rangeConfigs={championship.rangeConfigs.map((rangeConfig) => ({
+                        rangeConfigs={regularRangeConfigs.map((rangeConfig) => ({
                             rangeNumber: rangeConfig.rangeNumber,
                             formatName: rangeConfig.format.name,
                             name: rangeConfig.name,
                         }))}
                         rounds={rounds}
+                        hasShootoff={hasShootoff}
                         readOnly={championship.isArchive}
                     />
                 }
                 ranges={
                     <ChampionshipRangesSection
                         championshipId={championship.id}
-                        ranges={championship.rangeConfigs.map((rangeConfig) => ({
+                        ranges={regularRangeConfigs.map((rangeConfig) => ({
                             rangeNumber: rangeConfig.rangeNumber,
                             name: rangeConfig.name,
                         }))}

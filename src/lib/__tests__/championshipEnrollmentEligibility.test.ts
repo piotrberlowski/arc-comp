@@ -1,5 +1,6 @@
 import {
     areChampionshipRangeAssignmentsComplete,
+    buildChampionshipEnrollmentEligibility,
     filterMembershipNosEligibleOnDay,
     listChampionshipRosterDays,
 } from "@/lib/championshipEnrollment"
@@ -65,5 +66,25 @@ describe("areChampionshipRangeAssignmentsComplete", () => {
                 2
             )
         ).toBe(false)
+    })
+})
+
+describe("buildChampionshipEnrollmentEligibility", () => {
+    it("allows every division on the shootoff day", () => {
+        expect(
+            buildChampionshipEnrollmentEligibility(
+                [{ ageGroupId: "age-1", categoryId: "cat-1", genderGroup: "M" }],
+                [1, 2],
+                assignments,
+                2,
+                [
+                    { dayOrder: 1, rangeNumber: 1 },
+                    { dayOrder: 2, rangeNumber: 3 },
+                ],
+                3
+            )
+        ).toEqual({
+            "age-1:M:cat-1": { 1: true, 2: true },
+        })
     })
 })

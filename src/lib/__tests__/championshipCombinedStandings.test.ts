@@ -90,6 +90,31 @@ describe("championshipCombinedStandings", () => {
         expect(standings?.complete[0]?.competitors[0]?.totalLabel).toBe("585 (500)")
     })
 
+    it("adds a shootoff day score to the combined total", () => {
+        const standings = calculateChampionshipCombinedStandings(
+            [registrations[0]],
+            [...days, { dayOrder: 3, tournamentId: "t-so", label: "SO" }],
+            [...rounds, { dayOrder: 3, rangeNumber: 2, tournamentId: "t-so", isShootoff: true }],
+            [
+                { tournamentId: "t1", membershipNo: "M-001", rawScore: 290 },
+                { tournamentId: "t2", membershipNo: "M-001", rawScore: 295 },
+                { tournamentId: "t-so", membershipNo: "M-001", rawScore: 10 },
+            ],
+            {
+                "M-001": [
+                    { dayOrder: 1, rangeNumber: 1 },
+                    { dayOrder: 2, rangeNumber: 1 },
+                    { dayOrder: 3, rangeNumber: 2 },
+                ],
+            }
+        )
+
+        const competitor = standings?.complete[0]?.competitors[0]
+        expect(competitor?.dayScoreLabels).toEqual(["290", "295", "10"])
+        expect(competitor?.totalLabel).toBe("595")
+        expect(standings?.days.map((day) => day.label)).toEqual(["Day 1", "Day 2", "SO"])
+    })
+
     it("does not add DNC to the combined total", () => {
         const standings = calculateChampionshipCombinedStandings(
             [registrations[0]],

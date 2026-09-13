@@ -49,6 +49,18 @@ describe("buildChampionshipStandingsDays", () => {
             { dayOrder: 2, tournamentId: "t2", label: "Day 2" },
         ])
     })
+
+    it("labels a shootoff round as SO", () => {
+        expect(
+            buildChampionshipStandingsDays([
+                { dayOrder: 1, rangeNumber: 1, tournamentId: "t1" },
+                { dayOrder: 2, rangeNumber: 2, tournamentId: "t-so", isShootoff: true },
+            ])
+        ).toEqual([
+            { dayOrder: 1, tournamentId: "t1", label: "Day 1" },
+            { dayOrder: 2, tournamentId: "t-so", label: "SO" },
+        ])
+    })
 })
 
 describe("buildChampionshipCombinedStandingsFromChampionshipData", () => {

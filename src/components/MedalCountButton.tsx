@@ -49,15 +49,17 @@ function MedalCountBody({
 export default function MedalCountButton({
     medalCount,
     description,
+    className = "btn btn-primary btn-sm gap-1",
 }: {
     medalCount: ChampionshipMedalCount
     description: string
+    className?: string
 }) {
     const modalRef = useRef<FormModalHandle>(null)
 
     return (
         <>
-            <button type="button" className="btn btn-primary btn-sm gap-1" onClick={() => modalRef.current?.open()}>
+            <button type="button" className={className} onClick={() => modalRef.current?.open()}>
                 <TrophyIcon className="w-4 h-4" />
                 Medals
             </button>

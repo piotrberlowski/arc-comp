@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { parsePublicChampionshipDayQuery } from "@/lib/publicChampionshipUrls"
+import { parsePublicChampionshipTabQuery } from "@/lib/publicChampionshipUrls"
 import { getPublicChampionshipResults } from "../championshipResultsActions"
 import PublicChampionshipResultsTabs from "./PublicChampionshipResultsTabs"
 
@@ -15,7 +15,7 @@ export default async function PublicChampionshipResultsPage({
     const data = await getPublicChampionshipResults(cId)
 
     const dayOrders = [...new Set(data.rounds.map((round) => round.dayOrder))].sort((a, b) => a - b)
-    const initialDayOrder = parsePublicChampionshipDayQuery(day)
+    const initialTab = parsePublicChampionshipTabQuery(day)
 
     return (
         <div className="w-full p-6">
@@ -34,7 +34,7 @@ export default async function PublicChampionshipResultsPage({
                     rounds={data.rounds}
                     groupsByTournamentId={data.groupsByTournamentId}
                     standings={data.standings}
-                    initialDayOrder={initialDayOrder}
+                    initialTab={initialTab}
                 />
             </div>
         </div>

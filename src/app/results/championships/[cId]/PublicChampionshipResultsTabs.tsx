@@ -3,7 +3,12 @@
 import ChampionshipCombinedStandingsView from "@/app/championships/[cId]/ChampionshipCombinedStandingsView"
 import type { ChampionshipCombinedStandings } from "@/lib/championshipCombinedStandings"
 import { useState } from "react"
-import { buildPublicChampionshipPrintPath } from "@/lib/publicChampionshipUrls"
+import {
+    buildPublicChampionshipPrintPath,
+    buildPublicChampionshipResultsPath,
+    PUBLIC_CHAMPIONSHIP_STANDINGS_TAB,
+    type PublicChampionshipTab,
+} from "@/lib/publicChampionshipUrls"
 import { PrinterIcon } from "@heroicons/react/24/outline"
 import Link from "next/link"
 import type { PublicChampionshipTournamentRef, PublicTournamentGroupsData } from "../championshipResultsActions"
@@ -14,8 +19,6 @@ const activeTabClass =
 
 const resultsPanelClass = "rounded-lg border border-base-300 bg-base-100 overflow-hidden"
 
-type ResultsTabId = number | "standings"
-
 function StandingsPanel({ standings }: { standings: ChampionshipCombinedStandings | null }) {
     if (standings) {
         return <ChampionshipCombinedStandingsView standings={standings} embedded />
@@ -24,11 +27,14 @@ function StandingsPanel({ standings }: { standings: ChampionshipCombinedStanding
     return <p className="text-sm text-base-content/70">Combined standings are not available yet.</p>
 }
 
-function resolveInitialTab(dayOrders: number[], initialDayOrder?: number): ResultsTabId {
-    if (initialDayOrder !== undefined && dayOrders.includes(initialDayOrder)) {
-        return initialDayOrder
+function resolveInitialTab(dayOrders: number[], initialTab?: PublicChampionshipTab): PublicChampionshipTab {
+    const isValid =
+        initialTab === PUBLIC_CHAMPIONSHIP_STANDINGS_TAB ||
+        (initialTab !== undefined && dayOrders.includes(initialTab))
+    if (isValid) {
+        return initialTab
     }
-    return dayOrders[0] ?? "standings"
+    return dayOrders[0] ?? PUBLIC_CHAMPIONSHIP_STANDINGS_TAB
 }
 
 export default function PublicChampionshipResultsTabs({
@@ -37,16 +43,21 @@ export default function PublicChampionshipResultsTabs({
     rounds,
     groupsByTournamentId,
     standings,
-    initialDayOrder,
+    initialTab,
 }: {
     championshipId: string
     dayOrders: number[]
     rounds: PublicChampionshipTournamentRef[]
     groupsByTournamentId: Record<string, PublicTournamentGroupsData>
     standings: ChampionshipCombinedStandings | null
-    initialDayOrder?: number
+    initialTab?: PublicChampionshipTab
 }) {
-    const [activeTab, setActiveTab] = useState<ResultsTabId>(() => resolveInitialTab(dayOrders, initialDayOrder))
+    const [activeTab, setActiveTab] = useState<PublicChampionshipTab>(() => resolveInitialTab(dayOrders, initialTab))
+
+    const selectTab = (tab: PublicChampionshipTab) => {
+        setActiveTab(tab)
+        window.history.replaceState(null, "", buildPublicChampionshipResultsPath(championshipId, tab))
+    }
 
     return (
         <div className={resultsPanelClass}>
@@ -61,7 +72,7 @@ export default function PublicChampionshipResultsTabs({
                         role="tab"
                         aria-selected={activeTab === dayOrder}
                         className={`tab flex-1 min-w-0 ${activeTab === dayOrder ? activeTabClass : "hover:bg-base-300"}`}
-                        onClick={() => setActiveTab(dayOrder)}
+                        onClick={() => selectTab(dayOrder)}
                     >
                         Day {dayOrder}
                     </button>
@@ -71,7 +82,7 @@ export default function PublicChampionshipResultsTabs({
                     role="tab"
                     aria-selected={activeTab === "standings"}
                     className={`tab flex-1 min-w-0 ${activeTab === "standings" ? activeTabClass : "hover:bg-base-300"}`}
-                    onClick={() => setActiveTab("standings")}
+                    onClick={() => selectTab(PUBLIC_CHAMPIONSHIP_STANDINGS_TAB)}
                 >
                     Combined standings
                 </button>

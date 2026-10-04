@@ -1,13 +1,21 @@
-export function buildPublicChampionshipResultsPath(championshipId: string, dayOrder?: number): string {
+export const PUBLIC_CHAMPIONSHIP_STANDINGS_TAB = "standings"
+
+export type PublicChampionshipTab = number | typeof PUBLIC_CHAMPIONSHIP_STANDINGS_TAB
+
+export function buildPublicChampionshipResultsPath(championshipId: string, tab?: PublicChampionshipTab): string {
     const base = `/results/championships/${championshipId}`
-    if (dayOrder === undefined) {
+    if (tab === undefined) {
         return base
     }
-    return `${base}?day=${dayOrder}`
+    return `${base}?day=${tab}`
 }
 
-export function buildPublicChampionshipResultsUrl(origin: string, championshipId: string, dayOrder?: number): string {
-    return `${origin}${buildPublicChampionshipResultsPath(championshipId, dayOrder)}`
+export function buildPublicChampionshipResultsUrl(
+    origin: string,
+    championshipId: string,
+    tab?: PublicChampionshipTab
+): string {
+    return `${origin}${buildPublicChampionshipResultsPath(championshipId, tab)}`
 }
 
 export function buildPublicChampionshipPrintPath(championshipId: string, dayOrder: number): string {
@@ -23,4 +31,11 @@ export function parsePublicChampionshipDayQuery(day: string | undefined): number
         return undefined
     }
     return parsed
+}
+
+export function parsePublicChampionshipTabQuery(value: string | undefined): PublicChampionshipTab | undefined {
+    if (value === PUBLIC_CHAMPIONSHIP_STANDINGS_TAB) {
+        return value
+    }
+    return parsePublicChampionshipDayQuery(value)
 }

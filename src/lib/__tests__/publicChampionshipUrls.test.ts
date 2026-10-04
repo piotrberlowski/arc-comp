@@ -3,12 +3,23 @@ import {
     buildPublicChampionshipResultsPath,
     buildPublicChampionshipResultsUrl,
     parsePublicChampionshipDayQuery,
+    parsePublicChampionshipTabQuery,
 } from "../publicChampionshipUrls"
 
 describe("publicChampionshipUrls", () => {
     it("builds results paths with optional day query", () => {
         expect(buildPublicChampionshipResultsPath("champ-1")).toBe("/results/championships/champ-1")
         expect(buildPublicChampionshipResultsPath("champ-1", 2)).toBe("/results/championships/champ-1?day=2")
+    })
+
+    it("builds standings path and parses tab query", () => {
+        expect(buildPublicChampionshipResultsPath("champ-1", "standings")).toBe(
+            "/results/championships/champ-1?day=standings"
+        )
+        expect(parsePublicChampionshipTabQuery("standings")).toBe("standings")
+        expect(parsePublicChampionshipTabQuery("2")).toBe(2)
+        expect(parsePublicChampionshipTabQuery("x")).toBeUndefined()
+        expect(parsePublicChampionshipTabQuery(undefined)).toBeUndefined()
     })
 
     it("builds absolute results urls", () => {

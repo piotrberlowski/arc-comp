@@ -1,6 +1,6 @@
 import type { ChampionshipMedalCount } from "@/lib/championshipMedalCount"
 import { competitorsRegisteredLabel } from "../competitorsRegisteredLabel"
-import ChampionshipMedalCountButton from "./ChampionshipMedalCountButton"
+import MedalCountButton from "@/components/MedalCountButton"
 import ChampionshipNameEdit from "./ChampionshipNameEdit"
 import ChampionshipSharingButton from "./ChampionshipSharingButton"
 
@@ -30,7 +30,10 @@ export default function ChampionshipDetailHeader({
                     readOnly={readOnly}
                 />
                 <div className="flex flex-wrap items-center gap-2">
-                    <ChampionshipMedalCountButton medalCount={medalCount} />
+                    <MedalCountButton
+                        medalCount={medalCount}
+                        description="Combined standings: one gold per occupied category, silver only with 2+ competitors, bronze only with 3+."
+                    />
                     {!readOnly ? (
                         <ChampionshipSharingButton championshipId={championshipId} readOnly={readOnly} />
                     ) : null}

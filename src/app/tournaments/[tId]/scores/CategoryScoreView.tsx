@@ -1,5 +1,6 @@
 "use client"
 
+import { compareParticipantCategories } from "@/lib/participantCategoryOrder"
 import { ParticipantWithResult } from "../scoreActions"
 import CategoryParticipantTableRow, { type ParticipantWithPlace } from "./CategoryParticipantTableRow"
 
@@ -33,7 +34,7 @@ export function compareParticipants(a: ParticipantWithResult, b: ParticipantWith
 
 interface CategoryHeaderRow {
     isCategoryHeader: true
-    category: string
+    categoryLabel: string
     participantId: string
     participant: {
         name: string
@@ -79,7 +80,7 @@ function CategoryParticipantTable({
                                     <tr key={participant.participantId} className="sticky top-0 bg-primary text-primary-content z-10 [&>*]:!bg-primary [&>*]:!text-primary-content">
                                         <td colSpan={5} className="font-semibold py-2">
                                             <div className="flex items-center gap-2">
-                                                <span className="font-mono text-sm">{participant.category}</span>
+                                                <span className="font-mono text-sm">{participant.categoryLabel}</span>
                                                 <div className="flex-1 border-t border-primary-content/20"></div>
                                             </div>
                                         </td>
@@ -126,7 +127,7 @@ export default function CategoryScoreView({
             participants: participants.sort(compareParticipants),
             isComplete: participants.every(p => !!p.result)
         }))
-        .sort((a, b) => a.category.localeCompare(b.category))
+        .sort((a, b) => compareParticipantCategories(a.participants[0], b.participants[0]))
 
     // Create participants with category grouping for pinned rows
     const outstandingParticipants: TableRow[] = sortedCategories
@@ -135,7 +136,7 @@ export default function CategoryScoreView({
             // Pinned category header row
             {
                 isCategoryHeader: true,
-                category: categoryData.category,
+                categoryLabel: categoryData.category,
                 participantId: `header-${categoryData.category}`,
                 participant: { name: categoryData.category, ageGroupId: '', genderGroup: '', categoryId: '', club: null },
                 score: null,
@@ -146,7 +147,7 @@ export default function CategoryScoreView({
             ...categoryData.participants.map(participant => ({
                 ...participant,
                 isCategoryHeader: false,
-                category: categoryData.category,
+                categoryLabel: categoryData.category,
                 categoryComplete: categoryData.isComplete,
                 place: 0,
                 hasUnresolvedTie: unresolvedTieParticipantIds?.has(participant.id) ?? false
@@ -160,7 +161,7 @@ export default function CategoryScoreView({
             const participantsWithPlaces: ParticipantWithPlace[] = categoryData.participants.map((participant, index) => ({
                 ...participant,
                 isCategoryHeader: false,
-                category: categoryData.category,
+                categoryLabel: categoryData.category,
                 categoryComplete: categoryData.isComplete,
                 place: index + 1,
                 hasUnresolvedTie: unresolvedTieParticipantIds?.has(participant.id) ?? false
@@ -170,7 +171,7 @@ export default function CategoryScoreView({
                 // Pinned category header row
                 {
                     isCategoryHeader: true,
-                    category: categoryData.category,
+                    categoryLabel: categoryData.category,
                     participantId: `header-${categoryData.category}`,
                     participant: { name: categoryData.category, ageGroupId: '', genderGroup: '', categoryId: '', club: null },
                     score: null,

@@ -1,6 +1,6 @@
 "use server"
 
-import { GroupAssignment, Participant } from "@/generated/prisma/client"
+import { AgeGroup, EquipmentCategory, GroupAssignment, Participant } from "@/generated/prisma/client"
 import { prismaOrThrow } from "@/lib/prisma"
 import {
     isTournamentResultsComplete,
@@ -11,7 +11,9 @@ import { revalidatePath } from "next/cache"
 
 export type ParticipantWithResult = Participant & { 
     result: ParticipantResult | null
-    groupAssignment: GroupAssignment | null 
+    groupAssignment: GroupAssignment | null
+    ageGroup: AgeGroup
+    category: EquipmentCategory
 }
 export type TournamentResults = ParticipantWithResult[]
 
@@ -25,6 +27,8 @@ export async function getTournamentResults(tournamentId: string): Promise<Tourna
         include: {
             participantScore: true,
             groupAssignment: true,
+            ageGroup: true,
+            category: true,
         }
     })
 

@@ -8,7 +8,7 @@ import { ParticipantWithResult } from "../scoreActions"
 export interface ParticipantWithPlace extends ParticipantWithResult {
     place: number
     isCategoryHeader: false
-    category: string
+    categoryLabel: string
     categoryComplete: boolean
     hasUnresolvedTie: boolean
 }

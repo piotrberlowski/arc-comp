@@ -1,6 +1,7 @@
 "use client"
 
 import MedalIcon from "@/app/tournaments/[tId]/components/MedalIcon"
+import { compareParticipantCategories } from "@/lib/participantCategoryOrder"
 import { formatParticipantResultDisplay } from "@/lib/scoreUtils"
 import React from "react"
 import { ParticipantResultData, TournamentResultsData } from "../resultsActions"
@@ -70,7 +71,9 @@ const ParticipantRow = ({ participant, place }: { participant: ParticipantResult
 // Group participants by equipment category and age+gender
 // Participants are pre-sorted by score (desc) from database, grouping preserves order
 function groupParticipantsByCategory(participants: ParticipantResultData[]) {
-    const equipmentCategories = participants.reduce((acc, participant) => {
+    // Stable sort: categories follow championship order, score order is kept within a category
+    const ordered = [...participants].sort(compareParticipantCategories)
+    const equipmentCategories = ordered.reduce((acc, participant) => {
         const equipmentCategory = participant.category.name
         if (!acc[equipmentCategory]) {
             acc[equipmentCategory] = {}

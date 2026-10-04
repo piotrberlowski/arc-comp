@@ -26,14 +26,17 @@ function MedalCountRow({
     )
 }
 
-function ChampionshipMedalCountBody({ medalCount }: { medalCount: ChampionshipMedalCount }) {
+function MedalCountBody({
+    medalCount,
+    description,
+}: {
+    medalCount: ChampionshipMedalCount
+    description: string
+}) {
     return (
         <div className="space-y-4">
             <h2 className="text-xl font-semibold">Medals needed</h2>
-            <p className="text-sm text-base-content/70">
-                Combined standings: one gold per occupied category, silver only with 2+ competitors, bronze only
-                with 3+.
-            </p>
+            <p className="text-sm text-base-content/70">{description}</p>
             <div className="divide-y divide-base-300">
                 <MedalCountRow place={1} label="Gold" count={medalCount.gold} />
                 <MedalCountRow place={2} label="Silver" count={medalCount.silver} />
@@ -43,10 +46,12 @@ function ChampionshipMedalCountBody({ medalCount }: { medalCount: ChampionshipMe
     )
 }
 
-export default function ChampionshipMedalCountButton({
+export default function MedalCountButton({
     medalCount,
+    description,
 }: {
     medalCount: ChampionshipMedalCount
+    description: string
 }) {
     const modalRef = useRef<FormModalHandle>(null)
 
@@ -57,7 +62,7 @@ export default function ChampionshipMedalCountButton({
                 Medals
             </button>
             <FormModal ref={modalRef}>
-                <ChampionshipMedalCountBody medalCount={medalCount} />
+                <MedalCountBody medalCount={medalCount} description={description} />
             </FormModal>
         </>
     )

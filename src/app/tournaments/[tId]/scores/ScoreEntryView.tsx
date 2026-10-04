@@ -1,8 +1,6 @@
 "use client"
 
 import useErrorContext from "@/components/errors/ErrorContext"
-import MedalCountButton from "@/components/MedalCountButton"
-import { countChampionshipMedals } from "@/lib/championshipMedalCount"
 import { findTiebreakers, TiebreakerGroup } from "@/lib/scoreUtils"
 import { use, useMemo, useState } from "react"
 import useTournamentContext from "../TournamentContext"
@@ -58,8 +56,6 @@ export default function ScoreEntryView({ results }: { results: Promise<Tournamen
         () => computeTiebreakers(resultsData, allResultsComplete),
         [resultsData, allResultsComplete]
     )
-
-    const medalCount = useMemo(() => countChampionshipMedals(resultsData), [resultsData])
 
     const unresolvedTieParticipantIds = useMemo(
         () => computeUnresolvedTieParticipantIds(tiebreakers),
@@ -139,10 +135,6 @@ export default function ScoreEntryView({ results }: { results: Promise<Tournamen
                         >
                             By Category
                         </button>
-                        <MedalCountButton
-                            medalCount={medalCount}
-                            description="One gold per occupied category, silver only with 2+ competitors, bronze only with 3+."
-                        />
                         {allResultsComplete && (
                             <button
                                 className="hidden sm:block btn btn-primary"

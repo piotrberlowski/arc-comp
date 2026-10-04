@@ -1,8 +1,10 @@
 "use client"
 
+import MedalCountButton from "@/components/MedalCountButton"
+import { countChampionshipMedals } from "@/lib/championshipMedalCount"
 import useErrorContext from "@/components/errors/ErrorContext";
 import { Participant } from "@/generated/prisma/browser"
-import { useCallback, useEffect, useState, useTransition } from "react"
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import useTournamentContext from "./TournamentContext";
 import CSVImport from "./components/CSVImport"
 import { useParticipantsListToolbar } from "./components/ParticipantsListToolbar"
@@ -25,6 +27,7 @@ export default function ParticipantsList({
     const [importFeedback, setImportFeedback] = useState<string | null>(null)
     const [displayP, setDisplayP] = useState(participants)
     const { visible: visibleParticipants, toolbar } = useParticipantsListToolbar(displayP)
+    const medalCount = useMemo(() => countChampionshipMedals(displayP), [displayP])
     const [isPending, startTransition] = useTransition()
     const tEdit = useTournamentContext()
     const setError = useErrorContext()
@@ -102,7 +105,12 @@ export default function ParticipantsList({
                     {toolbar}
                 </div>
                 {allowImportAndEdit ? (
-                    <div className="hidden md:block md:w-32 shrink-0">
+                    <div className="hidden md:flex md:flex-col gap-2 md:w-32 shrink-0">
+                        <MedalCountButton
+                            medalCount={medalCount}
+                            description="One gold per occupied category, silver only with 2+ participants, bronze only with 3+."
+                            className="btn btn-primary w-32 text-xs gap-1"
+                        />
                         <CSVImport onImportComplete={handleImportComplete} />
                     </div>
                 ) : null}

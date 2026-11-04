@@ -100,7 +100,7 @@ export default function TournamentSetupForm({
                 <span className="badge badge-info text-lg py-6">
                     Format:{" "}
                     <RoundFormatSelect
-                        className={`select-sm select-primary text-primary-content ${fieldErrors.formatId ? "select-error" : ""}`}
+                        className={`select-sm select-primary text-base-content ${fieldErrors.formatId ? "select-error" : ""}`}
                         formatId={formatId}
                         onChange={(format) => {
                             if (format) {

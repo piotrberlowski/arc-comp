@@ -10,7 +10,7 @@ export default function TournamentDayPicker({date, onChange}:{date: Date, onChan
             <button
                 type="button"
                 popoverTarget="rdp-popover"
-                className="input input-primary"
+                className="input input-primary text-base-content"
                 style={{ anchorName: "--rdp" } as React.CSSProperties}
             >
                 {date ? format(date, "yyyy-MM-dd") : "Select date"}

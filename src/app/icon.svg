@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <clipPath id="background-clip">
+      <path d="M 220 0 H 804 A 220 220 0 0 1 1024 220 V 804 A 220 220 0 0 1 804 1024 H 220 A 220 220 0 0 1 0 804 V 220 A 220 220 0 0 1 220 0 Z"/>
+    </clipPath>
+  </defs>
+  <!--
+    Components are separate groups. Move a piece by editing only its transform.
+
+    background: full-canvas rounded square. No offset.
+    sheet:      translate(x y) places the unscaled page. scale(1.2) grows it
+                from the bottom-left, so the left and bottom edges stay put.
+    arrow:      translate(x y) places the arrowhead tip. rotate() aims it.
+                arrow-body scale(1.3225 1) lengthens the arrow from the tip.
+  -->
+
+  <g id="icon" clip-path="url(#background-clip)">
+  <g id="background">
+    <path fill="#1f4f35" d="M 220 0 H 804 A 220 220 0 0 1 1024 220 V 804 A 220 220 0 0 1 804 1024 H 220 A 220 220 0 0 1 0 804 V 220 A 220 220 0 0 1 220 0 Z"/>
+  </g>
+
+  <g id="sheet" transform="translate(406 406) translate(4 532) scale(1.2) translate(-4 -532)">
+    <g id="sheet-page" fill="none" stroke="#ffffff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+      <path id="sheet-outline" d="M 36 8 H 300 L 392 100 V 500 Q 392 528 364 528 H 36 Q 8 528 8 500 V 36 Q 8 8 36 8"/>
+      <path id="sheet-fold" d="M 300 8 V 100 H 392"/>
+    </g>
+    <g id="sheet-grid" fill="none" stroke="#ffffff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M 52 196 H 348"/>
+      <path d="M 52 262 H 348"/>
+      <path d="M 52 328 H 348"/>
+      <path d="M 52 394 H 348"/>
+      <path d="M 52 460 H 348"/>
+      <path d="M 52 196 V 460"/>
+      <path d="M 126 196 V 460"/>
+      <path d="M 200 196 V 460"/>
+      <path d="M 274 196 V 460"/>
+      <path d="M 348 196 V 460"/>
+    </g>
+  </g>
+
+  <g id="arrow" transform="translate(606 674) rotate(46)">
+    <g id="arrow-impact" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round">
+      <path d="M 22 8 L 46 16"/>
+      <path d="M 16 20 L 32 42"/>
+      <path d="M 4 24 L 8 50"/>
+      <path d="M -10 22 L -18 46"/>
+      <path d="M -10 -22 L -18 -46"/>
+      <path d="M 4 -24 L 8 -50"/>
+      <path d="M 16 -20 L 32 -42"/>
+      <path d="M 22 -8 L 46 -16"/>
+    </g>
+    <g id="arrow-body" transform="scale(1.3225 1)">
+    <g id="arrow-fletching" fill="none" stroke="#f0c014" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke">
+      <path d="M -490 -6 L -514 -44 L -466 -6"/>
+      <path d="M -442 -6 L -468 -54 L -416 -6"/>
+      <path d="M -392 -6 L -416 -42 L -368 -6"/>
+      <path d="M -490 6 L -514 40 L -466 6"/>
+      <path d="M -442 6 L -468 48 L -416 6"/>
+      <path d="M -392 6 L -416 36 L -368 6"/>
+    </g>
+    <g id="arrow-shaft" fill="#e08a28" stroke="none">
+      <path id="arrow-nock" d="M -48 -10 L -540 -10 L -522 0 L -540 10 L -48 10 Z"/>
+    </g>
+    <g id="arrow-head" fill="#c5cad3" stroke="#6f767f" stroke-width="4" stroke-linejoin="miter" stroke-linecap="butt" vector-effect="non-scaling-stroke">
+      <path d="M 0 0 L -58 -22 L -58 22 Z"/>
+    </g>
+    </g>
+  </g>
+  </g>
+</svg>

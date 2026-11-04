@@ -54,7 +54,7 @@ function TournamentDetailsEdit({ onClose }: { onClose: (e?: string) => void }) {
     return (
         <>
             <div className="flex-1 text-left md:text-center h-full p-0 flex">
-                <input type="text" className="input input-primary text-xl text-center items-center mx-auto h-full p-0" value={name} onChange={(evt) => setName(evt.target.value)} />
+                <input type="text" className="input input-primary text-base-content text-xl text-center items-center mx-auto h-full p-0" value={name} onChange={(evt) => setName(evt.target.value)} />
             </div>
             <div className="flex-0 w-fit text-xl flex items-center">
                 <span className="w-fit items-center"><TournamentDayPicker date={date} onChange={setDate} /></span>

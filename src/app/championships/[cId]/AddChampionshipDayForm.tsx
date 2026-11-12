@@ -16,6 +16,90 @@ export type ChampionshipRangeConfigSummary = {
     rangeNumber: number
     formatName: string
     name: string | null
+    endCount: number
+    groupSize: number
+}
+
+function DayRangeLayoutRow({
+    rangeCount,
+    rangeConfig,
+    endCount,
+    groupSize,
+    onEndCountChange,
+    onGroupSizeChange,
+}: {
+    rangeCount: number
+    rangeConfig: ChampionshipRangeConfigSummary
+    endCount: number
+    groupSize: number
+    onEndCountChange: (rangeNumber: number, endCount: number) => void
+    onGroupSizeChange: (rangeNumber: number, groupSize: number) => void
+}) {
+    const label = rangeCount > 1
+        ? championshipRangeDisplayName(rangeConfig.rangeNumber, rangeConfig.name)
+        : "Round type"
+
+    return (
+        <li className="flex flex-col gap-2 rounded-md bg-base-200 px-3 py-2 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">{label}</span>
+                <span className="badge badge-info badge-outline">{rangeConfig.formatName}</span>
+            </div>
+            <input type="hidden" name="rangeNumber" value={rangeConfig.rangeNumber} />
+            <DayRangeCountField
+                label="End Count"
+                name={`endCount-${rangeConfig.rangeNumber}`}
+                min={1}
+                value={endCount}
+                onChange={(value) => onEndCountChange(rangeConfig.rangeNumber, value)}
+            />
+            <DayRangeCountField
+                label="Group Size"
+                name={`groupSize-${rangeConfig.rangeNumber}`}
+                min={2}
+                value={groupSize}
+                onChange={(value) => onGroupSizeChange(rangeConfig.rangeNumber, value)}
+            />
+        </li>
+    )
+}
+
+function DayRangeCountField({
+    label,
+    name,
+    min,
+    value,
+    onChange,
+}: {
+    label: string
+    name: string
+    min: number
+    value: number
+    onChange: (value: number) => void
+}) {
+    return (
+        <label className="form-control">
+            <span className="label-text">{label}</span>
+            <input
+                type="number"
+                name={name}
+                min={min}
+                className="input input-bordered input-sm w-full"
+                value={value}
+                onChange={(evt) => onChange(Number(evt.target.value))}
+                required
+            />
+        </label>
+    )
+}
+
+function initialRangeLayouts(rangeConfigs: ChampionshipRangeConfigSummary[]) {
+    return Object.fromEntries(
+        rangeConfigs.map((rangeConfig) => [
+            rangeConfig.rangeNumber,
+            { endCount: rangeConfig.endCount, groupSize: rangeConfig.groupSize },
+        ])
+    )
 }
 
 function AddDaySubmitButton({ pending }: { pending: boolean }) {
@@ -70,6 +154,7 @@ export default function AddChampionshipDayForm({
     const router = useRouter()
     const setError = useErrorContext()
     const [date, setDate] = useState(() => new Date(defaultDate))
+    const [layouts, setLayouts] = useState(() => initialRangeLayouts(rangeConfigs))
     const [formState, formAction, isPending] = useActionState(
         submitAddChampionshipDayForm,
         initialAddChampionshipDayFormState,
@@ -110,23 +195,40 @@ export default function AddChampionshipDayForm({
                     <input type="hidden" name="date" value={date.toISOString()} />
                     <input type="hidden" name="usesRangeFormats" value="true" />
 
-                    <p className="text-sm text-base-content/70">
-                        Each range uses the round type set when the championship was created.
-                    </p>
                     <ul className="flex flex-col gap-2">
-                        {rangeConfigs.map((rangeConfig) => (
-                            <li
-                                key={rangeConfig.rangeNumber}
-                                className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-base-200 px-3 py-2 text-sm"
-                            >
-                                <span className="font-medium">
-                                    {rangeCount > 1
-                                        ? championshipRangeDisplayName(rangeConfig.rangeNumber, rangeConfig.name)
-                                        : "Round type"}
-                                </span>
-                                <span className="badge badge-info badge-outline">{rangeConfig.formatName}</span>
-                            </li>
-                        ))}
+                        {rangeConfigs.map((rangeConfig) => {
+                            const layout = layouts[rangeConfig.rangeNumber] ?? {
+                                endCount: rangeConfig.endCount,
+                                groupSize: rangeConfig.groupSize,
+                            }
+                            return (
+                                <DayRangeLayoutRow
+                                    key={rangeConfig.rangeNumber}
+                                    rangeCount={rangeCount}
+                                    rangeConfig={rangeConfig}
+                                    endCount={layout.endCount}
+                                    groupSize={layout.groupSize}
+                                    onEndCountChange={(rangeNumber, endCount) =>
+                                        setLayouts((current) => ({
+                                            ...current,
+                                            [rangeNumber]: {
+                                                endCount,
+                                                groupSize: current[rangeNumber]?.groupSize ?? rangeConfig.groupSize,
+                                            },
+                                        }))
+                                    }
+                                    onGroupSizeChange={(rangeNumber, groupSize) =>
+                                        setLayouts((current) => ({
+                                            ...current,
+                                            [rangeNumber]: {
+                                                endCount: current[rangeNumber]?.endCount ?? rangeConfig.endCount,
+                                                groupSize,
+                                            },
+                                        }))
+                                    }
+                                />
+                            )
+                        })}
                     </ul>
                     <div
                         className={`flex justify-between items-center gap-3 p-3 bg-secondary rounded-md ${formState.errors?.date ? "ring-2 ring-error" : ""}`}

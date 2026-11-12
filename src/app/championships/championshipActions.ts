@@ -87,6 +87,12 @@ export interface CreateRoundTournamentInput {
     label?: string
 }
 
+export interface ChampionshipDayRangeLayout {
+    rangeNumber: number
+    endCount: number
+    groupSize: number
+}
+
 export interface AddChampionshipDayInput {
     championshipId: string
     name: string
@@ -94,6 +100,7 @@ export interface AddChampionshipDayInput {
     formatId?: string
     endCount?: number
     groupSize?: number
+    ranges?: ChampionshipDayRangeLayout[]
 }
 
 export interface AddChampionshipShootoffDayInput {
@@ -113,21 +120,48 @@ type RangeTournamentConfig = {
     tournamentName?: string
 }
 
+function assertDayRangeLayout(rangeNumber: number, endCount: number, groupSize: number) {
+    const label = championshipRangeDisplayName(rangeNumber)
+    if (!Number.isInteger(endCount) || endCount < 1) {
+        throw new Error(`${label} end count must be at least 1`)
+    }
+    if (!Number.isInteger(groupSize) || groupSize < 2) {
+        throw new Error(`${label} group size must be at least 2`)
+    }
+}
+
+function rangeTournamentFromConfig(
+    rangeConfig: {
+        rangeNumber: number
+        formatId: string
+        name: string | null
+        format: { endCount: number; groupSize: number }
+    },
+    submitted?: ChampionshipDayRangeLayout[]
+): RangeTournamentConfig {
+    const layout = submitted?.find((range) => range.rangeNumber === rangeConfig.rangeNumber)
+    const endCount = layout?.endCount ?? rangeConfig.format.endCount
+    const groupSize = layout?.groupSize ?? rangeConfig.format.groupSize
+    assertDayRangeLayout(rangeConfig.rangeNumber, endCount, groupSize)
+    return {
+        rangeNumber: rangeConfig.rangeNumber,
+        formatId: rangeConfig.formatId,
+        endCount,
+        groupSize,
+        name: normalizeChampionshipRangeName(rangeConfig.name),
+    }
+}
+
 function resolveRangeTournamentConfigs(
     championship: ChampionshipShellRow,
-    legacy?: { formatId: string; endCount: number; groupSize: number }
+    legacy?: { formatId: string; endCount: number; groupSize: number },
+    submitted?: ChampionshipDayRangeLayout[]
 ): RangeTournamentConfig[] {
     const rangeConfigs = regularChampionshipRanges(championship.rangeConfigs ?? [], championship.rangeCount)
     if (rangeConfigs.length > 0) {
         return [...rangeConfigs]
             .sort((a, b) => a.rangeNumber - b.rangeNumber)
-            .map((rangeConfig) => ({
-                rangeNumber: rangeConfig.rangeNumber,
-                formatId: rangeConfig.formatId,
-                endCount: rangeConfig.format.endCount,
-                groupSize: rangeConfig.format.groupSize,
-                name: normalizeChampionshipRangeName(rangeConfig.name),
-            }))
+            .map((rangeConfig) => rangeTournamentFromConfig(rangeConfig, submitted))
     }
 
     if (!legacy?.formatId) {
@@ -475,6 +509,17 @@ export async function assertChampionshipWritable(championshipId: string): Promis
     }
 }
 
+function legacyDayLayout(input: AddChampionshipDayInput) {
+    if (!input.formatId || input.endCount === undefined || input.groupSize === undefined) {
+        return undefined
+    }
+    return {
+        formatId: input.formatId,
+        endCount: input.endCount,
+        groupSize: input.groupSize,
+    }
+}
+
 export async function addChampionshipDay(input: AddChampionshipDayInput) {
     const clubs = await assertChampionshipOrganizerClubs()
     const championship = await getChampionshipForOrganizer(input.championshipId, clubs)
@@ -487,16 +532,8 @@ export async function addChampionshipDay(input: AddChampionshipDayInput) {
     }
 
     const dayOrder = nextChampionshipDayOrder(championship.rounds)
-    const rangeTournaments = resolveRangeTournamentConfigs(
-        championship,
-        input.formatId && input.endCount !== undefined && input.groupSize !== undefined
-            ? {
-                formatId: input.formatId,
-                endCount: input.endCount,
-                groupSize: input.groupSize,
-            }
-            : undefined
-    )
+    const legacy = legacyDayLayout(input)
+    const rangeTournaments = resolveRangeTournamentConfigs(championship, legacy, input.ranges)
 
     if (rangeTournaments.length !== championship.rangeCount) {
         throw new Error("Round type must be configured for each range before adding a day")

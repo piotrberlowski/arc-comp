@@ -359,6 +359,20 @@ describe("addChampionshipDay", () => {
         })
     })
 
+    it("stores a custom end count and group size on that day's tournament", async () => {
+        await addChampionshipDay({
+            ...dayInput,
+            ranges: [{ rangeNumber: 1, endCount: 12, groupSize: 3 }],
+        })
+
+        expect(prismaMock.tournament.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                endCount: 12,
+                groupSize: 3,
+            }),
+        })
+    })
+
     it("starts at day 1 when no rounds exist", async () => {
         prismaMock.championship.findFirst.mockResolvedValue({
             id: "champ-1",

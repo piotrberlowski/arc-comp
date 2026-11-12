@@ -151,6 +151,8 @@ export default async function ChampionshipDetailPage({ params }: { params: Promi
                             rangeNumber: rangeConfig.rangeNumber,
                             formatName: rangeConfig.format.name,
                             name: rangeConfig.name,
+                            endCount: rangeConfig.format.endCount,
+                            groupSize: rangeConfig.format.groupSize,
                         }))}
                         rounds={rounds}
                         hasShootoff={hasShootoff}

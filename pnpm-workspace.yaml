@@ -5,6 +5,8 @@ allowBuilds:
   prisma: true
   sharp: true
   unrs-resolver: true
+minimumReleaseAgeExclude:
+  - group-planner@0.2.0
 overrides:
   "@auth/core": "0.41.1"
   "next@>=16.0.0-canary.0 <16.0.7": ">=16.0.7"

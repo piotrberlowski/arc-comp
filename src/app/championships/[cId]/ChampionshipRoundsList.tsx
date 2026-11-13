@@ -7,6 +7,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useMemo } from "react"
 import { removeChampionshipDay } from "../championshipActions"
+import SeedGroupsButton from "@/app/tournaments/[tId]/groups/SeedGroupsButton"
 import ChampionshipDayAutoSeedButton from "./ChampionshipDayAutoSeedButton"
 import ChampionshipDayGroupsPrintLink from "./ChampionshipDayGroupsPrintLink"
 import { championshipDetailContentClass } from "./championshipDetailLayout"
@@ -127,6 +128,9 @@ function DayRangeRow({
             </div>
             <div className="flex flex-wrap items-center gap-2">
                 <DayTournamentLinks tournamentId={round.tournamentId} />
+                {!readOnly && round.dayOrder === 1 && !round.isShootoff ? (
+                    <SeedGroupsButton tournamentId={round.tournamentId} disabled={false} compact />
+                ) : null}
                 {!readOnly && round.dayOrder >= 2 ? (
                     <ChampionshipDayAutoSeedButton
                         championshipId={championshipId}

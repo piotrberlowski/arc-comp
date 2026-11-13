@@ -7,6 +7,8 @@ import {
     orderedParticipantIdsAfterMoveToCaptain,
     sortByGroupAssignmentOrder,
 } from "@/lib/groupAssignmentOrder"
+import { createGroupAssignments, mapSeedAssignmentsToCreateRows } from "@/lib/groupAssignmentCreate"
+import { pairingSeedAllowed, seedRoundGroups } from "@/lib/roundGroupSeed"
 import { prismaOrThrow } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 
@@ -16,7 +18,10 @@ export interface GroupData {
 }
 
 export interface TournamentGroupsData {
-    tournament: Tournament & { format: RoundFormat }
+    tournament: Tournament & {
+        format: RoundFormat
+        championshipRound: { dayOrder: number } | null
+    }
     groups: GroupData[]
     unassignedParticipants: (Participant & { groupAssignment: GroupAssignment | null })[]
 }
@@ -135,6 +140,9 @@ export async function getTournamentGroups(tournamentId: string): Promise<Tournam
         where: { id: tournamentId },
         include: {
             format: true,
+            championshipRound: {
+                select: { dayOrder: true },
+            },
             participants: {
                 include: {
                     groupAssignment: true,
@@ -386,4 +394,47 @@ export async function cleanupGroups(tournamentId: string): Promise<number> {
     revalidatePath(`/tournaments/${tournamentId}/scores`, "page")
 
     return assignmentsToRemove.length
+}
+
+export async function seedTournamentGroups(tournamentId: string): Promise<number> {
+    const tournament = await prismaOrThrow("get tournament for pairing seed").tournament.findUnique({
+        where: { id: tournamentId },
+        select: {
+            groupSize: true,
+            endCount: true,
+            championshipRound: { select: { dayOrder: true } },
+            participants: {
+                select: {
+                    id: true,
+                    genderGroup: true,
+                    ageGroupId: true,
+                    categoryId: true,
+                },
+            },
+        },
+    })
+    if (!tournament) {
+        throw new Error("Tournament not found")
+    }
+    if (!pairingSeedAllowed(tournament.championshipRound?.dayOrder)) {
+        throw new Error("Pairing seed is only for a tournament or championship day 1")
+    }
+    if (tournament.participants.length === 0) {
+        throw new Error("Add participants before seeding groups")
+    }
+
+    const assignments = seedRoundGroups(
+        tournament.participants,
+        tournament.groupSize,
+        tournament.endCount
+    )
+
+    await prismaOrThrow("seed tournament groups").$transaction(async (tx) => {
+        await tx.groupAssignment.deleteMany({ where: { tournamentId } })
+        await createGroupAssignments(tx, mapSeedAssignmentsToCreateRows(tournamentId, assignments))
+    })
+
+    revalidatePath(`/tournaments/${tournamentId}/groups`)
+    revalidatePath(`/tournaments/${tournamentId}/scores`, "page")
+    return assignments.length
 }

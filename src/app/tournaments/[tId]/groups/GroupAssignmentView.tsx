@@ -7,8 +7,10 @@ import { useState, useSyncExternalStore, useTransition } from "react"
 import { useGroupAssignment } from "../TournamentContext"
 import { useGroupsToolbar } from "../components/GroupsToolbar"
 import { TournamentGroupsData, cleanupGroups } from "../groupActions"
+import { pairingSeedAllowed } from "@/lib/roundGroupSeed"
 import GroupCard from "./GroupCard"
 import GroupWarningHeader from "./GroupWarningHeader"
+import SeedGroupsButton from "./SeedGroupsButton"
 import UnassignedParticipants from "./UnassignedParticipants"
 
 function subscribeNothing(onStoreChange: () => void) {
@@ -103,6 +105,16 @@ export default function GroupAssignmentView({ groupsData }: {
     const content = (
         <div className="w-full p-4 space-y-6">
             {toolbar}
+
+            {pairingSeedAllowed(groupsData.tournament.championshipRound?.dayOrder) ? (
+                <SeedGroupsButton
+                    tournamentId={groupsData.tournament.id}
+                    disabled={
+                        groupsData.unassignedParticipants.length === 0
+                        && groupsData.groups.every((group) => group.participants.length === 0)
+                    }
+                />
+            ) : null}
 
             {/* Warning Header */}
             <GroupWarningHeader
